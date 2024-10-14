@@ -14,6 +14,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import `in`.dimalip.coach_android.ui.theme.Coach_androidTheme
 
@@ -28,7 +29,7 @@ class MainActivity : ComponentActivity() {
             Coach_androidTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     AppList(
-                        apps = installedApps,
+                        appInfoList = installedApps,
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
@@ -36,19 +37,22 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun getInstalledApps(): List<ApplicationInfo> {
+    private fun getInstalledApps(): List<AppInfo> {
         val packageManager = packageManager
         return packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
             .filter { !it.flags.and(ApplicationInfo.FLAG_SYSTEM).equals(ApplicationInfo.FLAG_SYSTEM) }
-            .sortedBy { it.loadLabel(packageManager).toString().lowercase() }
+            .map { AppInfo(it.loadLabel(packageManager).toString(), it.packageName) }
+            .sortedBy { it.name.lowercase() }
     }
 }
 
+data class AppInfo(val name: String, val packageName: String)
+
 @Composable
-fun AppList(apps: List<ApplicationInfo>, modifier: Modifier = Modifier) {
+fun AppList(appInfoList: List<AppInfo>, modifier: Modifier = Modifier) {
     LazyColumn(modifier = modifier) {
-        items(apps) { app ->
-            Text(text = app.loadLabel(app.packageManager).toString())
+        items(appInfoList) { appInfo ->
+            Text(text = appInfo.name)
         }
     }
 }
@@ -57,6 +61,6 @@ fun AppList(apps: List<ApplicationInfo>, modifier: Modifier = Modifier) {
 @Composable
 fun AppListPreview() {
     Coach_androidTheme {
-        AppList(emptyList())
+        AppList(listOf(AppInfo("Sample App", "com.example.sampleapp")))
     }
 }
