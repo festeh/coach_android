@@ -39,6 +39,8 @@ class MainActivity : ComponentActivity() {
     private fun getInstalledApps(): List<ApplicationInfo> {
         val packageManager = packageManager
         return packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
+            .filter { !it.flags.and(ApplicationInfo.FLAG_SYSTEM).equals(ApplicationInfo.FLAG_SYSTEM) }
+            .sortedBy { it.loadLabel(packageManager).toString().lowercase() }
     }
 }
 
