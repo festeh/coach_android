@@ -67,7 +67,7 @@ class _AppsViewState extends State<AppsView> {
                       final app = _installedApps[index];
                       return ListTile(
                         title: Text(app.name),
-                        leading: const Icon(Icons.android),
+                        leading: const Icon(Icons.check_box_outline_blank),
                       );
                     },
                   ),
