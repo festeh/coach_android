@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'models/app_info.dart';
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key});
+class AppsView extends StatefulWidget {
+  const AppsView({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<AppsView> createState() => _AppsViewState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _AppsViewState extends State<AppsView> {
   static const platform = MethodChannel('com.example.coach_android/appCount');
   List<AppInfo> _installedApps = [];
   bool _isLoading = true;
