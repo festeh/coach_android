@@ -4,7 +4,7 @@
         tools:ignore="QueryAllPackagesPermission" />
         
     <application
-        android:label="App Counter"
+        android:label="Coach"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
