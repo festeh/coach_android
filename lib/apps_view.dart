@@ -12,6 +12,7 @@ class AppsView extends StatefulWidget {
 class _AppsViewState extends State<AppsView> {
   static const platform = MethodChannel('com.example.coach_android/appCount');
   List<AppInfo> _installedApps = [];
+  Set<String> _selectedApps = {};
   bool _isLoading = true;
 
   @override
@@ -67,7 +68,22 @@ class _AppsViewState extends State<AppsView> {
                       final app = _installedApps[index];
                       return ListTile(
                         title: Text(app.name),
-                        leading: const Icon(Icons.check_box_outline_blank),
+                        leading: IconButton(
+                          icon: Icon(
+                            _selectedApps.contains(app.name) 
+                                ? Icons.check_box 
+                                : Icons.check_box_outline_blank
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              if (_selectedApps.contains(app.name)) {
+                                _selectedApps.remove(app.name);
+                              } else {
+                                _selectedApps.add(app.name);
+                              }
+                            });
+                          },
+                        ),
                       );
                     },
                   ),
