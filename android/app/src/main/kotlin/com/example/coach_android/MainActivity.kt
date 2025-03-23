@@ -30,9 +30,15 @@ class MainActivity : FlutterActivity() {
         val pm = context.packageManager
         val packages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
         
-        return packages.map { appInfo ->
-            val appName = appInfo.loadLabel(pm).toString()
-            mapOf("name" to appName)
-        }.sortedBy { it["name"] as String }
+        return packages
+            .filter { appInfo -> 
+                // Filter for non-system apps (likely installed by user from Play Store)
+                (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) == 0
+            }
+            .map { appInfo ->
+                val appName = appInfo.loadLabel(pm).toString()
+                mapOf("name" to appName)
+            }
+            .sortedBy { it["name"] as String }
     }
 }
