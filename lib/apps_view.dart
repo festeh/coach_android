@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'models/app_info.dart';
 
 class AppsView extends StatefulWidget {
@@ -18,7 +19,20 @@ class _AppsViewState extends State<AppsView> {
   @override
   void initState() {
     super.initState();
+    _loadSelectedApps();
     _getInstalledApps();
+  }
+
+  Future<void> _loadSelectedApps() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _selectedApps = prefs.getStringList('selectedApps')?.toSet() ?? {};
+    });
+  }
+
+  Future<void> _saveSelectedApps() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('selectedApps', _selectedApps.toList());
   }
 
   Future<void> _getInstalledApps() async {
@@ -81,6 +95,7 @@ class _AppsViewState extends State<AppsView> {
                               } else {
                                 _selectedApps.add(app.name);
                               }
+                              _saveSelectedApps();
                             });
                           },
                         ),
