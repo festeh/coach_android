@@ -58,7 +58,7 @@ class _AppsViewState extends State<AppsView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Installed Apps'),
+        title: const Text('Apps'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: _isLoading
