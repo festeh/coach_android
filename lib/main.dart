@@ -1,6 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+class AppInfo {
+  final String name;
+  
+  AppInfo({required this.name});
+  
+  factory AppInfo.fromMap(Map<dynamic, dynamic> map) {
+    return AppInfo(
+      name: map['name'] as String,
+    );
+  }
+}
+
 void main() {
   runApp(const MyApp());
 }
@@ -28,28 +40,31 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   static const platform = MethodChannel('com.example.coach_android/appCount');
-  int _installedAppsCount = 0;
+  List<AppInfo> _installedApps = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _getInstalledAppsCount();
+    _getInstalledApps();
   }
 
-  Future<void> _getInstalledAppsCount() async {
+  Future<void> _getInstalledApps() async {
     try {
-      final int result = await platform.invokeMethod('getInstalledAppsCount');
+      final List<dynamic> result = await platform.invokeMethod('getInstalledApps');
       setState(() {
-        _installedAppsCount = result;
+        _installedApps = result
+            .cast<Map<dynamic, dynamic>>()
+            .map((map) => AppInfo.fromMap(map))
+            .toList();
         _isLoading = false;
       });
     } on PlatformException catch (e) {
       setState(() {
-        _installedAppsCount = -1;
+        _installedApps = [];
         _isLoading = false;
       });
-      debugPrint("Failed to get installed apps count: '${e.message}'.");
+      debugPrint("Failed to get installed apps: '${e.message}'.");
     }
   }
 
@@ -57,30 +72,37 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Installed Apps Counter'),
+        title: const Text('Installed Apps'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      body: Center(
-        child: _isLoading
-            ? const CircularProgressIndicator()
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  const Text(
-                    'Number of installed apps on your device:',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    _installedAppsCount >= 0
-                        ? '$_installedAppsCount'
-                        : 'Error retrieving count',
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    'Total Apps: ${_installedApps.length}',
                     style: const TextStyle(
-                        fontSize: 40, fontWeight: FontWeight.bold),
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ],
-              ),
-      ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: _installedApps.length,
+                    itemBuilder: (context, index) {
+                      final app = _installedApps[index];
+                      return ListTile(
+                        title: Text(app.name),
+                        leading: const Icon(Icons.android),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }

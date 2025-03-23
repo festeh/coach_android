@@ -12,10 +12,10 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
-            if (call.method == "getInstalledAppsCount") {
-                result.success(getInstalledAppsCount())
-            } else {
-                result.notImplemented()
+            when (call.method) {
+                "getInstalledAppsCount" -> result.success(getInstalledAppsCount())
+                "getInstalledApps" -> result.success(getInstalledApps())
+                else -> result.notImplemented()
             }
         }
     }
@@ -24,5 +24,15 @@ class MainActivity : FlutterActivity() {
         val pm = context.packageManager
         val packages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
         return packages.size
+    }
+    
+    private fun getInstalledApps(): List<Map<String, Any>> {
+        val pm = context.packageManager
+        val packages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+        
+        return packages.map { appInfo ->
+            val appName = appInfo.loadLabel(pm).toString()
+            mapOf("name" to appName)
+        }.sortedBy { it["name"] as String }
     }
 }
