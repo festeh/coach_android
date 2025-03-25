@@ -9,7 +9,7 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize notifications
   await initNotifications();
   await initBgService();
@@ -19,14 +19,12 @@ void main() async {
 Future<void> initNotifications() async {
   const AndroidInitializationSettings initializationSettingsAndroid =
       AndroidInitializationSettings('@mipmap/ic_launcher');
-  
+
   const InitializationSettings initializationSettings = InitializationSettings(
     android: initializationSettingsAndroid,
   );
-  
-  await flutterLocalNotificationsPlugin.initialize(
-    initializationSettings,
-  );
+
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 }
 
 Future<void> initBgService() async {
@@ -37,12 +35,13 @@ Future<void> initBgService() async {
     'coach_channel', // id
     'Coach Notifications', // name
     description: 'Notifications from Coach app', // description
-    importance: Importance.high,
+    importance: Importance.low,
   );
 
   await flutterLocalNotificationsPlugin
       .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>()
+        AndroidFlutterLocalNotificationsPlugin
+      >()
       ?.createNotificationChannel(channel);
 
   service.configure(
@@ -67,17 +66,12 @@ Future<bool> onStart(ServiceInstance service) async {
   // Show a persistent notification
   await showPersistentNotification();
 
-  Timer.periodic(const Duration(seconds: 1), (timer) async {
-    // This keeps the service alive
-    service.invoke('update', {
-      "current_date": DateTime.now().toIso8601String(),
-    });
-    print('Service is still running');
-  });
-
-  // Update notification every minute
   Timer.periodic(const Duration(minutes: 1), (timer) async {
     await showPersistentNotification();
+  });
+
+  Timer.periodic(const Duration(seconds: 5), (timer) async {
+    print('Service is running');
   });
 
   return true;
@@ -87,23 +81,24 @@ Future<bool> onStart(ServiceInstance service) async {
 Future<void> showPersistentNotification() async {
   final now = DateTime.now();
   final formattedTime = '${now.hour}:${now.minute.toString().padLeft(2, '0')}';
-  
+
   const AndroidNotificationDetails androidPlatformChannelSpecifics =
       AndroidNotificationDetails(
-    'coach_channel',
-    'Coach Notifications',
-    channelDescription: 'Notifications from Coach app',
-    importance: Importance.high,
-    priority: Priority.high,
-    ongoing: true,
-    autoCancel: false,
+        'coach_channel',
+        'Coach Notifications',
+        channelDescription: 'Notifications from Coach app',
+        importance: Importance.high,
+        priority: Priority.high,
+        ongoing: true,
+        autoCancel: false,
+      );
+
+  const NotificationDetails platformChannelSpecifics = NotificationDetails(
+    android: androidPlatformChannelSpecifics,
   );
-  
-  const NotificationDetails platformChannelSpecifics =
-      NotificationDetails(android: androidPlatformChannelSpecifics);
-  
+
   await flutterLocalNotificationsPlugin.show(
-    0, // Notification ID
+    42,
     'Coach is active',
     'Helping you focus since $formattedTime',
     platformChannelSpecifics,
