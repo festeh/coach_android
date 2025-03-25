@@ -14,17 +14,6 @@ void main() async {
   runApp(const MyApp());
 }
 
-Future<void> initNotifications() async {
-  const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
-
-  const InitializationSettings initializationSettings = InitializationSettings(
-    android: initializationSettingsAndroid,
-  );
-
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-}
-
 Future<void> initBgService() async {
   final service = FlutterBackgroundService();
 
@@ -34,13 +23,6 @@ Future<void> initBgService() async {
     'Coach Notifications', // name
     description: 'Notifications from Coach app', // description
     importance: Importance.high,
-  );
-
-  await flutterLocalNotificationsPlugin.initialize(
-    const InitializationSettings(
-      iOS: DarwinInitializationSettings(),
-      android: AndroidInitializationSettings('ic_bg_service_small'),
-    ),
   );
 
   await flutterLocalNotificationsPlugin
@@ -67,7 +49,7 @@ Future<void> initBgService() async {
 @pragma('vm:entry-point')
 Future<bool> onStart(ServiceInstance service) async {
   // Import required packages
-  DartPluginRegistrant.ensureInitialized();
+  // DartPluginRegistrant.ensureInitialized();
 
   if (service is AndroidServiceInstance) {
     service.on('setAsForeground').listen((event) {
