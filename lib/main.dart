@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:flutter_background_service_android/flutter_background_service_android.dart';
-import 'package:flutter_background_service_ios/flutter_background_service_ios.dart';
 import 'app.dart';
+import 'dart:async';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +19,7 @@ Future<void> initBgService() async {
       onStart: onStart,
       initialNotificationTitle: 'Coach',
       initialNotificationContent: 'Focus',
+      foregroundServiceTypes: [AndroidForegroundType.specialUse],
     ),
     iosConfiguration: IosConfiguration(autoStart: true),
   );
@@ -27,18 +27,15 @@ Future<void> initBgService() async {
 
 @pragma('vm:entry-point')
 Future<bool> onStart(ServiceInstance service) async {
-  if (service is AndroidServiceInstance) {
-    service.on('setAsForeground').listen((event) {
-      service.setAsForegroundService();
-    });
+  // Import required packages
+  // DartPluginRegistrant.ensureInitialized();
 
-    service.on('setAsBackground').listen((event) {
-      service.setAsBackgroundService();
+  Timer.periodic(const Duration(seconds: 1), (timer) async {
+    // This keeps the service alive
+    service.invoke('update', {
+      "current_date": DateTime.now().toIso8601String(),
     });
-  }
-
-  service.on('stopService').listen((event) {
-    service.stopSelf();
+    print('Service is still running');
   });
   return true;
 }

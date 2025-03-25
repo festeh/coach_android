@@ -7,6 +7,7 @@
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
         
     <application
         android:label="Coach"
@@ -36,7 +37,7 @@
         </activity>
         <service
             android:name="id.flutter.flutter_background_service.BackgroundService"
-            android:foregroundServiceType="dataSync"
+            android:foregroundServiceType="specialUse"
           >
         </service>
         <!-- Don't delete the meta-data below.
