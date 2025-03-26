@@ -3,7 +3,6 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'app.dart';
 import 'dart:async';
-import 'dart:ui';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -36,11 +35,7 @@ Future<void> initBgService() async {
       autoStart: true,
       isForegroundMode: true,
       onStart: onStart,
-      initialNotificationTitle: 'Coach',
-      initialNotificationContent: 'Focus',
       foregroundServiceTypes: [AndroidForegroundType.specialUse],
-      notificationChannelId: 'coach_channel',
-      foregroundServiceNotificationId: 888,
     ),
     iosConfiguration: IosConfiguration(autoStart: true),
   );
@@ -48,32 +43,33 @@ Future<void> initBgService() async {
 
 @pragma('vm:entry-point')
 Future<bool> onStart(ServiceInstance service) async {
-  // Import required packages
-  // DartPluginRegistrant.ensureInitialized();
-
-  if (service is AndroidServiceInstance) {
-    service.on('setAsForeground').listen((event) {
-      service.setAsForegroundService();
-    });
-
-    service.on('setAsBackground').listen((event) {
-      service.setAsBackgroundService();
-    });
-  }
-
   service.on('stopService').listen((event) {
+    print('stopService');
     service.stopSelf();
   });
 
+  final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+    'coach_channel',
+    'Coach Notifications',
+    importance: Importance.max,
+    priority: Priority.high,
+    ongoing: true,
+    onlyAlertOnce: true,
+  );
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
+  await flutterLocalNotificationsPlugin.show(
+    888,
+    'Coach',
+    'Time to Focus',
+    NotificationDetails(android: androidDetails),
+  );
+
+
   Timer.periodic(const Duration(seconds: 60), (timer) async {
     if (service is AndroidServiceInstance) {
-      service.setForegroundNotificationInfo(
-        title: "Coach",
-        content: "Time to focus",
-      );
+      // TODO
     }
   });
 
