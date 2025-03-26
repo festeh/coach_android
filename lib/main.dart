@@ -55,6 +55,7 @@ Future<bool> onStart(ServiceInstance service) async {
     priority: Priority.high,
     ongoing: true,
     onlyAlertOnce: true,
+    icon: 'ic_bg_service_small',
   );
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
@@ -66,10 +67,14 @@ Future<bool> onStart(ServiceInstance service) async {
     NotificationDetails(android: androidDetails),
   );
 
-
   Timer.periodic(const Duration(seconds: 60), (timer) async {
     if (service is AndroidServiceInstance) {
-      // TODO
+      await flutterLocalNotificationsPlugin.show(
+        888,
+        "Coach",
+        'Time to Focus',
+        NotificationDetails(android: androidDetails), // Reuse channel config
+      );
     }
   });
 
