@@ -2,8 +2,12 @@ import 'package:coach_android/config.dart'; // Import AppConfig
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'dart:async';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:web_socket_channel/io.dart'; // Import IOWebSocketChannel
-import 'package:web_socket_channel/web_socket_channel.dart'; // Import base WebSocketChannel
+import 'package:logging/logging.dart'; // Import logging package
+import 'package:web_socket_channel/io.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+
+// Logger instance for the background service
+final _log = Logger('BackgroundService');
 
 // Hold the WebSocket channel and subscription globally within the isolate's scope
 WebSocketChannel? _channel;
@@ -45,7 +49,7 @@ void _closeWebSocket() {
   _channel?.sink.close();
   _channel = null;
   _channelSubscription = null;
-  print('WebSocket connection closed.');
+  _log.info('WebSocket connection closed.');
 }
 
 Future<AndroidNotificationDetails> showNotification(
@@ -72,10 +76,19 @@ Future<AndroidNotificationDetails> showNotification(
 
 @pragma('vm:entry-point')
 Future<bool> onStart(ServiceInstance service) async {
+  // Setup logging listener for the background isolate
+  Logger.root.level = Level.ALL; // Log all levels
+  Logger.root.onRecord.listen((record) {
+    // Simple console output for background logs
+    // ignore: avoid_print
+    print('${record.level.name}: ${record.time}: ${record.loggerName}: ${record.message}');
+  });
+
+  _log.info("Background service starting...");
+
   // --- Service Stop Listener ---
-  // Ensure this is registered early to handle stop commands correctly.
   service.on('stopService').listen((event) {
-    print('Background Service: stopService event received.');
+    _log.info('stopService event received.');
     _closeWebSocket(); // Close WebSocket connection
     service.stopSelf(); // Stop the background service
   });
@@ -96,45 +109,40 @@ Future<bool> onStart(ServiceInstance service) async {
       );
     }
   });
+
   if (AppConfig.webSocketUrl.isEmpty) {
-    print(
-      'Background Service: WebSocket URL not available. Skipping connection.',
-    );
-    return false;
+    _log.warning('WebSocket URL not available. Skipping connection.');
+    return false; // Indicate service didn't fully start as expected
   }
 
-  print(
-    'Background Service: Connecting to WebSocket: ${AppConfig.webSocketUrl}',
-  );
+  _log.info('Connecting to WebSocket: ${AppConfig.webSocketUrl}');
   try {
     _channel = IOWebSocketChannel.connect(Uri.parse(AppConfig.webSocketUrl));
 
     _channelSubscription = _channel!.stream.listen(
       (message) {
-        // Handle incoming WebSocket messages
-        print('Background Service: WebSocket message received: $message');
+        _log.info('WebSocket message received: $message');
         // You might want to process the message or invoke methods on the UI thread
         // service.invoke('messageFromBackground', {'data': message});
       },
       onError: (error) {
-        print('Background Service: WebSocket error: $error');
-        // Handle errors, maybe attempt to reconnect after a delay
+        _log.severe('WebSocket error: $error');
         _closeWebSocket(); // Close on error for now
         // TODO: Implement reconnection logic if needed
       },
       onDone: () {
-        print('Background Service: WebSocket connection closed by server.');
+        _log.info('WebSocket connection closed by server.');
         _closeWebSocket();
         // TODO: Implement reconnection logic if needed
       },
-      cancelOnError: true, // Close subscription on error
+      cancelOnError: true,
     );
 
-    print('Background Service: WebSocket connection established.');
+    _log.info('WebSocket connection established.');
     // Optionally send an initial message or identifier
     // _channel?.sink.add('Hello from background service!');
   } catch (e) {
-    print('Background Service: Failed to connect to WebSocket: $e');
+    _log.severe('Failed to connect to WebSocket: $e');
     // Handle connection failure
   }
 
