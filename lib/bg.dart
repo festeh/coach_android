@@ -48,19 +48,9 @@ void _closeWebSocket() {
   print('WebSocket connection closed.');
 }
 
-@pragma('vm:entry-point')
-Future<bool> onStart(ServiceInstance service) async {
-  // --- Service Stop Listener ---
-  // Ensure this is registered early to handle stop commands correctly.
-  service.on('stopService').listen((event) {
-    print('Background Service: stopService event received.');
-    _closeWebSocket(); // Close WebSocket connection
-    service.stopSelf(); // Stop the background service
-  });
-
-  // --- Notification Setup (Existing Code) ---
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
+Future<AndroidNotificationDetails> showNotification(
+  FlutterLocalNotificationsPlugin notificationsPlugin,
+) async {
   final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
     'coach_channel',
     'Coach Notifications',
@@ -70,18 +60,35 @@ Future<bool> onStart(ServiceInstance service) async {
     onlyAlertOnce: true,
     icon: 'ic_bg_service_small',
   );
-  // Removed duplicate declaration of flutterLocalNotificationsPlugin here
 
-  await flutterLocalNotificationsPlugin.show(
+  await notificationsPlugin.show(
     888,
     'Coach',
     'Time to Focus',
     NotificationDetails(android: androidDetails),
   );
+  return androidDetails;
+}
+
+@pragma('vm:entry-point')
+Future<bool> onStart(ServiceInstance service) async {
+  // --- Service Stop Listener ---
+  // Ensure this is registered early to handle stop commands correctly.
+  service.on('stopService').listen((event) {
+    print('Background Service: stopService event received.');
+    _closeWebSocket(); // Close WebSocket connection
+    service.stopSelf(); // Stop the background service
+  });
+  final FlutterLocalNotificationsPlugin notificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  final AndroidNotificationDetails androidDetails = await showNotification(
+    notificationsPlugin,
+  );
 
   Timer.periodic(const Duration(seconds: 60), (timer) async {
     if (service is AndroidServiceInstance) {
-      await flutterLocalNotificationsPlugin.show(
+      await notificationsPlugin.show(
         888,
         "Coach",
         'Time to Focus',
@@ -89,46 +96,46 @@ Future<bool> onStart(ServiceInstance service) async {
       );
     }
   });
+  if (AppConfig.webSocketUrl.isEmpty) {
+    print(
+      'Background Service: WebSocket URL not available. Skipping connection.',
+    );
+    return false;
+  }
 
-  // --- WebSocket Connection ---
-  if (AppConfig.isWebSocketUrlAvailable) {
-    print('Background Service: Connecting to WebSocket: ${AppConfig.webSocketUrl}');
-    try {
-      _channel = IOWebSocketChannel.connect(Uri.parse(AppConfig.webSocketUrl));
+  print(
+    'Background Service: Connecting to WebSocket: ${AppConfig.webSocketUrl}',
+  );
+  try {
+    _channel = IOWebSocketChannel.connect(Uri.parse(AppConfig.webSocketUrl));
 
-      _channelSubscription = _channel!.stream.listen(
-        (message) {
-          // Handle incoming WebSocket messages
-          print('Background Service: WebSocket message received: $message');
-          // You might want to process the message or invoke methods on the UI thread
-          // service.invoke('messageFromBackground', {'data': message});
-        },
-        onError: (error) {
-          print('Background Service: WebSocket error: $error');
-          // Handle errors, maybe attempt to reconnect after a delay
-          _closeWebSocket(); // Close on error for now
-          // TODO: Implement reconnection logic if needed
-        },
-        onDone: () {
-          print('Background Service: WebSocket connection closed by server.');
-          _closeWebSocket();
-          // TODO: Implement reconnection logic if needed
-        },
-        cancelOnError: true, // Close subscription on error
-      );
+    _channelSubscription = _channel!.stream.listen(
+      (message) {
+        // Handle incoming WebSocket messages
+        print('Background Service: WebSocket message received: $message');
+        // You might want to process the message or invoke methods on the UI thread
+        // service.invoke('messageFromBackground', {'data': message});
+      },
+      onError: (error) {
+        print('Background Service: WebSocket error: $error');
+        // Handle errors, maybe attempt to reconnect after a delay
+        _closeWebSocket(); // Close on error for now
+        // TODO: Implement reconnection logic if needed
+      },
+      onDone: () {
+        print('Background Service: WebSocket connection closed by server.');
+        _closeWebSocket();
+        // TODO: Implement reconnection logic if needed
+      },
+      cancelOnError: true, // Close subscription on error
+    );
 
-      print('Background Service: WebSocket connection established.');
-      // Optionally send an initial message or identifier
-      // _channel?.sink.add('Hello from background service!');
-
-    } catch (e) {
-      print('Background Service: Failed to connect to WebSocket: $e');
-      // Handle connection failure
-    }
-  } else {
-    print('Background Service: WebSocket URL not available. Skipping connection.');
-    // Handle the case where the URL is missing - maybe stop the service?
-    // service.stopSelf(); // Uncomment if the service should stop without a URL
+    print('Background Service: WebSocket connection established.');
+    // Optionally send an initial message or identifier
+    // _channel?.sink.add('Hello from background service!');
+  } catch (e) {
+    print('Background Service: Failed to connect to WebSocket: $e');
+    // Handle connection failure
   }
 
   return true; // Indicate that the service started successfully
