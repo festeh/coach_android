@@ -1,4 +1,4 @@
-load ".env"
+set dotenv-load
 
 default: run
 
@@ -10,4 +10,9 @@ run:
         exit 1
     fi
     echo "Running app with WEBSOCKET_URL=${WEBSOCKET_URL}"
-    flutter run --dart-define=WEBSOCKET_URL="{{WEBSOCKET_URL}}"
+    if ! command -v flutter &>/dev/null; then
+        fvm flutter run --dart-define=WEBSOCKET_URL="${WEBSOCKET_URL}"
+        exit 1
+    else
+        flutter run --dart-define=WEBSOCKET_URL="${WEBSOCKET_URL}"
+    fi

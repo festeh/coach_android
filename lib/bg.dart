@@ -62,7 +62,6 @@ void _connectWebSocket(
   FlutterLocalNotificationsPlugin notificationsPlugin,
   AndroidNotificationDetails androidDetails,
 ) {
-  // Don't attempt if already connected or a reconnection is scheduled
   if (_channel != null || _reconnectTimer != null) {
     _log.fine(
       'Skipping connection attempt (already connected or reconnect scheduled).',
@@ -76,61 +75,39 @@ void _connectWebSocket(
   }
 
   _log.info('Attempting to connect to WebSocket: ${AppConfig.webSocketUrl}');
-  try {
-    _channel = IOWebSocketChannel.connect(Uri.parse(AppConfig.webSocketUrl));
-    _log.info('WebSocket connection established.');
+  _channel = IOWebSocketChannel.connect(Uri.parse(AppConfig.webSocketUrl));
+  _log.info('WebSocket connection established.');
 
-    _channelSubscription = _channel!.stream.listen(
-      (message) {
-        _log.info('WebSocket message received: $message');
-        // Update the notification with the received message
-        notificationsPlugin.show(
-          888, // Same notification ID
-          'Coach', // Title
-          message.toString(), // Body is the received message
-          NotificationDetails(android: androidDetails), // Use existing details
-        );
-      },
-      onError: (error) {
-        _log.severe('WebSocket error: $error');
-        // Update notification to show error state? (Optional)
-        notificationsPlugin.show(
-          888,
-          'Coach',
-          'Connection Error', // Indicate error in notification
-          NotificationDetails(android: androidDetails),
-        );
-        _closeWebSocket();
-        _scheduleReconnect();
-      },
-      onDone: () {
-        _log.info('WebSocket connection closed by server.');
-        // Update notification to show disconnected state? (Optional)
-        notificationsPlugin.show(
-          888,
-          'Coach',
-          'Disconnected', // Indicate disconnected state
-          NotificationDetails(android: androidDetails),
-        );
-        _closeWebSocket();
-        _scheduleReconnect(notificationsPlugin, androidDetails); // Pass args
-      },
-      cancelOnError: true, // Keep true to ensure cleanup on error
-    );
+  _channelSubscription = _channel!.stream.listen(
+    (message) {
+      _log.info('WebSocket message received: $message');
+      notificationsPlugin.show(
+        888, // Same notification ID
+        'Coach', // Title
+        message.toString(), // Body is the received message
+        NotificationDetails(android: androidDetails), // Use existing details
+      );
+    },
+    onError: (error) {
+      _log.severe('WebSocket error: $error');
+      // Update notification to show error state? (Optional)
+      notificationsPlugin.show(
+        888,
+        'Coach',
+        'Connection Error', // Indicate error in notification
+        NotificationDetails(android: androidDetails),
+      );
+      _closeWebSocket();
+      _scheduleReconnect(notificationsPlugin, androidDetails);
+    },
+    onDone: () {
+      _log.info('WebSocket connection closed by server.');
+      _scheduleReconnect(notificationsPlugin, androidDetails); // Pass args
+    },
+    cancelOnError: true, // Keep true to ensure cleanup on error
+  );
+}
 
-    // Optionally send an initial message or identifier
-    // _channel?.sink.add('Hello from background service!');
-  } catch (e) {
-    _log.severe('Failed to connect to WebSocket: $e');
-    notificationsPlugin.show(
-      888,
-      'Coach',
-      'Connection Failed', // Indicate failure
-      NotificationDetails(android: androidDetails),
-    );
-    _closeWebSocket(); // Ensure cleanup
-    _scheduleReconnect(notificationsPlugin, androidDetails); // Pass args
-  }
 // Schedules a single reconnection attempt after a delay
 void _scheduleReconnect(
   FlutterLocalNotificationsPlugin notificationsPlugin,
@@ -141,11 +118,11 @@ void _scheduleReconnect(
     return; // Already scheduled
   }
   const reconnectDelay = Duration(seconds: 5);
+  _log.info(
     'Scheduling WebSocket reconnection in ${reconnectDelay.inSeconds} seconds.',
   );
   _reconnectTimer = Timer(reconnectDelay, () {
     _reconnectTimer = null; // Clear the timer
-    // Attempt to reconnect, passing the notification objects again
     _connectWebSocket(notificationsPlugin, androidDetails);
   });
 }
@@ -200,12 +177,7 @@ Future<bool> onStart(ServiceInstance service) async {
 
   Timer.periodic(const Duration(seconds: 60), (timer) async {
     if (service is AndroidServiceInstance) {
-      await notificationsPlugin.show(
-        888,
-        "Coach",
-        'Time to Focus',
-        NotificationDetails(android: androidDetails), // Reuse channel config
-      );
+      _log.info('Background service is still running.');
     }
   });
 

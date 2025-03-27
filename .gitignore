@@ -50,3 +50,4 @@ app.*.map.json
 
 # Justfile (optional, commit if it's generic)
 # justfile
+.env
