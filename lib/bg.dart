@@ -12,6 +12,7 @@ final _log = Logger('BackgroundService');
 // Hold the WebSocket channel and subscription globally within the isolate's scope
 WebSocketChannel? _channel;
 StreamSubscription? _channelSubscription;
+Timer? _reconnectTimer; // Timer for delayed reconnection
 
 Future<void> initBgService() async {
   final service = FlutterBackgroundService();
@@ -47,10 +48,77 @@ Future<void> initBgService() async {
 void _closeWebSocket() {
   _channelSubscription?.cancel();
   _channel?.sink.close();
-  _channel = null;
+  _reconnectTimer?.cancel(); // Cancel any pending reconnection attempt
+  _reconnectTimer = null;
+  _channelSubscription?.cancel();
   _channelSubscription = null;
+  _channel?.sink.close();
+  _channel = null;
   _log.info('WebSocket connection closed.');
 }
+
+// Function to attempt WebSocket connection
+void _connectWebSocket() {
+  // Don't attempt if already connected or a reconnection is scheduled
+  if (_channel != null || _reconnectTimer != null) {
+    _log.fine('Skipping connection attempt (already connected or reconnect scheduled).');
+    return;
+  }
+
+  if (AppConfig.webSocketUrl.isEmpty) {
+    _log.warning('WebSocket URL not available. Cannot connect.');
+    return;
+  }
+
+  _log.info('Attempting to connect to WebSocket: ${AppConfig.webSocketUrl}');
+  try {
+    _channel = IOWebSocketChannel.connect(Uri.parse(AppConfig.webSocketUrl));
+    _log.info('WebSocket connection established.');
+
+    _channelSubscription = _channel!.stream.listen(
+      (message) {
+        _log.info('WebSocket message received: $message');
+        // Process message
+      },
+      onError: (error) {
+        _log.severe('WebSocket error: $error');
+        _closeWebSocket();
+        // Schedule reconnection attempt after a delay
+        _scheduleReconnect();
+      },
+      onDone: () {
+        _log.info('WebSocket connection closed by server.');
+        _closeWebSocket();
+        // Schedule reconnection attempt after a delay
+        _scheduleReconnect();
+      },
+      cancelOnError: true,
+    );
+
+    // Optionally send an initial message or identifier
+    // _channel?.sink.add('Hello from background service!');
+
+  } catch (e) {
+    _log.severe('Failed to connect to WebSocket: $e');
+    _closeWebSocket(); // Ensure cleanup even if initial connection fails
+    _scheduleReconnect(); // Schedule reconnection attempt
+  }
+}
+
+// Schedules a single reconnection attempt after a delay
+void _scheduleReconnect() {
+  if (_reconnectTimer != null) {
+    _log.fine('Reconnection already scheduled.');
+    return; // Already scheduled
+  }
+  const reconnectDelay = Duration(seconds: 5);
+  _log.info('Scheduling WebSocket reconnection in ${reconnectDelay.inSeconds} seconds.');
+  _reconnectTimer = Timer(reconnectDelay, () {
+    _reconnectTimer = null; // Clear the timer before attempting connection
+    _connectWebSocket();
+  });
+}
+
 
 Future<AndroidNotificationDetails> showNotification(
   FlutterLocalNotificationsPlugin notificationsPlugin,
@@ -109,41 +177,8 @@ Future<bool> onStart(ServiceInstance service) async {
     }
   });
 
-  if (AppConfig.webSocketUrl.isEmpty) {
-    _log.warning('WebSocket URL not available. Skipping connection.');
-    return false; // Indicate service didn't fully start as expected
-  }
-
-  _log.info('Connecting to WebSocket: ${AppConfig.webSocketUrl}');
-  try {
-    _channel = IOWebSocketChannel.connect(Uri.parse(AppConfig.webSocketUrl));
-
-    _channelSubscription = _channel!.stream.listen(
-      (message) {
-        _log.info('WebSocket message received: $message');
-        // You might want to process the message or invoke methods on the UI thread
-        // service.invoke('messageFromBackground', {'data': message});
-      },
-      onError: (error) {
-        _log.severe('WebSocket error: $error');
-        _closeWebSocket(); // Close on error for now
-        // TODO: Implement reconnection logic if needed
-      },
-      onDone: () {
-        _log.info('WebSocket connection closed by server.');
-        _closeWebSocket();
-        // TODO: Implement reconnection logic if needed
-      },
-      cancelOnError: true,
-    );
-
-    _log.info('WebSocket connection established.');
-    // Optionally send an initial message or identifier
-    // _channel?.sink.add('Hello from background service!');
-  } catch (e) {
-    _log.severe('Failed to connect to WebSocket: $e');
-    // Handle connection failure
-  }
+  // Initial WebSocket connection attempt
+  _connectWebSocket();
 
   return true; // Indicate that the service started successfully
 }
