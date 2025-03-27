@@ -57,11 +57,11 @@ void _closeWebSocket() {
   _log.info('WebSocket connection closed.');
 }
 
-// Function to attempt WebSocket connection
 void _connectWebSocket() {
-  // Don't attempt if already connected or a reconnection is scheduled
   if (_channel != null || _reconnectTimer != null) {
-    _log.fine('Skipping connection attempt (already connected or reconnect scheduled).');
+    _log.fine(
+      'Skipping connection attempt (already connected or reconnect scheduled).',
+    );
     return;
   }
 
@@ -78,12 +78,10 @@ void _connectWebSocket() {
     _channelSubscription = _channel!.stream.listen(
       (message) {
         _log.info('WebSocket message received: $message');
-        // Process message
       },
       onError: (error) {
         _log.severe('WebSocket error: $error');
         _closeWebSocket();
-        // Schedule reconnection attempt after a delay
         _scheduleReconnect();
       },
       onDone: () {
@@ -97,7 +95,6 @@ void _connectWebSocket() {
 
     // Optionally send an initial message or identifier
     // _channel?.sink.add('Hello from background service!');
-
   } catch (e) {
     _log.severe('Failed to connect to WebSocket: $e');
     _closeWebSocket(); // Ensure cleanup even if initial connection fails
@@ -112,13 +109,14 @@ void _scheduleReconnect() {
     return; // Already scheduled
   }
   const reconnectDelay = Duration(seconds: 5);
-  _log.info('Scheduling WebSocket reconnection in ${reconnectDelay.inSeconds} seconds.');
+  _log.info(
+    'Scheduling WebSocket reconnection in ${reconnectDelay.inSeconds} seconds.',
+  );
   _reconnectTimer = Timer(reconnectDelay, () {
     _reconnectTimer = null; // Clear the timer before attempting connection
     _connectWebSocket();
   });
 }
-
 
 Future<AndroidNotificationDetails> showNotification(
   FlutterLocalNotificationsPlugin notificationsPlugin,
@@ -149,7 +147,9 @@ Future<bool> onStart(ServiceInstance service) async {
   Logger.root.onRecord.listen((record) {
     // Simple console output for background logs
     // ignore: avoid_print
-    print('${record.level.name}: ${record.time}: ${record.loggerName}: ${record.message}');
+    print(
+      '${record.level.name}: ${record.time}: ${record.loggerName}: ${record.message}',
+    );
   });
 
   _log.info("Background service starting...");
@@ -177,7 +177,6 @@ Future<bool> onStart(ServiceInstance service) async {
     }
   });
 
-  // Initial WebSocket connection attempt
   _connectWebSocket();
 
   return true; // Indicate that the service started successfully
