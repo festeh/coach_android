@@ -86,7 +86,6 @@ Future<bool> onStart(ServiceInstance service) async {
 
   _log.info("Background service starting...");
 
-  // --- Service Stop Listener ---
   service.on('stopService').listen((event) {
     _log.info('stopService event received.');
     _closeWebSocket(); // Close WebSocket connection
