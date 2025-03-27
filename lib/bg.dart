@@ -52,6 +52,14 @@ void _closeWebSocket() {
 
 @pragma('vm:entry-point')
 Future<bool> onStart(ServiceInstance service) async {
+  // --- Service Stop Listener ---
+  // Ensure this is registered early to handle stop commands correctly.
+  service.on('stopService').listen((event) {
+    print('Background Service: stopService event received.');
+    _closeWebSocket(); // Close WebSocket connection
+    service.stopSelf(); // Stop the background service
+  });
+
   // --- Notification Setup (Existing Code) ---
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
@@ -64,8 +72,7 @@ Future<bool> onStart(ServiceInstance service) async {
     onlyAlertOnce: true,
     icon: 'ic_bg_service_small',
   );
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
+  // Removed duplicate declaration of flutterLocalNotificationsPlugin here
 
   await flutterLocalNotificationsPlugin.show(
     888,
