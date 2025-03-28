@@ -1,9 +1,13 @@
-
+import 'package:logging/logging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+final _log = Logger('AppState');
+
 class AppState {
-  static final ValueNotifier<bool> focusingNotifier = ValueNotifier<bool>(false);
+  static final ValueNotifier<bool> focusingNotifier = ValueNotifier<bool>(
+    false,
+  );
 
   static const _selectedAppsKey = 'selectedApps';
   static const _focusingKey = 'focusingState';
@@ -29,5 +33,6 @@ class AppState {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_focusingKey, isFocusing);
     focusingNotifier.value = isFocusing;
+    _log.info('Saved focusing state: $isFocusing');
   }
 }
