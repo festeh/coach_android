@@ -35,10 +35,21 @@ class MainActivity : FlutterActivity() {
                 // Filter for non-system apps (likely installed by user from Play Store)
                 (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) == 0
             }
-            .map { appInfo ->
-                val appName = appInfo.loadLabel(pm).toString()
-                mapOf("name" to appName)
+            .mapNotNull { appInfo ->
+                try {
+                    val appName = appInfo.loadLabel(pm).toString()
+                    val packageName = appInfo.packageName
+                    // Ensure we have both name and package name
+                    if (appName.isNotEmpty() && packageName.isNotEmpty()) {
+                         mapOf("name" to appName, "packageName" to packageName)
+                    } else {
+                        null // Skip if essential info is missing
+                    }
+                } catch (e: Exception) {
+                    // Log error or handle specific exceptions if needed
+                    null // Skip on error loading app info
+                }
             }
-            .sortedBy { it["name"] as String }
+            .sortedBy { it["name"] as String } // Sort by app name
     }
 }

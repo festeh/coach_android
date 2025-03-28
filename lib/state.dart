@@ -9,17 +9,21 @@ class AppState {
     false,
   );
 
-  static const _selectedAppsKey = 'selectedApps';
+  // Store selected package names now
+  static const _selectedAppPackagesKey = 'selectedAppPackages';
   static const _focusingKey = 'focusingState';
 
-  static Future<Set<String>> loadSelectedApps() async {
+  // Returns a set of selected package names
+  static Future<Set<String>> loadSelectedAppPackages() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getStringList(_selectedAppsKey)?.toSet() ?? {};
+    return prefs.getStringList(_selectedAppPackagesKey)?.toSet() ?? {};
   }
 
   static Future<void> saveSelectedApps(Set<String> selectedApps) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_selectedAppsKey, selectedApps.toList());
+    // Save selected package names
+    await prefs.setStringList(_selectedAppPackagesKey, selectedApps.toList());
+    _log.info('Saved selected app packages: ${selectedApps.length}');
   }
 
   static Future<bool> loadFocusingState() async {

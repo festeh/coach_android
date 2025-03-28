@@ -1,3 +1,4 @@
+import 'package:coach_android/persistent_log.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'models/app_info.dart';
@@ -16,7 +17,8 @@ class AppsView extends StatefulWidget {
 class _AppsViewState extends State<AppsView> {
   static const platform = MethodChannel('com.example.coach_android/appCount');
   List<AppInfo> _installedApps = [];
-  Set<String> _selectedApps = {};
+  // Store selected package names
+  Set<String> _selectedAppPackages = {};
   bool _isLoading = true;
 
   @override
@@ -26,16 +28,16 @@ class _AppsViewState extends State<AppsView> {
   }
 
   Future<void> _loadInitialData() async {
-    // Load both selected apps and focusing state concurrently
+    // Load selected package names and focusing state concurrently
     final results = await Future.wait([
-      AppState.loadSelectedApps(),
+      AppState.loadSelectedAppPackages(), // Load package names
       AppState.loadFocusingState(), // Load focusing state here
     ]);
-    final selectedApps = results[0] as Set<String>;
+    final selectedAppPackages = results[0] as Set<String>;
     // focusing state is loaded into the notifier by loadFocusingState
 
     setState(() {
-      _selectedApps = selectedApps;
+      _selectedAppPackages = selectedAppPackages;
     });
     await _getInstalledApps();
   }
@@ -79,15 +81,23 @@ class _AppsViewState extends State<AppsView> {
                   return _AppsListContent(
                     isFocusing: isFocusing,
                     installedApps: _installedApps,
-                    selectedApps: _selectedApps,
-                    onAppSelected: (appName, isSelected) {
+                    // Pass selected package names
+                    selectedAppPackages: _selectedAppPackages,
+                    onAppSelected: (packageName, isSelected) {
                       setState(() {
                         if (isSelected) {
-                          _selectedApps.add(appName);
+                          _selectedAppPackages.add(packageName);
+                          PersistentLog.addLog(
+                            'Selected app package: $packageName',
+                          );
                         } else {
-                          _selectedApps.remove(appName);
+                          _selectedAppPackages.remove(packageName);
+                           PersistentLog.addLog(
+                            'Deselected app package: $packageName',
+                          );
                         }
-                        AppState.saveSelectedApps(_selectedApps);
+                        // Save the updated set of package names
+                        AppState.saveSelectedApps(_selectedAppPackages);
                       });
                     },
                   );
@@ -100,13 +110,15 @@ class _AppsViewState extends State<AppsView> {
 class _AppsListContent extends StatelessWidget {
   final bool isFocusing;
   final List<AppInfo> installedApps;
-  final Set<String> selectedApps;
-  final Function(String appName, bool isSelected) onAppSelected;
+  // Expect selected package names
+  final Set<String> selectedAppPackages;
+  // Callback provides package name
+  final Function(String packageName, bool isSelected) onAppSelected;
 
   const _AppsListContent({
     required this.isFocusing,
     required this.installedApps,
-    required this.selectedApps,
+    required this.selectedAppPackages,
     required this.onAppSelected,
   });
 
@@ -154,13 +166,17 @@ class _AppsListContent extends StatelessWidget {
                 title: Text(app.name),
                 leading: IconButton(
                   icon: Icon(
-                    selectedApps.contains(app.name)
+                    // Check using package name
+                    selectedAppPackages.contains(app.packageName)
                         ? Icons.check_box
                         : Icons.check_box_outline_blank,
                   ),
                   onPressed: () {
-                    final currentlySelected = selectedApps.contains(app.name);
-                    onAppSelected(app.name, !currentlySelected);
+                    // Check using package name
+                    final currentlySelected =
+                        selectedAppPackages.contains(app.packageName);
+                    // Pass package name to callback
+                    onAppSelected(app.packageName, !currentlySelected);
                   },
                 ),
               );

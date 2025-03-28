@@ -1,11 +1,22 @@
+import 'package:coach_android/app_monitor.dart';
+import 'package:coach_android/persistent_log.dart';
 import 'package:coach_android/websocket.dart';
 
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:logging/logging.dart';
 
 final _log = Logger('BackgroundService');
+
+// Ensure Dart isolate entry point is available
+@pragma('vm:entry-point')
+void backgroundCallbackDispatcher() {
+  // This function needs to exist but might remain empty or used for specific background tasks
+  // unrelated to the main service logic if `onStart` handles everything.
+  // Or, it could be the entry point for certain callbacks if configured differently.
+}
 
 const int notificationId = 888;
 
@@ -64,22 +75,34 @@ Future<AndroidNotificationDetails> showNotification(
 
 @pragma('vm:entry-point')
 Future<bool> onStart(ServiceInstance service) async {
+  // IMPORTANT: Register the Dart isolate entry point for background execution
+  DartPluginRegistrant.ensureInitialized();
+
   // Setup logging listener for the background isolate
   Logger.root.level = Level.ALL; // Log all levels
   Logger.root.onRecord.listen((record) {
-    // Simple console output for background logs
+    // Log to persistent storage as well
+    PersistentLog.addLog(
+      'BG L:${record.level.name} T:${record.time} N:${record.loggerName} M:${record.message}',
+    );
+    // Keep console print for debugging if attached
     // ignore: avoid_print
     print(
-      '${record.level.name}: ${record.time}: ${record.loggerName}: ${record.message}',
+      'BG ${record.level.name}: ${record.time}: ${record.loggerName}: ${record.message}',
     );
   });
 
   _log.info("Background service starting...");
+  await PersistentLog.addLog("Background service starting...");
 
-  service.on('stopService').listen((event) {
+  service.on('stopService').listen((event) async {
     _log.info('stopService event received.');
+    await PersistentLog.addLog('stopService event received.');
     closeWebSocket(); // Close WebSocket connection
+    stopAppMonitoring(); // Stop app monitoring
     service.stopSelf(); // Stop the background service
+    _log.info('Background service stopped.');
+    await PersistentLog.addLog('Background service stopped.');
   });
   final FlutterLocalNotificationsPlugin notificationsPlugin =
       FlutterLocalNotificationsPlugin();
@@ -94,7 +117,12 @@ Future<bool> onStart(ServiceInstance service) async {
     }
   });
 
+  // Start app monitoring
+  await startAppMonitoring();
+
   connectWebSocket(notificationsPlugin, androidDetails, notificationId);
 
+  _log.info("Background service started successfully.");
+  await PersistentLog.addLog("Background service started successfully.");
   return true; // Indicate that the service started successfully
 }
