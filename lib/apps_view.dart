@@ -26,7 +26,14 @@ class _AppsViewState extends State<AppsView> {
   }
 
   Future<void> _loadInitialData() async {
-    final selectedApps = await AppState.loadSelectedApps();
+    // Load both selected apps and focusing state concurrently
+    final results = await Future.wait([
+      AppState.loadSelectedApps(),
+      AppState.loadFocusingState(), // Load focusing state here
+    ]);
+    final selectedApps = results[0] as Set<String>;
+    // focusing state is loaded into the notifier by loadFocusingState
+
     setState(() {
       _selectedApps = selectedApps;
     });
