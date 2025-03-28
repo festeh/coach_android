@@ -36,17 +36,19 @@ void connectWebSocket(
   _log.info('WebSocket connection established.');
 
   _channelSubscription = _channel!.stream.listen(
-    (message) async { // Add async keyword here
+    (message) async {
+      // Add async keyword here
       _log.fine('Raw WebSocket message received: $message');
       try {
         final data = jsonDecode(message as String) as Map<String, dynamic>;
         _log.info('Parsed WebSocket message: $data');
 
         final focusing = data['focusing'] as bool? ?? false;
-        await AppState.saveFocusingState(focusing); 
+        await AppState.saveFocusingState(focusing);
 
         final numFocuses = data['num_focuses'] as int? ?? 0;
-        final timeLeft = (data['focus_time_left'] as int? ?? 0) / 60;
+        final timeLeft = ((data['focus_time_left'] as int? ?? 0) / 60)
+            .toStringAsFixed(1);
         final notificationMessage =
             'Focusing: $focusing. Time left: $timeLeft. Focuses: [$numFocuses]';
 
