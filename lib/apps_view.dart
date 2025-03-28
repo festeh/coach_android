@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'models/app_info.dart';
+import 'state.dart'; // Import the new state file
 
 class AppsView extends StatefulWidget {
   const AppsView({super.key});
@@ -19,21 +19,18 @@ class _AppsViewState extends State<AppsView> {
   @override
   void initState() {
     super.initState();
-    _loadSelectedApps();
-    _getInstalledApps();
+    _loadInitialData();
   }
 
-  Future<void> _loadSelectedApps() async {
-    final prefs = await SharedPreferences.getInstance();
+  Future<void> _loadInitialData() async {
+    final selectedApps = await AppState.loadSelectedApps();
     setState(() {
-      _selectedApps = prefs.getStringList('selectedApps')?.toSet() ?? {};
+      _selectedApps = selectedApps;
     });
+    await _getInstalledApps(); // Keep fetching apps after loading selection
   }
 
-  Future<void> _saveSelectedApps() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('selectedApps', _selectedApps.toList());
-  }
+  // Removed _loadSelectedApps and _saveSelectedApps methods
 
   Future<void> _getInstalledApps() async {
     try {
@@ -95,7 +92,7 @@ class _AppsViewState extends State<AppsView> {
                               } else {
                                 _selectedApps.add(app.name);
                               }
-                              _saveSelectedApps();
+                              AppState.saveSelectedApps(_selectedApps); // Use static method
                             });
                           },
                         ),
