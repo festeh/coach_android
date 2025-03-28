@@ -1,4 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:logging/logging.dart';
+
+final _log = Logger('PersistentLog');
 
 class PersistentLog {
   static const _maxLogs = 20;
@@ -20,7 +23,7 @@ class PersistentLog {
 
       await prefs.setStringList(_prefsKey, logs);
     } catch (e) {
-      print('Error saving log to SharedPreferences: $e');
+      _log.warning('Error saving log to SharedPreferences: $e');
     }
   }
 
@@ -29,8 +32,7 @@ class PersistentLog {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getStringList(_prefsKey) ?? [];
     } catch (e) {
-      // ignore: avoid_print
-      print('Error retrieving logs from SharedPreferences: $e');
+      _log.warning('Error retrieving logs from SharedPreferences: $e');
       return []; // Return empty list on error
     }
   }
@@ -40,8 +42,7 @@ class PersistentLog {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_prefsKey);
     } catch (e) {
-      // ignore: avoid_print
-      print('Error clearing logs from SharedPreferences: $e');
+      _log.warning('Error clearing logs from SharedPreferences: $e');
     }
   }
 }
