@@ -19,19 +19,12 @@ Set<String> _monitoredPackages = {};
 // Function to initialize monitoring
 Future<void> startAppMonitoring() async {
   _log.info('Initializing app monitoring...');
-  await PersistentLog.addLog('Initializing app monitoring...');
 
-  // Load the selected apps (package names)
   _monitoredPackages = await AppState.loadSelectedAppPackages();
   _log.info('Monitoring for apps: ${_monitoredPackages.join(', ')}');
-  await PersistentLog.addLog(
-    'Monitoring for apps: ${_monitoredPackages.join(', ')}',
-  );
 
-  // Cancel any existing subscription before starting a new one
   await _foregroundAppSubscription?.cancel();
 
-  // Listen to the stream from the native side
   _foregroundAppSubscription =
       _foregroundAppChannel.receiveBroadcastStream().listen(
     (dynamic foregroundAppPackage) {
