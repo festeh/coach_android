@@ -5,7 +5,7 @@ import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:async';
-import 'dart:convert'; // Import dart:convert for jsonDecode
+import 'dart:convert';
 
 final _log = Logger('WebSocketService');
 
@@ -41,9 +41,11 @@ void connectWebSocket(
         final data = jsonDecode(message as String) as Map<String, dynamic>;
         _log.info('Parsed WebSocket message: $data');
 
-        // Example: Extract 'type' field
-        final messageType = data['type'] as String? ?? 'Unknown Type';
-        final notificationMessage = 'Received update: $messageType'; // Customize as needed
+        final focusing = data['focusing'] as bool? ?? false;
+        final numFocuses = data['num_focuses'] as int? ?? 0;
+        final timeLeft = (data['focus_time_left'] as int? ?? 0) / 60;
+        final notificationMessage =
+            'Focusing: $focusing. Time left: $timeLeft. Focuses: [$numFocuses]';
 
         notificationsPlugin.show(
           notificationId,
@@ -51,16 +53,13 @@ void connectWebSocket(
           notificationMessage,
           NotificationDetails(android: androidDetails),
         );
-        // Log the parsed data or a summary
-        PersistentLog.addLog('Received WebSocket data: $messageType'); // Log type or full data map
-      } on FormatException catch (e) {
-        _log.severe('Failed to parse WebSocket message as JSON: $e');
-        _log.severe('Original message: $message');
-        // Optionally show an error notification or log differently
-        PersistentLog.addLog('Error parsing WebSocket message.');
+        PersistentLog.addLog(message);
       } catch (e) {
         _log.severe('Error processing WebSocket message: $e');
-        PersistentLog.addLog('Error processing WebSocket message.');
+        _log.severe('Original message: $message');
+        PersistentLog.addLog(
+          'Error processing WebSocket message. Original message: $message',
+        );
       }
     },
     onError: (error) {
