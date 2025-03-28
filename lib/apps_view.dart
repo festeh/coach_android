@@ -27,19 +27,20 @@ class _AppsViewState extends State<AppsView> {
     setState(() {
       _selectedApps = selectedApps;
     });
-    await _getInstalledApps(); // Keep fetching apps after loading selection
+    await _getInstalledApps();
   }
-
-  // Removed _loadSelectedApps and _saveSelectedApps methods
 
   Future<void> _getInstalledApps() async {
     try {
-      final List<dynamic> result = await platform.invokeMethod('getInstalledApps');
+      final List<dynamic> result = await platform.invokeMethod(
+        'getInstalledApps',
+      );
       setState(() {
-        _installedApps = result
-            .cast<Map<dynamic, dynamic>>()
-            .map((map) => AppInfo.fromMap(map))
-            .toList();
+        _installedApps =
+            result
+                .cast<Map<dynamic, dynamic>>()
+                .map((map) => AppInfo.fromMap(map))
+                .toList();
         _isLoading = false;
       });
     } on PlatformException catch (e) {
@@ -58,50 +59,51 @@ class _AppsViewState extends State<AppsView> {
         title: const Text('Apps'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    'Total Apps: ${_installedApps.length}',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      'Total Apps: ${_installedApps.length}',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: _installedApps.length,
-                    itemBuilder: (context, index) {
-                      final app = _installedApps[index];
-                      return ListTile(
-                        title: Text(app.name),
-                        leading: IconButton(
-                          icon: Icon(
-                            _selectedApps.contains(app.name) 
-                                ? Icons.check_box 
-                                : Icons.check_box_outline_blank
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: _installedApps.length,
+                      itemBuilder: (context, index) {
+                        final app = _installedApps[index];
+                        return ListTile(
+                          title: Text(app.name),
+                          leading: IconButton(
+                            icon: Icon(
+                              _selectedApps.contains(app.name)
+                                  ? Icons.check_box
+                                  : Icons.check_box_outline_blank,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                if (_selectedApps.contains(app.name)) {
+                                  _selectedApps.remove(app.name);
+                                } else {
+                                  _selectedApps.add(app.name);
+                                }
+                                AppState.saveSelectedApps(_selectedApps);
+                              });
+                            },
                           ),
-                          onPressed: () {
-                            setState(() {
-                              if (_selectedApps.contains(app.name)) {
-                                _selectedApps.remove(app.name);
-                              } else {
-                                _selectedApps.add(app.name);
-                              }
-                              AppState.saveSelectedApps(_selectedApps); // Use static method
-                            });
-                          },
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
     );
   }
 }

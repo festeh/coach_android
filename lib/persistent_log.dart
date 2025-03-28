@@ -22,6 +22,7 @@ class PersistentLog {
       }
 
       await prefs.setStringList(_prefsKey, logs);
+      _log.info('Log saved to SharedPreferences');
     } catch (e) {
       _log.warning('Error saving log to SharedPreferences: $e');
     }
