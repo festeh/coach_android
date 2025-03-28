@@ -64,10 +64,46 @@ class _AppsViewState extends State<AppsView> {
           : ValueListenableBuilder<bool>(
               valueListenable: AppState.focusingNotifier,
               builder: (context, isFocusing, child) {
-                return Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
+                return _AppsListContent(
+                  isFocusing: isFocusing,
+                  installedApps: _installedApps,
+                  selectedApps: _selectedApps,
+                  onAppSelected: (appName, isSelected) {
+                    setState(() {
+                      if (isSelected) {
+                        _selectedApps.add(appName);
+                      } else {
+                        _selectedApps.remove(appName);
+                      }
+                      AppState.saveSelectedApps(_selectedApps);
+                    });
+                  },
+                );
+              },
+            ),
+    );
+  }
+}
+
+class _AppsListContent extends StatelessWidget {
+  final bool isFocusing;
+  final List<AppInfo> installedApps;
+  final Set<String> selectedApps;
+  final Function(String appName, bool isSelected) onAppSelected;
+
+  const _AppsListContent({
+    required this.isFocusing,
+    required this.installedApps,
+    required this.selectedApps,
+    required this.onAppSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(
                         horizontal: 16.0,
                         vertical: 8.0,
                       ),
@@ -120,65 +156,16 @@ class _AppsViewState extends State<AppsView> {
                                     : Icons.check_box_outline_blank,
                               ),
                               onPressed: () {
-                                setState(() {
-                                  if (_selectedApps.contains(app.name)) {
-                                    _selectedApps.remove(app.name);
-                                  } else {
-                                    _selectedApps.add(app.name);
-                                  }
-                                  AppState.saveSelectedApps(_selectedApps);
-                                });
+                                final currentlySelected =
+                                    selectedApps.contains(app.name);
+                                onAppSelected(app.name, !currentlySelected);
                               },
                             ),
                           );
                         },
                       ),
                     ),
-                  ],
-                );
-              },
-            ),
-    );
-  }
-}
-                    child: Text(
-                      'Total Apps: ${_installedApps.length}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: _installedApps.length,
-                      itemBuilder: (context, index) {
-                        final app = _installedApps[index];
-                        return ListTile(
-                          title: Text(app.name),
-                          leading: IconButton(
-                            icon: Icon(
-                              _selectedApps.contains(app.name)
-                                  ? Icons.check_box
-                                  : Icons.check_box_outline_blank,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                if (_selectedApps.contains(app.name)) {
-                                  _selectedApps.remove(app.name);
-                                } else {
-                                  _selectedApps.add(app.name);
-                                }
-                                AppState.saveSelectedApps(_selectedApps);
-                              });
-                            },
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
+      ],
     );
   }
 }
