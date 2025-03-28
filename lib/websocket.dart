@@ -71,14 +71,14 @@ void _scheduleReconnect(
 ) {
   if (_reconnectTimer != null) {
     _log.fine('Reconnection already scheduled.');
-    return; // Already scheduled
+    return;
   }
   const reconnectDelay = Duration(seconds: 5);
   _log.info(
     'Scheduling WebSocket reconnection in ${reconnectDelay.inSeconds} seconds.',
   );
   _reconnectTimer = Timer(reconnectDelay, () {
-    _reconnectTimer = null; // Clear the timer
+    _reconnectTimer = null;
     connectWebSocket(notificationsPlugin, androidDetails, notificationId);
   });
 }
