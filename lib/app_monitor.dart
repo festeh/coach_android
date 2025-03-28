@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:coach_android/persistent_log.dart';
 import 'package:coach_android/state.dart';
 import 'package:flutter/services.dart';
 import 'package:logging/logging.dart';
@@ -16,9 +15,6 @@ Future<void> startAppMonitoring() async {
   // Load the initially selected apps (package names)
   final selectedPackages = await AppState.loadSelectedAppPackages();
   _log.info('Monitoring for apps: ${selectedPackages.join(', ')}');
-  await PersistentLog.addLog(
-    'App monitoring initialized for: ${selectedPackages.join(', ')}',
-  );
 
   // Example of how you might receive data from native side (conceptual)
   // const EventChannel('com.example.coach_android/foregroundAppChannel')
