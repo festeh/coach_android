@@ -36,7 +36,7 @@ void connectWebSocket(
   _log.info('WebSocket connection established.');
 
   _channelSubscription = _channel!.stream.listen(
-    (message) {
+    (message) async { // Add async keyword here
       _log.fine('Raw WebSocket message received: $message');
       try {
         final data = jsonDecode(message as String) as Map<String, dynamic>;
