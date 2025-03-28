@@ -1,7 +1,10 @@
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AppState {
+  static final ValueNotifier<bool> focusingNotifier = ValueNotifier<bool>(false);
+
   static const _selectedAppsKey = 'selectedApps';
   static const _focusingKey = 'focusingState';
 
@@ -17,11 +20,14 @@ class AppState {
 
   static Future<bool> loadFocusingState() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_focusingKey) ?? false;
+    final isFocusing = prefs.getBool(_focusingKey) ?? false;
+    focusingNotifier.value = isFocusing;
+    return isFocusing;
   }
 
   static Future<void> saveFocusingState(bool isFocusing) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_focusingKey, isFocusing);
+    focusingNotifier.value = isFocusing;
   }
 }

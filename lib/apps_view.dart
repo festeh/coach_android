@@ -59,13 +59,88 @@ class _AppsViewState extends State<AppsView> {
         title: const Text('Apps'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      body:
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ValueListenableBuilder<bool>(
+              valueListenable: AppState.focusingNotifier,
+              builder: (context, isFocusing, child) {
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 8.0,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Focusing Status:',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            isFocusing ? 'Active' : 'Inactive',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isFocusing ? Colors.green : Colors.red,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: const Divider(),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text(
+                        'Total Apps: ${_installedApps.length}',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: _installedApps.length,
+                        itemBuilder: (context, index) {
+                          final app = _installedApps[index];
+                          return ListTile(
+                            title: Text(app.name),
+                            leading: IconButton(
+                              icon: Icon(
+                                _selectedApps.contains(app.name)
+                                    ? Icons.check_box
+                                    : Icons.check_box_outline_blank,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  if (_selectedApps.contains(app.name)) {
+                                    _selectedApps.remove(app.name);
+                                  } else {
+                                    _selectedApps.add(app.name);
+                                  }
+                                  AppState.saveSelectedApps(_selectedApps);
+                                });
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+    );
+  }
+}
                     child: Text(
                       'Total Apps: ${_installedApps.length}',
                       style: const TextStyle(
