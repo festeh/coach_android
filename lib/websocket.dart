@@ -1,5 +1,4 @@
 import 'package:coach_android/config.dart';
-import 'package:coach_android/config.dart';
 import 'package:coach_android/persistent_log.dart';
 import 'package:coach_android/state.dart'; // Import AppState
 import 'package:logging/logging.dart';
@@ -44,7 +43,7 @@ void connectWebSocket(
         _log.info('Parsed WebSocket message: $data');
 
         final focusing = data['focusing'] as bool? ?? false;
-        await AppState.saveFocusingState(focusing); // Save the focusing state
+        await AppState.saveFocusingState(focusing); 
 
         final numFocuses = data['num_focuses'] as int? ?? 0;
         final timeLeft = (data['focus_time_left'] as int? ?? 0) / 60;
