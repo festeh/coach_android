@@ -85,6 +85,7 @@ Future<bool> onStart(ServiceInstance service) async {
     service.stopSelf(); // Stop the background service
     _log.info('Background service stopped.');
   });
+
   final FlutterLocalNotificationsPlugin notificationsPlugin =
       FlutterLocalNotificationsPlugin();
 

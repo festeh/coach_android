@@ -6,17 +6,14 @@ import 'package:logging/logging.dart';
 
 final _log = Logger('AppMonitor');
 
-// Channel for receiving foreground app updates from native code
 const EventChannel _foregroundAppChannel =
-    EventChannel('com.example.coach_android/foregroundAppChannel');
+    EventChannel('com.example.coach_android/foregroundApp');
 
-// Stream subscription for the foreground app channel
 StreamSubscription<dynamic>? _foregroundAppSubscription;
 
 // Set to hold the package names of apps we are monitoring
 Set<String> _monitoredPackages = {};
 
-// Function to initialize monitoring
 Future<void> startAppMonitoring() async {
   _log.info('Initializing app monitoring...');
 
@@ -30,7 +27,6 @@ Future<void> startAppMonitoring() async {
     (dynamic foregroundAppPackage) {
       if (foregroundAppPackage is String && foregroundAppPackage.isNotEmpty) {
         _log.finer('Foreground app changed: $foregroundAppPackage');
-        // Check if the foreground app is one of the monitored apps
         if (_monitoredPackages.contains(foregroundAppPackage)) {
           final logMessage = '$foregroundAppPackage opened!';
           _log.info(logMessage);
@@ -46,12 +42,10 @@ Future<void> startAppMonitoring() async {
     onError: (dynamic error) {
       _log.severe('Error receiving foreground app updates: $error');
       PersistentLog.addLog('Error in foreground app stream: $error');
-      // Optionally attempt to restart the stream or handle the error
     },
     onDone: () {
       _log.info('Foreground app stream closed.');
       PersistentLog.addLog('Foreground app stream closed.');
-      // Stream closed, maybe restart monitoring if needed?
     },
     cancelOnError: false, // Keep listening even after errors if desired
   );

@@ -20,7 +20,7 @@ import java.util.TimerTask
 
 class MainActivity : FlutterActivity() {
     private val METHOD_CHANNEL = "com.example.coach_android/appCount"
-    private val EVENT_CHANNEL_FOREGROUND_APP = "com.example.coach_android/foregroundAppChannel"
+    private val EVENT_CHANNEL_FOREGROUND_APP = "com.example.coach_android/foregroundApp"
     private var foregroundAppStreamHandler: ForegroundAppStreamHandler? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
