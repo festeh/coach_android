@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:async';
 import 'package:coach_android/persistent_log.dart';
 import 'package:coach_android/state.dart';
 import 'package:foreground_app_monitor/foreground_app_monitor.dart';
-import 'package:flutter/services.dart'; 
+import 'package:flutter/services.dart';
 import 'package:logging/logging.dart';
+// Import the overlay window package
+import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
 final _log = Logger('AppMonitor');
 
@@ -31,7 +34,44 @@ Future<void> startAppMonitoring() async {
         final logMessage = '$foregroundAppPackage opened!';
         _log.info(logMessage);
         PersistentLog.addLog(logMessage);
-        // TODO: Trigger desired action (e.g., notification, blocking)
+
+        // --- Show Overlay Window ---
+        // NOTE: Ensure this code runs in the background isolate context.
+        // NOTE: Ensure "Display over other apps" permission is granted.
+        _log.info('Showing focus overlay window for $foregroundAppPackage...');
+        PersistentLog.addLog('Showing focus overlay window for $foregroundAppPackage');
+        try {
+          // Check if overlay is active before showing to avoid duplicates
+          final bool isActive = await FlutterOverlayWindow.isActive();
+          if (!isActive) {
+             await FlutterOverlayWindow.showOverlay(
+              // The actual UI is defined in overlayEntryPoint (lib/overlay.dart)
+              // Optional parameters can be set here:
+              height: 200, // Example height, adjust as needed
+              width: 300,  // Example width, adjust as needed
+              alignment: OverlayAlignment.center,
+              // flag: OverlayFlag.focusPointer, // Example flag
+              enableDrag: true,
+            );
+            _log.info('Focus overlay window display requested.');
+            PersistentLog.addLog('Focus overlay window display requested.');
+          } else {
+             _log.info('Overlay window is already active.');
+             PersistentLog.addLog('Overlay window already active, not showing again.');
+          }
+        } catch (e) {
+          _log.severe('Error showing overlay window: $e');
+          PersistentLog.addLog('Error showing overlay window: $e');
+          // Check if it's a permission error (basic string check)
+          if (e.toString().contains('PERMISSION') || e.toString().contains('Permission')) {
+             _log.warning('Overlay permission might be missing. Cannot show overlay.');
+             PersistentLog.addLog('Overlay permission might be missing.');
+             // Consider notifying the main UI or attempting to request permission again
+             // await FlutterOverlayWindow.requestPermission(); // Example, might need better placement
+          }
+        }
+        // --- End Overlay Window ---
+
       }
     },
     onError: (error) {
