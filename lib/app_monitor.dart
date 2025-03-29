@@ -85,7 +85,7 @@ Future<void> startAppMonitoring() async {
 }
 
 // Function to stop monitoring
-void stopAppMonitoring() {
+Future<void> stopAppMonitoring() async {
   _log.info('Stopping app monitoring...');
   // Cancel the stream subscription
   _foregroundAppSubscription?.cancel();
