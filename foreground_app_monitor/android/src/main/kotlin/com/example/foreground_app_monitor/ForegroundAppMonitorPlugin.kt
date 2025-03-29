@@ -13,7 +13,6 @@ import androidx.annotation.RequiresApi
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
-// Removed Registrar import
 
 /** ForegroundAppMonitorPlugin */
 class ForegroundAppMonitorPlugin : FlutterPlugin {
@@ -22,13 +21,9 @@ class ForegroundAppMonitorPlugin : FlutterPlugin {
     private lateinit var context: Context
     private lateinit var messenger: BinaryMessenger
 
-    // Use companion object for constants
     companion object {
-        // Ensure this matches the EventChannel name used in the Dart code
-        const val EVENT_CHANNEL_NAME = "com.example.foreground_app_monitor/foregroundApp" // Made public
-        const val TAG = "FgAppMonitorPlugin" // Made public (removed private)
-
-        // Removed deprecated registerWith method
+        const val EVENT_CHANNEL_NAME = "com.example.foreground_app_monitor/foregroundApp" 
+        const val TAG = "FgAppMonitorPlugin" 
     }
 
 
@@ -62,9 +57,7 @@ class ForegroundAppMonitorPlugin : FlutterPlugin {
 }
 
 
-// Handles the stream for foreground app events (Moved from MainActivity)
 class ForegroundAppStreamHandler(private val context: Context) : EventChannel.StreamHandler {
-    // Use the plugin's public TAG
     private val TAG = ForegroundAppMonitorPlugin.TAG
     private var handler: Handler? = null
     private var eventSink: EventChannel.EventSink? = null
@@ -82,13 +75,11 @@ class ForegroundAppStreamHandler(private val context: Context) : EventChannel.St
         if (!hasUsageStatsPermission()) {
             Log.w(TAG, "Usage stats permission not granted.")
             eventSink?.error("PERMISSION_DENIED", "Usage stats permission is required.", null)
-            // Don't start the handler if permission is missing
             return
         }
 
         handler = Handler(Looper.getMainLooper())
         runnable = object : Runnable {
-            // Removed @RequiresApi as minSdk >= 22
             override fun run() {
                 val foregroundApp = getForegroundAppPackageName()
                 // Only send event if the app has actually changed
@@ -106,7 +97,6 @@ class ForegroundAppStreamHandler(private val context: Context) : EventChannel.St
                 handler?.postDelayed(this, 1000) // Check every 1 second
             }
         }
-        // Start the periodic check immediately
         handler?.post(runnable!!)
         Log.d(TAG, "Started foreground app monitoring task.")
     }
@@ -121,7 +111,6 @@ class ForegroundAppStreamHandler(private val context: Context) : EventChannel.St
          Log.d(TAG, "Stopped foreground app monitoring task.")
     }
 
-    // Removed @RequiresApi as minSdk >= 22
     private fun getForegroundAppPackageName(): String? {
         val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager?
             ?: run {
@@ -147,17 +136,13 @@ class ForegroundAppStreamHandler(private val context: Context) : EventChannel.St
                  }
             }
         }
-        // Log the found package name for debugging
-        // Log.v(TAG, "Latest foreground event package: $foregroundApp at $lastEventTime")
         return foregroundApp
     }
 
-    // Removed @RequiresApi as minSdk >= 21 (implied by minSdk >= 22)
     private fun hasUsageStatsPermission(): Boolean {
         val appOpsManager = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager?
             ?: return false // Cannot check permission if service is unavailable
 
-        // Use checkOpNoThrow for safer permission check
         val mode = appOpsManager.checkOpNoThrow(
             AppOpsManager.OPSTR_GET_USAGE_STATS,
             Process.myUid(),
