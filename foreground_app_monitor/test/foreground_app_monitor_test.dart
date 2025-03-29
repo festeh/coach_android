@@ -8,8 +8,13 @@ class MockForegroundAppMonitorPlatform
     with MockPlatformInterfaceMixin
     implements ForegroundAppMonitorPlatform {
 
+  // Implement the new stream getter in the mock
   @override
-  Future<String?> getPlatformVersion() => Future.value('42');
+  Stream<String> get foregroundAppStream => Stream.fromIterable(['com.example.app1', 'com.example.app2']);
+
+  // getPlatformVersion is removed
+  // @override
+  // Future<String?> getPlatformVersion() => Future.value('42');
 }
 
 void main() {
@@ -19,11 +24,17 @@ void main() {
     expect(initialPlatform, isInstanceOf<MethodChannelForegroundAppMonitor>());
   });
 
-  test('getPlatformVersion', () async {
-    ForegroundAppMonitor foregroundAppMonitorPlugin = ForegroundAppMonitor();
+  // Update the test name and logic
+  test('foregroundAppStream', () async {
+    // Use the plugin's static stream directly as per the new design
+    // ForegroundAppMonitor foregroundAppMonitorPlugin = ForegroundAppMonitor();
     MockForegroundAppMonitorPlatform fakePlatform = MockForegroundAppMonitorPlatform();
     ForegroundAppMonitorPlatform.instance = fakePlatform;
 
-    expect(await foregroundAppMonitorPlugin.getPlatformVersion(), '42');
+    // Test the stream provided by the platform instance
+    expectLater(
+      ForegroundAppMonitorPlatform.instance.foregroundAppStream,
+      emitsInOrder(<String>['com.example.app1', 'com.example.app2']),
+    );
   });
 }
