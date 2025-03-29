@@ -21,6 +21,7 @@ dependencies:
   foreground_app_monitor:
     path: ./foreground_app_monitor 
   flutter_background_service: ^5.1.0
+  flutter_overlay_window: ^0.4.5
 
 dev_dependencies:
   flutter_test:
