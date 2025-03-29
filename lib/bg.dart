@@ -66,7 +66,7 @@ Future<AndroidNotificationDetails> showNotification(
 
 @pragma('vm:entry-point')
 Future<bool> onStart(ServiceInstance service) async {
-  DartPluginRegistrant.ensureInitialized();
+  // DartPluginRegistrant.ensureInitialized();
 
   Logger.root.level = Level.ALL; // Log all levels
   Logger.root.onRecord.listen((record) {

@@ -19,7 +19,7 @@ class ForegroundAppMonitor {
       _log.fine('Already initialized.');
       return;
     }
-    _log.info('Initializing...');
+    _log.info('Initializing app monitor plugin...');
     _platformSubscription = _eventChannel.receiveBroadcastStream().listen(
       (dynamic event) {
         if (event is String) {
