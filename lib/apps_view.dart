@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:async'; // Import async
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_background_service/flutter_background_service.dart'; // Import background service
 import 'models/app_info.dart';
 import 'state.dart';
 import 'package:logging/logging.dart';
@@ -19,12 +23,33 @@ class _AppsViewState extends State<AppsView> {
   // Store selected package names
   Set<String> _selectedAppPackages = {};
   bool _isLoading = true;
+  StreamSubscription<Map<String, dynamic>?>? _focusingStateSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadInitialData();
+    _listenForFocusingUpdates();
   }
+
+  @override
+  void dispose() {
+    // Cancel the subscription when the widget is disposed
+    _focusingStateSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _listenForFocusingUpdates() {
+    _focusingStateSubscription = FlutterBackgroundService().on('updateFocusingState').listen((event) {
+      if (event != null && event.containsKey('isFocusing')) {
+        final isFocusing = event['isFocusing'] as bool;
+        _log.info('Received focusing update from background: $isFocusing');
+        // Update the AppState notifier, which triggers the ValueListenableBuilder
+        AppState.updateFocusingState(isFocusing);
+      }
+    });
+  }
+
 
   Future<void> _loadInitialData() async {
     // Load both selected apps and the focusing state

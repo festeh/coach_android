@@ -5,6 +5,7 @@ import 'package:logging/logging.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_background_service/flutter_background_service.dart'; // Import background service
 import 'dart:async';
 import 'dart:convert';
 
@@ -44,7 +45,13 @@ void connectWebSocket(
         _log.info('Parsed WebSocket message: $data');
 
         final focusing = data['focusing'] as bool? ?? false;
+        // Save the state persistently
         await AppState.saveFocusingState(focusing);
+        // Also, send an event to the UI isolate to update in real-time
+        FlutterBackgroundService().invoke(
+          'updateFocusingState',
+          {'isFocusing': focusing},
+        );
 
         final numFocuses = data['num_focuses'] as int? ?? 0;
         final timeLeft = ((data['focus_time_left'] as int? ?? 0) / 60)
