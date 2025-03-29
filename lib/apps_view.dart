@@ -28,13 +28,11 @@ class _AppsViewState extends State<AppsView> {
   }
 
   Future<void> _loadInitialData() async {
-    // Load selected package names and focusing state concurrently
     final results = await Future.wait([
       AppState.loadSelectedAppPackages(), // Load package names
       AppState.loadFocusingState(), // Load focusing state here
     ]);
     final selectedAppPackages = results[0] as Set<String>;
-    // focusing state is loaded into the notifier by loadFocusingState
 
     setState(() {
       _selectedAppPackages = selectedAppPackages;
@@ -87,14 +85,8 @@ class _AppsViewState extends State<AppsView> {
                       setState(() {
                         if (isSelected) {
                           _selectedAppPackages.add(packageName);
-                          PersistentLog.addLog(
-                            'Selected app package: $packageName',
-                          );
                         } else {
                           _selectedAppPackages.remove(packageName);
-                           PersistentLog.addLog(
-                            'Deselected app package: $packageName',
-                          );
                         }
                         // Save the updated set of package names
                         AppState.saveSelectedApps(_selectedAppPackages);

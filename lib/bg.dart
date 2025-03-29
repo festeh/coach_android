@@ -9,14 +9,6 @@ import 'package:logging/logging.dart';
 
 final _log = Logger('BackgroundService');
 
-// Ensure Dart isolate entry point is available
-@pragma('vm:entry-point')
-void backgroundCallbackDispatcher() {
-  // This function needs to exist but might remain empty or used for specific background tasks
-  // unrelated to the main service logic if `onStart` handles everything.
-  // Or, it could be the entry point for certain callbacks if configured differently.
-}
-
 const int notificationId = 888;
 
 Future<void> initBgService() async {
@@ -74,10 +66,8 @@ Future<AndroidNotificationDetails> showNotification(
 
 @pragma('vm:entry-point')
 Future<bool> onStart(ServiceInstance service) async {
-  // IMPORTANT: Register the Dart isolate entry point for background execution
   DartPluginRegistrant.ensureInitialized();
 
-  // Setup logging listener for the background isolate
   Logger.root.level = Level.ALL; // Log all levels
   Logger.root.onRecord.listen((record) {
     // ignore: avoid_print
