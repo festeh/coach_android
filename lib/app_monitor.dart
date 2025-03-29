@@ -1,18 +1,12 @@
 import 'dart:async';
 import 'package:coach_android/persistent_log.dart';
 import 'package:coach_android/state.dart';
-// Import the plugin
 import 'package:foreground_app_monitor/foreground_app_monitor.dart';
-import 'package:flutter/services.dart'; // Keep for PlatformException
+import 'package:flutter/services.dart'; 
 import 'package:logging/logging.dart';
 
 final _log = Logger('AppMonitor');
 
-// Remove the old EventChannel definition
-// const EventChannel _foregroundAppChannel =
-//     EventChannel('com.example.coach_android/foregroundApp');
-
-// Use StreamSubscription<String> for type safety
 StreamSubscription<String>? _foregroundAppSubscription;
 
 // Set to hold the package names of apps we are monitoring
@@ -26,8 +20,6 @@ Future<void> startAppMonitoring() async {
 
   await _foregroundAppSubscription?.cancel(); // Cancel previous subscription if any
 
-  // Initialize the plugin listener if it hasn't been already
-  // This is safe to call multiple times due to internal checks in the plugin
   ForegroundAppMonitor.initialize();
 
   // Listen to the stream provided by the plugin
