@@ -11,19 +11,27 @@ import android.os.Process
 import android.util.Log
 import androidx.annotation.RequiresApi
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import android.content.Intent
+import android.provider.Settings
+import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
+import io.flutter.plugin.common.MethodCall
+import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 
 /** ForegroundAppMonitorPlugin */
-class ForegroundAppMonitorPlugin : FlutterPlugin {
+class ForegroundAppMonitorPlugin : FlutterPlugin, MethodCallHandler { // Implement MethodCallHandler
     private var eventChannel: EventChannel? = null
+    private var methodChannel: MethodChannel? = null // Add MethodChannel
     private var streamHandler: ForegroundAppStreamHandler? = null
     private lateinit var context: Context
     private lateinit var messenger: BinaryMessenger
 
     companion object {
-        const val EVENT_CHANNEL_NAME = "com.example.foreground_app_monitor/foregroundApp" 
-        const val TAG = "FgAppMonitorPlugin" 
+        const val EVENT_CHANNEL_NAME = "com.example.foreground_app_monitor/foregroundApp"
+        const val METHOD_CHANNEL_NAME = "com.example.foreground_app_monitor/methods" // Define method channel name
+        const val TAG = "FgAppMonitorPlugin"
     }
 
 
