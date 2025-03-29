@@ -40,8 +40,22 @@ Future<void> startAppMonitoring() async {
         final logMessage = 'Permission denied for usage stats. Monitoring stopped.';
          _log.severe(logMessage);
          PersistentLog.addLog(logMessage);
-         // Optionally, trigger UI feedback to request permission
-         stopAppMonitoring(); // Stop trying if permission is denied
+         // Request permission from the user
+         _log.info('Attempting to request Usage Stats permission from user...');
+         ForegroundAppMonitor.requestUsageStatsPermission().then((opened) {
+            if (opened) {
+              _log.info('Usage Access Settings screen opened successfully.');
+              PersistentLog.addLog('Usage Access Settings screen opened.');
+              // Monitoring is likely still stopped or failing, user needs to grant and potentially restart monitoring
+            } else {
+              _log.warning('Could not open Usage Access Settings screen.');
+              PersistentLog.addLog('Failed to open Usage Access Settings screen.');
+            }
+         }).catchError((e) {
+            _log.severe('Error trying to request usage stats permission: $e');
+            PersistentLog.addLog('Error requesting usage stats permission: $e');
+         });
+         stopAppMonitoring(); // Stop monitoring until permission is granted and restarted
       } else {
          final logMessage = 'Error receiving foreground app updates: $error';
         _log.severe(logMessage);

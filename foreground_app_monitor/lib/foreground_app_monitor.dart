@@ -7,6 +7,9 @@ final _log = Logger('ForegroundAppMonitor');
 class ForegroundAppMonitor {
   static const EventChannel _eventChannel =
       EventChannel('com.example.foreground_app_monitor/foregroundApp');
+  // Add MethodChannel corresponding to the native side
+  static const MethodChannel _methodChannel =
+      MethodChannel('com.example.foreground_app_monitor/methods');
 
   static StreamSubscription<dynamic>? _platformSubscription;
   static final StreamController<String> _foregroundAppController =
@@ -65,5 +68,25 @@ class ForegroundAppMonitor {
     // _foregroundAppController.close();
     _isInitialized = false;
     _log.info('Disposed.');
+  }
+
+  /// Opens the Android Usage Access Settings screen for the user to grant permission.
+  ///
+  /// Returns `true` if the settings screen was successfully launched,
+  /// `false` otherwise. Throws a [PlatformException] if the native call fails.
+  static Future<bool> requestUsageStatsPermission() async {
+    try {
+      _log.info('Requesting Usage Stats permission via native method...');
+      final result = await _methodChannel.invokeMethod<bool>('requestUsageStatsPermission');
+      _log.info('Native requestUsageStatsPermission call result: $result');
+      return result ?? false;
+    } on PlatformException catch (e) {
+      _log.severe('Failed to request Usage Stats permission: ${e.message}', e);
+      // Rethrow or handle as needed
+      rethrow;
+    } catch (e) {
+       _log.severe('Unknown error requesting Usage Stats permission: $e');
+       return false;
+    }
   }
 }

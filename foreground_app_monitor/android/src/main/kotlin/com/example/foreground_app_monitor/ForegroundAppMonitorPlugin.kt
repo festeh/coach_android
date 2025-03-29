@@ -41,18 +41,55 @@ class ForegroundAppMonitorPlugin : FlutterPlugin {
         this.context = context
         this.messenger = messenger
 
+        // Setup EventChannel
         eventChannel = EventChannel(messenger, EVENT_CHANNEL_NAME)
         streamHandler = ForegroundAppStreamHandler(context)
         eventChannel?.setStreamHandler(streamHandler)
         Log.d(TAG, "Event channel setup complete for $EVENT_CHANNEL_NAME")
+
+        // Setup MethodChannel
+        methodChannel = MethodChannel(messenger, METHOD_CHANNEL_NAME)
+        methodChannel?.setMethodCallHandler(this) // Set this class as the handler
+        Log.d(TAG, "Method channel setup complete for $METHOD_CHANNEL_NAME")
     }
 
     private fun teardownChannels() {
+        // Teardown EventChannel
         eventChannel?.setStreamHandler(null)
         streamHandler?.onCancel(null) // Explicitly cancel the handler's work
         eventChannel = null
         streamHandler = null
         Log.d(TAG, "Event channel teardown complete")
+
+        // Teardown MethodChannel
+        methodChannel?.setMethodCallHandler(null)
+        methodChannel = null
+        Log.d(TAG, "Method channel teardown complete")
+    }
+
+    // --- MethodCallHandler Implementation ---
+
+    override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+        when (call.method) {
+            "requestUsageStatsPermission" -> {
+                Log.d(TAG, "Received requestUsageStatsPermission call")
+                try {
+                    // Create an Intent to open the Usage Access Settings screen
+                    val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+                    // Add FLAG_ACTIVITY_NEW_TASK because we are starting activity from a non-activity context
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(intent)
+                    result.success(true) // Indicate the intent was sent
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error opening Usage Access Settings", e)
+                    result.error("ERROR_OPENING_SETTINGS", "Could not open Usage Access Settings.", e.localizedMessage)
+                }
+            }
+            else -> {
+                Log.w(TAG, "Method not implemented: ${call.method}")
+                result.notImplemented()
+            }
+        }
     }
 }
 
