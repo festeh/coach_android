@@ -23,15 +23,41 @@ Future<void> startAppMonitoring() async {
 
   ForegroundAppMonitor.initialize();
 
+  // Check for overlay permission before starting
+  bool hasOverlayPerm = await ForegroundAppMonitor.checkOverlayPermission();
+  if (!hasOverlayPerm) {
+    _log.warning('Overlay permission not granted. Overlay will not be shown.');
+    // Optionally, trigger a request here or notify the user via the main UI
+    // await ForegroundAppMonitor.requestOverlayPermission();
+    await PersistentLog.addLog('Overlay permission not granted.');
+  } else {
+     _log.info('Overlay permission granted.');
+  }
+
+
   // Listen to the stream provided by the plugin
   _foregroundAppSubscription = ForegroundAppMonitor.foregroundAppStream.listen(
     (String foregroundAppPackage) async {
       _log.finer('Foreground app changed: $foregroundAppPackage');
+      bool hasOverlayPerm = await ForegroundAppMonitor.checkOverlayPermission(); // Re-check in case it changed
       if (_monitoredPackages.contains(foregroundAppPackage)) {
-        _log.info('Showing focus overlay window for $foregroundAppPackage...');
+        _log.info('Monitored app in foreground: $foregroundAppPackage');
+        if (hasOverlayPerm) {
+           _log.info('Showing focus overlay window...');
+           await ForegroundAppMonitor.showOverlay();
+        } else {
+            _log.warning('Cannot show overlay: Permission not granted.');
+        }
+      } else {
+         _log.finer('App ($foregroundAppPackage) not in monitored list. Hiding overlay.');
+         // Hide overlay if a non-monitored app comes to foreground
+         await ForegroundAppMonitor.hideOverlay();
       }
     },
     onError: (error) {
+      // Hide overlay on error as well? Maybe not always desired.
+      // await ForegroundAppMonitor.hideOverlay();
+
       if (error is PlatformException && error.code == 'PERMISSION_DENIED') {
         final logMessage =
             'Permission denied for usage stats. Monitoring stopped.';
@@ -64,5 +90,10 @@ void stopAppMonitoring() {
   // Cancel the stream subscription
   _foregroundAppSubscription?.cancel();
   _foregroundAppSubscription = null; // Clear the subscription reference
+
+  // Ensure overlay is hidden when monitoring stops
+  await ForegroundAppMonitor.hideOverlay();
+
   _log.info('App monitoring stopped.');
+  await PersistentLog.addLog('App monitoring stopped.');
 }

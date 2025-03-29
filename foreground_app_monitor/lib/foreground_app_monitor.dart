@@ -89,4 +89,67 @@ class ForegroundAppMonitor {
        return false;
     }
   }
+
+  /// Checks if the app has permission to draw system overlays.
+  static Future<bool> checkOverlayPermission() async {
+    try {
+      final bool? hasPermission = await _methodChannel.invokeMethod<bool>('checkOverlayPermission');
+      _log.info('Native checkOverlayPermission call result: $hasPermission');
+      return hasPermission ?? false;
+    } on PlatformException catch (e) {
+      _log.severe('Failed to check overlay permission: ${e.message}', e);
+      return false;
+    } catch (e) {
+      _log.severe('Unknown error checking overlay permission: $e');
+      return false;
+    }
+  }
+
+  /// Opens the Android settings screen for the user to grant overlay permission.
+  ///
+  /// Returns `true` if the settings screen was successfully launched,
+  /// `false` otherwise. Throws a [PlatformException] if the native call fails.
+  static Future<bool> requestOverlayPermission() async {
+    try {
+      _log.info('Requesting Overlay permission via native method...');
+      final result = await _methodChannel.invokeMethod<bool>('requestOverlayPermission');
+      _log.info('Native requestOverlayPermission call result: $result');
+      return result ?? false;
+    } on PlatformException catch (e) {
+      _log.severe('Failed to request Overlay permission: ${e.message}', e);
+      rethrow;
+    } catch (e) {
+       _log.severe('Unknown error requesting Overlay permission: $e');
+       return false;
+    }
+  }
+
+  /// Shows the native system overlay.
+  ///
+  /// Requires Android Oreo (API 26) or higher and overlay permission.
+  static Future<void> showOverlay() async {
+    try {
+      _log.info('Requesting to show native overlay...');
+      await _methodChannel.invokeMethod('showOverlay');
+      _log.info('Native showOverlay call successful.');
+    } on PlatformException catch (e) {
+      _log.severe('Failed to show overlay: ${e.message}', e);
+      // Handle specific errors like UNSUPPORTED_OS if needed
+    } catch (e) {
+      _log.severe('Unknown error showing overlay: $e');
+    }
+  }
+
+  /// Hides the native system overlay if it's currently shown.
+  static Future<void> hideOverlay() async {
+    try {
+      _log.info('Requesting to hide native overlay...');
+      await _methodChannel.invokeMethod('hideOverlay');
+      _log.info('Native hideOverlay call successful.');
+    } on PlatformException catch (e) {
+      _log.severe('Failed to hide overlay: ${e.message}', e);
+    } catch (e) {
+      _log.severe('Unknown error hiding overlay: $e');
+    }
+  }
 }
