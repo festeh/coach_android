@@ -40,16 +40,17 @@ class _AppsViewState extends State<AppsView> {
   }
 
   void _listenForFocusingUpdates() {
-    _focusingStateSubscription = FlutterBackgroundService().on('updateFocusingState').listen((event) {
-      if (event != null && event.containsKey('isFocusing')) {
-        final isFocusing = event['isFocusing'] as bool;
-        _log.info('Received focusing update from background: $isFocusing');
-        // Update the AppState notifier, which triggers the ValueListenableBuilder
-        AppState.updateFocusingState(isFocusing);
-      }
-    });
+    _focusingStateSubscription = FlutterBackgroundService()
+        .on('updateFocusingState')
+        .listen((event) {
+          if (event != null && event.containsKey('isFocusing')) {
+            final isFocusing = event['isFocusing'] as bool;
+            _log.info('Received focusing update from background: $isFocusing');
+            // Update the AppState notifier, which triggers the ValueListenableBuilder
+            AppState.updateFocusingState(isFocusing);
+          }
+        });
   }
-
 
   Future<void> _loadInitialData() async {
     // Load both selected apps and the focusing state
