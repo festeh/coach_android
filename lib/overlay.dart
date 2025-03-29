@@ -2,16 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:logging/logging.dart';
 
-// It's good practice to define a logger here if needed, or pass it if necessary.
-// For simplicity, using a local logger or potentially accessing a global one.
 final _log = Logger('FocusOverlay');
-
-// --- Overlay Entry Point ---
-// This function is called when FlutterOverlayWindow.showOverlay is invoked.
-@pragma("vm:entry-point")
-void overlayEntryPoint() {
-  runApp(const FocusOverlayWidget());
-}
 
 // --- Overlay Widget UI ---
 class FocusOverlayWidget extends StatelessWidget {
@@ -21,9 +12,7 @@ class FocusOverlayWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     // Use MaterialApp as the root for Material Design widgets like ElevatedButton
     return MaterialApp(
-      // Remove the debug banner
       debugShowCheckedModeBanner: false,
-      // Make the background transparent
       color: Colors.transparent,
       home: Scaffold(
         // Make Scaffold background transparent
