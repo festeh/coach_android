@@ -13,7 +13,7 @@ import androidx.annotation.RequiresApi
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
-import io.flutter.plugin.common.PluginRegistry.Registrar // Required for older embedding
+// Removed Registrar import
 
 /** ForegroundAppMonitorPlugin */
 class ForegroundAppMonitorPlugin : FlutterPlugin {
@@ -25,15 +25,10 @@ class ForegroundAppMonitorPlugin : FlutterPlugin {
     // Use companion object for constants
     companion object {
         // Ensure this matches the EventChannel name used in the Dart code
-        private const val EVENT_CHANNEL_NAME = "com.example.foreground_app_monitor/foregroundApp"
-        private const val TAG = "FgAppMonitorPlugin" // Renamed tag for clarity
+        const val EVENT_CHANNEL_NAME = "com.example.foreground_app_monitor/foregroundApp" // Made public
+        const val TAG = "FgAppMonitorPlugin" // Made public (removed private)
 
-        // Deprecated registration method for compatibility with older Flutter projects.
-        @JvmStatic
-        fun registerWith(registrar: Registrar) {
-            val plugin = ForegroundAppMonitorPlugin()
-            plugin.setupChannels(registrar.context(), registrar.messenger())
-        }
+        // Removed deprecated registerWith method
     }
 
 
@@ -69,7 +64,7 @@ class ForegroundAppMonitorPlugin : FlutterPlugin {
 
 // Handles the stream for foreground app events (Moved from MainActivity)
 class ForegroundAppStreamHandler(private val context: Context) : EventChannel.StreamHandler {
-    // Use the plugin's TAG for consistency
+    // Use the plugin's public TAG
     private val TAG = ForegroundAppMonitorPlugin.TAG
     private var handler: Handler? = null
     private var eventSink: EventChannel.EventSink? = null
@@ -93,8 +88,7 @@ class ForegroundAppStreamHandler(private val context: Context) : EventChannel.St
 
         handler = Handler(Looper.getMainLooper())
         runnable = object : Runnable {
-            // Ensure API level check is present for the method call
-            @RequiresApi(Build.VERSION_CODES.LOLLIPOP_MR1)
+            // Removed @RequiresApi as minSdk >= 22
             override fun run() {
                 val foregroundApp = getForegroundAppPackageName()
                 // Only send event if the app has actually changed
