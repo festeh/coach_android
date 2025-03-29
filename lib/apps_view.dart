@@ -1,4 +1,3 @@
-import 'package:coach_android/persistent_log.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'models/app_info.dart';
@@ -28,11 +27,7 @@ class _AppsViewState extends State<AppsView> {
   }
 
   Future<void> _loadInitialData() async {
-    final results = await Future.wait([
-      AppState.loadSelectedAppPackages(), // Load package names
-      AppState.loadFocusingState(), // Load focusing state here
-    ]);
-    final selectedAppPackages = results[0] as Set<String>;
+    final selectedAppPackages = await AppState.loadSelectedAppPackages();
 
     setState(() {
       _selectedAppPackages = selectedAppPackages;
@@ -72,12 +67,12 @@ class _AppsViewState extends State<AppsView> {
       body:
           _isLoading
               ? const Center(child: CircularProgressIndicator())
-              : ValueListenableBuilder<bool>(
+              : ValueListenableBuilder<FocusingState>(
                 valueListenable: AppState.focusingNotifier,
-                builder: (context, isFocusing, child) {
-                  _log.info('isFocusing: $isFocusing');
+                builder: (context, focusingState, child) {
+                  _log.info('Focusing state: $focusingState');
                   return _AppsListContent(
-                    isFocusing: isFocusing,
+                    focusingState: focusingState,
                     installedApps: _installedApps,
                     // Pass selected package names
                     selectedAppPackages: _selectedAppPackages,
@@ -100,7 +95,7 @@ class _AppsViewState extends State<AppsView> {
 }
 
 class _AppsListContent extends StatelessWidget {
-  final bool isFocusing;
+  final FocusingState focusingState;
   final List<AppInfo> installedApps;
   // Expect selected package names
   final Set<String> selectedAppPackages;
@@ -108,7 +103,7 @@ class _AppsListContent extends StatelessWidget {
   final Function(String packageName, bool isSelected) onAppSelected;
 
   const _AppsListContent({
-    required this.isFocusing,
+    required this.focusingState,
     required this.installedApps,
     required this.selectedAppPackages,
     required this.onAppSelected,
@@ -116,6 +111,16 @@ class _AppsListContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String text = '';
+    if (focusingState == FocusingState.focusing) {
+      text = 'Focusing';
+    } else if (focusingState == FocusingState.notFocusing) {
+      text = 'Not Focusing';
+    } else if (focusingState == FocusingState.errorNoSuchKey) {
+      text = 'Error: No such key';
+    } else if (focusingState == FocusingState.loading) {
+      text = 'Loading...';
+    }
     return Column(
       children: [
         Padding(
@@ -128,12 +133,8 @@ class _AppsListContent extends StatelessWidget {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
               Text(
-                isFocusing ? 'Active' : 'Inactive',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: isFocusing ? Colors.green : Colors.red,
-                ),
+                text,
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -165,8 +166,9 @@ class _AppsListContent extends StatelessWidget {
                   ),
                   onPressed: () {
                     // Check using package name
-                    final currentlySelected =
-                        selectedAppPackages.contains(app.packageName);
+                    final currentlySelected = selectedAppPackages.contains(
+                      app.packageName,
+                    );
                     // Pass package name to callback
                     onAppSelected(app.packageName, !currentlySelected);
                   },
