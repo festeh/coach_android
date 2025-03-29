@@ -164,8 +164,7 @@ class ForegroundAppStreamHandler(private val context: Context) : EventChannel.St
             }
 
         val time = System.currentTimeMillis()
-        // Query events in a reasonable window (e.g., last 10 seconds)
-        val usageEvents = usageStatsManager.queryEvents(time - 10 * 1000, time)
+        val usageEvents = usageStatsManager.queryEvents(time - 30 * 1000, time)
         var foregroundApp: String? = null
         var lastEventTime: Long = 0
 
