@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:logging/logging.dart';
 
 final _log = Logger('FocusOverlay');
@@ -38,7 +37,6 @@ class FocusOverlayWidget extends StatelessWidget {
                     onPressed: () async {
                       try {
                         // Attempt to close the overlay
-                        await FlutterOverlayWindow.closeOverlay();
                         _log.info('Overlay closed via button.');
                       } catch (e) {
                         _log.severe('Error closing overlay: $e');

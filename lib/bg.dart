@@ -1,14 +1,9 @@
 import 'package:coach_android/app_monitor.dart';
 import 'package:coach_android/websocket.dart';
-import 'package:coach_android/overlay.dart'; // Import the new overlay module
-
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'dart:async';
-import 'dart:ui';
-import 'package:flutter/material.dart'; // Import Material widgets
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:logging/logging.dart';
-import 'package:flutter_overlay_window/flutter_overlay_window.dart'; // Import overlay package
 
 final _log = Logger('BackgroundService');
 
