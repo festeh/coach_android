@@ -2,9 +2,19 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 
 import 'package:flutter/services.dart';
+// Import the platform interface and method channel implementation if needed for direct access
+// import 'package:foreground_app_monitor/foreground_app_monitor_platform_interface.dart';
+// import 'package:foreground_app_monitor/foreground_app_monitor_method_channel.dart';
+
+// Import the main plugin class which now likely exposes the stream directly or via platform interface
 import 'package:foreground_app_monitor/foreground_app_monitor.dart';
 
+
 void main() {
+  // Ensure plugin bindings are initialized
+  WidgetsFlutterBinding.ensureInitialized();
+  // Initialize the plugin listener (safe to call early)
+  ForegroundAppMonitor.initialize();
   runApp(const MyApp());
 }
 
@@ -16,35 +26,69 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  String _platformVersion = 'Unknown';
-  final _foregroundAppMonitorPlugin = ForegroundAppMonitor();
+  // State variable to hold the latest foreground app package name
+  String _foregroundApp = 'Unknown';
+  // Subscription to the foreground app stream
+  StreamSubscription<String>? _foregroundAppSubscription;
+  // Optional: Store error messages
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    initPlatformState();
+    // Start listening to the foreground app stream
+    listenToForegroundApp();
   }
 
-  // Platform messages are asynchronous, so we initialize in an async method.
-  Future<void> initPlatformState() async {
-    String platformVersion;
-    // Platform messages may fail, so we use a try/catch PlatformException.
-    // We also handle the message potentially returning null.
-    try {
-      platformVersion =
-          await _foregroundAppMonitorPlugin.getPlatformVersion() ?? 'Unknown platform version';
-    } on PlatformException {
-      platformVersion = 'Failed to get platform version.';
-    }
+  void listenToForegroundApp() {
+    // Cancel any existing subscription
+    _foregroundAppSubscription?.cancel();
 
-    // If the widget was removed from the tree while the asynchronous platform
-    // message was in flight, we want to discard the reply rather than calling
-    // setState to update our non-existent appearance.
-    if (!mounted) return;
+    // Listen to the stream provided by the plugin
+    _foregroundAppSubscription = ForegroundAppMonitor.foregroundAppStream.listen(
+      (String packageName) {
+        if (!mounted) return; // Check if the widget is still in the tree
+        setState(() {
+          _foregroundApp = packageName;
+          _error = null; // Clear previous error on successful event
+        });
+        print("Foreground App: $packageName"); // Log to console
+      },
+      onError: (error) {
+        if (!mounted) return;
+        print("Error listening to foreground app stream: $error");
+        String errorMessage = 'Failed to get foreground app.';
+        if (error is PlatformException) {
+          errorMessage = 'Error: ${error.message} (Code: ${error.code})';
+           if (error.code == 'PERMISSION_DENIED') {
+             errorMessage = 'Usage stats permission denied. Please grant access.';
+             // TODO: Add button or guide to open settings
+           }
+        }
+        setState(() {
+          _error = errorMessage;
+          _foregroundApp = 'Error'; // Update UI to show error state
+        });
+      },
+      onDone: () {
+        if (!mounted) return;
+        print("Foreground app stream closed.");
+        setState(() {
+          _foregroundApp = 'Stream closed';
+        });
+      },
+    );
+     print("Started listening to foreground app stream.");
+  }
 
-    setState(() {
-      _platformVersion = platformVersion;
-    });
+
+  @override
+  void dispose() {
+    // Cancel the stream subscription when the widget is disposed
+    _foregroundAppSubscription?.cancel();
+    // Optional: Call plugin's dispose if it exists and is needed
+    // ForegroundAppMonitor.dispose();
+    super.dispose();
   }
 
   @override
@@ -52,10 +96,40 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
-          title: const Text('Plugin example app'),
+          title: const Text('Foreground App Monitor'),
         ),
         body: Center(
-          child: Text('Running on: $_platformVersion\n'),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'Current Foreground App:',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _foregroundApp,
+                style: TextStyle(fontSize: 20, color: _error != null ? Colors.red : Colors.blue),
+                textAlign: TextAlign.center,
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.redAccent),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                // TODO: Optionally add a button here to request permission
+                // ElevatedButton(
+                //   onPressed: () { /* Open Usage Access Settings */ },
+                //   child: Text('Grant Permission'),
+                // )
+              ]
+            ],
+          ),
         ),
       ),
     );
