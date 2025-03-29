@@ -45,15 +45,12 @@ Future<void> startAppMonitoring() async {
          ForegroundAppMonitor.requestUsageStatsPermission().then((opened) {
             if (opened) {
               _log.info('Usage Access Settings screen opened successfully.');
-              PersistentLog.addLog('Usage Access Settings screen opened.');
               // Monitoring is likely still stopped or failing, user needs to grant and potentially restart monitoring
             } else {
               _log.warning('Could not open Usage Access Settings screen.');
-              PersistentLog.addLog('Failed to open Usage Access Settings screen.');
             }
          }).catchError((e) {
             _log.severe('Error trying to request usage stats permission: $e');
-            PersistentLog.addLog('Error requesting usage stats permission: $e');
          });
          stopAppMonitoring(); // Stop monitoring until permission is granted and restarted
       } else {
@@ -66,7 +63,6 @@ Future<void> startAppMonitoring() async {
       // This might not be called if the stream is managed externally
       // and never explicitly closed by the plugin unless the engine detaches.
       _log.info('Foreground app stream closed (onDone).');
-      PersistentLog.addLog('Foreground app stream closed (onDone).');
     },
     cancelOnError: false, // Keep listening even after errors if desired
   );
@@ -78,10 +74,8 @@ Future<void> startAppMonitoring() async {
 // Function to stop monitoring
 void stopAppMonitoring() {
   _log.info('Stopping app monitoring...');
-  PersistentLog.addLog('Stopping app monitoring...');
   // Cancel the stream subscription
   _foregroundAppSubscription?.cancel();
   _foregroundAppSubscription = null; // Clear the subscription reference
   _log.info('App monitoring stopped.');
-  PersistentLog.addLog('App monitoring stopped.');
 }
