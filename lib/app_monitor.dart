@@ -55,9 +55,6 @@ Future<void> startAppMonitoring() async {
       }
     },
     onError: (error) {
-      // Hide overlay on error as well? Maybe not always desired.
-      // await ForegroundAppMonitor.hideOverlay();
-
       if (error is PlatformException && error.code == 'PERMISSION_DENIED') {
         final logMessage =
             'Permission denied for usage stats. Monitoring stopped.';

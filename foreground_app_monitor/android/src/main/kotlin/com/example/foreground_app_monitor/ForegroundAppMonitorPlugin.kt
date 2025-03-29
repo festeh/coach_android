@@ -264,8 +264,8 @@ class ForegroundAppStreamHandler(private val context: Context) : EventChannel.St
                 val foregroundApp = getForegroundAppPackageName()
                 Log.d(TAG, "Foreground app: $foregroundApp")
                 // Only send event if the app has actually changed
-                if (foregroundApp != null && foregroundApp != lastForegroundApp) {
-                     Log.d(TAG, "Foreground app changed: $foregroundApp")
+                if (foregroundApp != null) {
+                     Log.d(TAG, "Foreground app: $foregroundApp")
                      eventSink?.success(foregroundApp)
                      lastForegroundApp = foregroundApp
                 } else if (foregroundApp == null && lastForegroundApp != null) {
@@ -275,7 +275,7 @@ class ForegroundAppStreamHandler(private val context: Context) : EventChannel.St
                     // Log.w(TAG, "Could not determine foreground app.")
                 }
                 // Schedule the next check
-                handler?.postDelayed(this, 30000) 
+                handler?.postDelayed(this, 10000) 
             }
         }
         handler?.post(runnable!!)
@@ -300,7 +300,7 @@ class ForegroundAppStreamHandler(private val context: Context) : EventChannel.St
             }
 
         val time = System.currentTimeMillis()
-        val usageEvents = usageStatsManager.queryEvents(time - 30 * 1000, time)
+        val usageEvents = usageStatsManager.queryEvents(time - 11 * 1000, time)
         var foregroundApp: String? = null
         var lastEventTime: Long = 0
 
