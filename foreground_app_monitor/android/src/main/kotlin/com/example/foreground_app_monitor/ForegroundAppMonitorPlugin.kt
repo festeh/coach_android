@@ -140,14 +140,20 @@ class ForegroundAppStreamHandler(private val context: Context) : EventChannel.St
     }
 
     private fun hasUsageStatsPermission(): Boolean {
+        Log.d(TAG, "Checking for Usage Stats permission...")
         val appOpsManager = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager?
-            ?: return false // Cannot check permission if service is unavailable
+            ?: run {
+                Log.w(TAG, "AppOpsManager is not available. Cannot check permission.")
+                return false // Cannot check permission if service is unavailable
+            }
 
         val mode = appOpsManager.checkOpNoThrow(
             AppOpsManager.OPSTR_GET_USAGE_STATS,
             Process.myUid(),
             context.packageName
         )
-        return mode == AppOpsManager.MODE_ALLOWED
+        val granted = mode == AppOpsManager.MODE_ALLOWED
+        Log.d(TAG, "Usage Stats permission check result: mode=$mode, granted=$granted")
+        return granted
     }
 }
