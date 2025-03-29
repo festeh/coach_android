@@ -1,15 +1,19 @@
 import 'dart:async';
 import 'package:coach_android/persistent_log.dart';
 import 'package:coach_android/state.dart';
-import 'package:flutter/services.dart';
+// Import the plugin
+import 'package:foreground_app_monitor/foreground_app_monitor.dart';
+import 'package:flutter/services.dart'; // Keep for PlatformException
 import 'package:logging/logging.dart';
 
 final _log = Logger('AppMonitor');
 
-const EventChannel _foregroundAppChannel =
-    EventChannel('com.example.coach_android/foregroundApp');
+// Remove the old EventChannel definition
+// const EventChannel _foregroundAppChannel =
+//     EventChannel('com.example.coach_android/foregroundApp');
 
-StreamSubscription<dynamic>? _foregroundAppSubscription;
+// Use StreamSubscription<String> for type safety
+StreamSubscription<String>? _foregroundAppSubscription;
 
 // Set to hold the package names of apps we are monitoring
 Set<String> _monitoredPackages = {};
@@ -20,32 +24,43 @@ Future<void> startAppMonitoring() async {
   _monitoredPackages = await AppState.loadSelectedAppPackages();
   _log.info('Monitoring for apps: ${_monitoredPackages.join(', ')}');
 
-  await _foregroundAppSubscription?.cancel();
+  await _foregroundAppSubscription?.cancel(); // Cancel previous subscription if any
 
-  _foregroundAppSubscription =
-      _foregroundAppChannel.receiveBroadcastStream().listen(
-    (dynamic foregroundAppPackage) {
-      if (foregroundAppPackage is String && foregroundAppPackage.isNotEmpty) {
-        _log.finer('Foreground app changed: $foregroundAppPackage');
-        if (_monitoredPackages.contains(foregroundAppPackage)) {
-          final logMessage = '$foregroundAppPackage opened!';
-          _log.info(logMessage);
-          PersistentLog.addLog(logMessage);
-          // TODO: Trigger desired action (e.g., notification, blocking)
-        }
-      } else {
-        _log.warning(
-          'Received unexpected data type from foregroundAppChannel: ${foregroundAppPackage.runtimeType}',
-        );
+  // Initialize the plugin listener if it hasn't been already
+  // This is safe to call multiple times due to internal checks in the plugin
+  ForegroundAppMonitor.initialize();
+
+  // Listen to the stream provided by the plugin
+  _foregroundAppSubscription = ForegroundAppMonitor.foregroundAppStream.listen(
+    (String foregroundAppPackage) {
+      // Keep the core logic as requested
+      _log.finer('Foreground app changed: $foregroundAppPackage');
+      if (_monitoredPackages.contains(foregroundAppPackage)) {
+        final logMessage = '$foregroundAppPackage opened!';
+        _log.info(logMessage);
+        PersistentLog.addLog(logMessage);
+        // TODO: Trigger desired action (e.g., notification, blocking)
       }
     },
-    onError: (dynamic error) {
-      _log.severe('Error receiving foreground app updates: $error');
-      PersistentLog.addLog('Error in foreground app stream: $error');
+    onError: (error) {
+      // Handle errors, including potential PlatformExceptions for permissions
+      if (error is PlatformException && error.code == 'PERMISSION_DENIED') {
+        final logMessage = 'Permission denied for usage stats. Monitoring stopped.';
+         _log.severe(logMessage);
+         PersistentLog.addLog(logMessage);
+         // Optionally, trigger UI feedback to request permission
+         stopAppMonitoring(); // Stop trying if permission is denied
+      } else {
+         final logMessage = 'Error receiving foreground app updates: $error';
+        _log.severe(logMessage);
+        PersistentLog.addLog(logMessage);
+      }
     },
     onDone: () {
-      _log.info('Foreground app stream closed.');
-      PersistentLog.addLog('Foreground app stream closed.');
+      // This might not be called if the stream is managed externally
+      // and never explicitly closed by the plugin unless the engine detaches.
+      _log.info('Foreground app stream closed (onDone).');
+      PersistentLog.addLog('Foreground app stream closed (onDone).');
     },
     cancelOnError: false, // Keep listening even after errors if desired
   );
