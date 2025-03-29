@@ -5,11 +5,13 @@ import 'package:logging/logging.dart';
 final _log = Logger('ForegroundAppMonitor');
 
 class ForegroundAppMonitor {
-  static const EventChannel _eventChannel =
-      EventChannel('com.example.foreground_app_monitor/foregroundApp');
+  static const EventChannel _eventChannel = EventChannel(
+    'com.example.foreground_app_monitor/foregroundApp',
+  );
   // Add MethodChannel corresponding to the native side
-  static const MethodChannel _methodChannel =
-      MethodChannel('com.example.foreground_app_monitor/methods');
+  static const MethodChannel _methodChannel = MethodChannel(
+    'com.example.foreground_app_monitor/methods',
+  );
 
   static StreamSubscription<dynamic>? _platformSubscription;
   static final StreamController<String> _foregroundAppController =
@@ -77,7 +79,9 @@ class ForegroundAppMonitor {
   static Future<bool> requestUsageStatsPermission() async {
     try {
       _log.info('Requesting Usage Stats permission via native method...');
-      final result = await _methodChannel.invokeMethod<bool>('requestUsageStatsPermission');
+      final result = await _methodChannel.invokeMethod<bool>(
+        'requestUsageStatsPermission',
+      );
       _log.info('Native requestUsageStatsPermission call result: $result');
       return result ?? false;
     } on PlatformException catch (e) {
@@ -85,15 +89,17 @@ class ForegroundAppMonitor {
       // Rethrow or handle as needed
       rethrow;
     } catch (e) {
-       _log.severe('Unknown error requesting Usage Stats permission: $e');
-       return false;
+      _log.severe('Unknown error requesting Usage Stats permission: $e');
+      return false;
     }
   }
 
   /// Checks if the app has permission to draw system overlays.
   static Future<bool> checkOverlayPermission() async {
     try {
-      final bool? hasPermission = await _methodChannel.invokeMethod<bool>('checkOverlayPermission');
+      final bool? hasPermission = await _methodChannel.invokeMethod<bool>(
+        'checkOverlayPermission',
+      );
       _log.info('Native checkOverlayPermission call result: $hasPermission');
       return hasPermission ?? false;
     } on PlatformException catch (e) {
@@ -112,15 +118,17 @@ class ForegroundAppMonitor {
   static Future<bool> requestOverlayPermission() async {
     try {
       _log.info('Requesting Overlay permission via native method...');
-      final result = await _methodChannel.invokeMethod<bool>('requestOverlayPermission');
+      final result = await _methodChannel.invokeMethod<bool>(
+        'requestOverlayPermission',
+      );
       _log.info('Native requestOverlayPermission call result: $result');
       return result ?? false;
     } on PlatformException catch (e) {
       _log.severe('Failed to request Overlay permission: ${e.message}', e);
       rethrow;
     } catch (e) {
-       _log.severe('Unknown error requesting Overlay permission: $e');
-       return false;
+      _log.severe('Unknown error requesting Overlay permission: $e');
+      return false;
     }
   }
 
@@ -129,9 +137,13 @@ class ForegroundAppMonitor {
   /// Requires Android Oreo (API 26) or higher and overlay permission.
   static Future<void> showOverlay(String packageName) async {
     try {
-      _log.info('Requesting to show native overlay for package: $packageName...');
+      _log.info(
+        'Requesting to show native overlay for package: $packageName...',
+      );
       // Pass the package name as an argument
-      await _methodChannel.invokeMethod('showOverlay', {'packageName': packageName});
+      await _methodChannel.invokeMethod('showOverlay', {
+        'packageName': packageName,
+      });
       _log.info('Native showOverlay call successful for $packageName.');
     } on PlatformException catch (e) {
       _log.severe('Failed to show overlay for $packageName: ${e.message}', e);
