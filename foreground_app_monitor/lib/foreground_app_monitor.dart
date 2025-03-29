@@ -124,16 +124,17 @@ class ForegroundAppMonitor {
     }
   }
 
-  /// Shows the native system overlay.
+  /// Shows the native system overlay, displaying the provided [packageName].
   ///
   /// Requires Android Oreo (API 26) or higher and overlay permission.
-  static Future<void> showOverlay() async {
+  static Future<void> showOverlay(String packageName) async {
     try {
-      _log.info('Requesting to show native overlay...');
-      await _methodChannel.invokeMethod('showOverlay');
-      _log.info('Native showOverlay call successful.');
+      _log.info('Requesting to show native overlay for package: $packageName...');
+      // Pass the package name as an argument
+      await _methodChannel.invokeMethod('showOverlay', {'packageName': packageName});
+      _log.info('Native showOverlay call successful for $packageName.');
     } on PlatformException catch (e) {
-      _log.severe('Failed to show overlay: ${e.message}', e);
+      _log.severe('Failed to show overlay for $packageName: ${e.message}', e);
       // Handle specific errors like UNSUPPORTED_OS if needed
     } catch (e) {
       _log.severe('Unknown error showing overlay: $e');

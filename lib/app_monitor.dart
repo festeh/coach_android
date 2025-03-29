@@ -49,6 +49,15 @@ Future<void> startAppMonitoring() async {
             _log.warning('Cannot show overlay: Permission not granted.');
         }
       } else {
+        _log.info('Monitored app in foreground: $foregroundAppPackage');
+        if (hasOverlayPerm) {
+           _log.info('Showing focus overlay window for $foregroundAppPackage...');
+           // Pass the package name to showOverlay
+           await ForegroundAppMonitor.showOverlay(foregroundAppPackage);
+        } else {
+            _log.warning('Cannot show overlay: Permission not granted.');
+        }
+      } else {
          _log.finer('App ($foregroundAppPackage) not in monitored list. Hiding overlay.');
          // Hide overlay if a non-monitored app comes to foreground
          await ForegroundAppMonitor.hideOverlay();
