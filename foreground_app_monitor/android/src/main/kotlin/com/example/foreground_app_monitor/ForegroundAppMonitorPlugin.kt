@@ -2,8 +2,6 @@ package com.example.foreground_app_monitor
 
 import android.app.AppOpsManager
 import android.app.usage.UsageEvents
-import android.app.AppOpsManager
-import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
