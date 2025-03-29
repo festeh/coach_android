@@ -19,6 +19,8 @@ dependencies:
   flutter_local_notifications: ^18.0.0
   web_socket_channel: ^3.0.0
   logging: ^1.2.0 # Add logging package
+  foreground_app_monitor:
+    path: ./foreground_app_monitor # Add path dependency to the local plugin
 
 dev_dependencies:
   flutter_test:
