@@ -20,7 +20,6 @@ import java.util.TimerTask
 
 class MainActivity : FlutterActivity() {
     private val METHOD_CHANNEL = "com.example.coach_android/appCount"
-    // Removed EVENT_CHANNEL_FOREGROUND_APP and foregroundAppStreamHandler
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -34,12 +33,10 @@ class MainActivity : FlutterActivity() {
             }
         }
 
-        // Removed Event Channel setup for foreground app monitoring
     }
 
      override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         super.cleanUpFlutterEngine(flutterEngine)
-        // Removed cleanup for foregroundAppStreamHandler
     }
 
 
@@ -76,5 +73,3 @@ class MainActivity : FlutterActivity() {
             .sortedBy { it["name"] as String } // Sort by app name
     }
 }
-
-// Removed ForegroundAppStreamHandler class entirely from MainActivity.kt
