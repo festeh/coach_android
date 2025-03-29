@@ -13,7 +13,6 @@ import androidx.annotation.RequiresApi
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import android.content.Intent
 import android.provider.Settings
-import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
@@ -136,10 +135,10 @@ class ForegroundAppStreamHandler(private val context: Context) : EventChannel.St
                     // Optionally, send a null or empty string if no foreground app is detected
                     // eventSink?.success("") // Or handle this case as needed
                     // lastForegroundApp = null
-                    Log.w(TAG, "Could not determine foreground app.")
+                    // Log.w(TAG, "Could not determine foreground app.")
                 }
                 // Schedule the next check
-                handler?.postDelayed(this, 1000) // Check every 1 second
+                handler?.postDelayed(this, 30000) 
             }
         }
         handler?.post(runnable!!)
