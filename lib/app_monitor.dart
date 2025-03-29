@@ -27,7 +27,7 @@ Future<void> startAppMonitoring() async {
 
   // Listen to the stream provided by the plugin
   _foregroundAppSubscription = ForegroundAppMonitor.foregroundAppStream.listen(
-    (String foregroundAppPackage) {
+    (String foregroundAppPackage) async { // Add async keyword here
       // Keep the core logic as requested
       _log.finer('Foreground app changed: $foregroundAppPackage');
       if (_monitoredPackages.contains(foregroundAppPackage)) {
