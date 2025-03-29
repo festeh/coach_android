@@ -130,7 +130,20 @@ class ForegroundAppMonitorPlugin : FlutterPlugin, MethodCallHandler { // Impleme
 
         // Find the close button and set its click listener
         overlayView?.findViewById<Button>(R.id.close_overlay_button)?.setOnClickListener {
-            Log.d(TAG, "Close button clicked, hiding overlay.")
+            Log.d(TAG, "Close button clicked, simulating Home press and hiding overlay.")
+
+            // Simulate Home button press
+            val homeIntent = Intent(Intent.ACTION_MAIN)
+            homeIntent.addCategory(Intent.CATEGORY_HOME)
+            homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            try {
+                context.startActivity(homeIntent)
+                Log.d(TAG, "Sent Home intent.")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error sending Home intent", e)
+            }
+
+            // Hide the overlay after simulating Home press
             hideOverlay()
         }
 
