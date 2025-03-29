@@ -16,6 +16,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
+import android.widget.Button
 import androidx.annotation.RequiresApi
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.BinaryMessenger
@@ -127,14 +128,20 @@ class ForegroundAppMonitorPlugin : FlutterPlugin, MethodCallHandler { // Impleme
         Log.d(TAG, "Showing overlay...")
         overlayView = layoutInflater?.inflate(R.layout.overlay_layout, null)
 
+        // Find the close button and set its click listener
+        overlayView?.findViewById<Button>(R.id.close_overlay_button)?.setOnClickListener {
+            Log.d(TAG, "Close button clicked, hiding overlay.")
+            hideOverlay()
+        }
+
         // Define layout parameters for the overlay
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             // Use TYPE_APPLICATION_OVERLAY for Android O and above
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            // Flags: not focusable, not touch modal, keep screen on
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
+            // Flags: allow touches, keep screen on. Removed FLAG_NOT_FOCUSABLE and FLAG_NOT_TOUCH_MODAL
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
             // Make it transparent
             PixelFormat.TRANSLUCENT
         )
