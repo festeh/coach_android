@@ -126,6 +126,7 @@ class ForegroundAppStreamHandler(private val context: Context) : EventChannel.St
         runnable = object : Runnable {
             override fun run() {
                 val foregroundApp = getForegroundAppPackageName()
+                Log.d(TAG, "Foreground app: $foregroundApp")
                 // Only send event if the app has actually changed
                 if (foregroundApp != null && foregroundApp != lastForegroundApp) {
                      Log.d(TAG, "Foreground app changed: $foregroundApp")
