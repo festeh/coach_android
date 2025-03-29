@@ -44,7 +44,7 @@ class AppState {
   static Future<void> saveFocusingState(bool isFocusing) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_focusingKey, isFocusing);
-    updateFocusingState(isFocusing);
+    // Remove the direct notifier update from here - UI will load it.
     _log.info('Saved focusing state: $isFocusing');
   }
 }

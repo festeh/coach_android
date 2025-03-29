@@ -27,7 +27,12 @@ class _AppsViewState extends State<AppsView> {
   }
 
   Future<void> _loadInitialData() async {
+    // Load both selected apps and the focusing state
     final selectedAppPackages = await AppState.loadSelectedAppPackages();
+    await AppState.loadFocusingState(); // Load focusing state here
+
+    // Check if the widget is still mounted before calling setState
+    if (!mounted) return;
 
     setState(() {
       _selectedAppPackages = selectedAppPackages;
