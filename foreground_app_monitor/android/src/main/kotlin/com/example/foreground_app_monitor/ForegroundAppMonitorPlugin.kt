@@ -121,8 +121,7 @@ class ForegroundAppStreamHandler(private val context: Context) : EventChannel.St
          Log.d(TAG, "Stopped foreground app monitoring task.")
     }
 
-    // Requires API level 22 (Lollipop MR1)
-    @RequiresApi(Build.VERSION_CODES.LOLLIPOP_MR1)
+    // Removed @RequiresApi as minSdk >= 22
     private fun getForegroundAppPackageName(): String? {
         val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager?
             ?: run {
@@ -153,8 +152,7 @@ class ForegroundAppStreamHandler(private val context: Context) : EventChannel.St
         return foregroundApp
     }
 
-    // Requires API level 21 (Lollipop)
-    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+    // Removed @RequiresApi as minSdk >= 21 (implied by minSdk >= 22)
     private fun hasUsageStatsPermission(): Boolean {
         val appOpsManager = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager?
             ?: return false // Cannot check permission if service is unavailable
