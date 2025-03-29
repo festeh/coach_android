@@ -95,7 +95,7 @@ Future<bool> onStart(ServiceInstance service) async {
 
   await startAppMonitoring();
 
-  connectWebSocket(notificationsPlugin, androidDetails, notificationId);
+  connectWebSocket(service, notificationsPlugin, androidDetails, notificationId);
 
   _log.info("Background service started successfully.");
   return true; // Indicate that the service started successfully

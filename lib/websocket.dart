@@ -5,7 +5,7 @@ import 'package:logging/logging.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_background_service/flutter_background_service.dart'; // Import background service
+import 'package:flutter_background_service/flutter_background_service.dart'; 
 import 'dart:async';
 import 'dart:convert';
 
@@ -16,6 +16,7 @@ StreamSubscription? _channelSubscription;
 Timer? _reconnectTimer;
 
 void connectWebSocket(
+  ServiceInstance service,
   FlutterLocalNotificationsPlugin notificationsPlugin,
   AndroidNotificationDetails androidDetails,
   int notificationId,
@@ -47,8 +48,7 @@ void connectWebSocket(
         final focusing = data['focusing'] as bool? ?? false;
         // Save the state persistently
         await AppState.saveFocusingState(focusing);
-        // Also, send an event to the UI isolate to update in real-time
-        FlutterBackgroundService().invoke(
+        service.invoke(
           'updateFocusingState',
           {'isFocusing': focusing},
         );
@@ -84,17 +84,18 @@ void connectWebSocket(
         NotificationDetails(android: androidDetails),
       );
       closeWebSocket();
-      _scheduleReconnect(notificationsPlugin, androidDetails, notificationId);
+      _scheduleReconnect(service, notificationsPlugin, androidDetails, notificationId);
     },
     onDone: () {
       _log.info('WebSocket connection closed by server.');
-      _scheduleReconnect(notificationsPlugin, androidDetails, notificationId);
+      _scheduleReconnect(service, notificationsPlugin, androidDetails, notificationId);
     },
     cancelOnError: true,
   );
 }
 
 void _scheduleReconnect(
+  ServiceInstance service,
   FlutterLocalNotificationsPlugin notificationsPlugin,
   AndroidNotificationDetails androidDetails,
   int notificationId,
@@ -109,7 +110,7 @@ void _scheduleReconnect(
   );
   _reconnectTimer = Timer(reconnectDelay, () {
     _reconnectTimer = null;
-    connectWebSocket(notificationsPlugin, androidDetails, notificationId);
+    connectWebSocket(service, notificationsPlugin, androidDetails, notificationId);
   });
 }
 
