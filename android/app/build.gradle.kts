@@ -46,7 +46,7 @@ flutter {
 
 dependencies {  
     // For AGP 7.4+  
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")  
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")  
     // For AGP 7.3: "com.android.tools:desugar_jdk_libs:1.2.3"  
     // For AGP 4.0–7.2: "com.android.tools:desugar_jdk_libs:1.1.9"  
 }
