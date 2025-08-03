@@ -5,6 +5,7 @@ import 'package:flutter_background_service/flutter_background_service.dart'; // 
 import 'models/app_info.dart';
 import 'state.dart';
 import 'package:logging/logging.dart';
+import 'app_monitor.dart';
 
 final _log = Logger('AppsView');
 
@@ -62,6 +63,15 @@ class _AppsViewState extends State<AppsView> {
       _selectedAppPackages = selectedAppPackages;
     });
     await _getInstalledApps();
+    
+    // Check Usage Stats permission after initial data is loaded
+    if (mounted) {
+      // Small delay to ensure UI is fully loaded before showing dialog
+      await Future.delayed(const Duration(milliseconds: 1000));
+      if (mounted) {
+        await checkAndRequestUsageStatsPermission(context);
+      }
+    }
   }
 
   Future<void> _getInstalledApps() async {

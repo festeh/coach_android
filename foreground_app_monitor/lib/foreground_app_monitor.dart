@@ -94,6 +94,23 @@ class ForegroundAppMonitor {
     }
   }
 
+  /// Checks if the app has permission to access usage stats.
+  static Future<bool> checkUsageStatsPermission() async {
+    try {
+      final bool? hasPermission = await _methodChannel.invokeMethod<bool>(
+        'checkUsageStatsPermission',
+      );
+      _log.info('Native checkUsageStatsPermission call result: $hasPermission');
+      return hasPermission ?? false;
+    } on PlatformException catch (e) {
+      _log.severe('Failed to check usage stats permission: ${e.message}', e);
+      return false;
+    } catch (e) {
+      _log.severe('Unknown error checking usage stats permission: $e');
+      return false;
+    }
+  }
+
   /// Checks if the app has permission to draw system overlays.
   static Future<bool> checkOverlayPermission() async {
     try {

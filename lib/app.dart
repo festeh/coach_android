@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'apps_view.dart';
 import 'logs_view.dart';
+import 'debug_view.dart';
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -88,6 +89,7 @@ class _MainScreenState extends State<MainScreen> {
   static const List<Widget> _screens = [
     AppsView(),
     LogsView(),
+    DebugView(),
   ];
   
   void _onItemTapped(int index) {
@@ -123,6 +125,10 @@ class _MainScreenState extends State<MainScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.list),
             label: 'Logs',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bug_report),
+            label: 'Debug',
           ),
         ],
         currentIndex: _selectedIndex,

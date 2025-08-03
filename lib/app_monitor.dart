@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:coach_android/persistent_log.dart';
 import 'package:coach_android/state.dart';
 import 'package:foreground_app_monitor/foreground_app_monitor.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:logging/logging.dart';
 
@@ -12,7 +13,7 @@ StreamSubscription<String>? _foregroundAppSubscription;
 // Set to hold the package names of apps we are monitoring
 Set<String> _monitoredPackages = {};
 
-Future<void> startAppMonitoring() async {
+Future<void> startAppMonitoring([BuildContext? context]) async {
   _log.info('Initializing app monitoring...');
 
   _monitoredPackages = await AppState.loadSelectedAppPackages();
@@ -63,6 +64,11 @@ Future<void> startAppMonitoring() async {
         _log.severe(logMessage);
         PersistentLog.addLog(logMessage);
         _log.info('Attempting to request Usage Stats permission from user...');
+        
+        // Show permission dialog if context is available
+        if (context != null && context.mounted) {
+          _showUsageStatsPermissionDialog(context);
+        }
       } else {
         final logMessage = 'Error receiving foreground app updates: $error';
         _log.severe(logMessage);
@@ -95,4 +101,87 @@ Future<void> stopAppMonitoring() async {
 
   _log.info('App monitoring stopped.');
   await PersistentLog.addLog('App monitoring stopped.');
+}
+
+Future<void> checkAndRequestUsageStatsPermission(BuildContext context) async {
+  try {
+    _log.info('Checking Usage Stats permission...');
+    final hasPermission = await ForegroundAppMonitor.checkUsageStatsPermission();
+    
+    if (!hasPermission) {
+      _log.info('Usage Stats permission not granted, showing dialog...');
+      if (context.mounted) {
+        _showUsageStatsPermissionDialog(context);
+      }
+    } else {
+      _log.info('Usage Stats permission already granted');
+    }
+  } catch (e) {
+    _log.warning('Error checking Usage Stats permission: $e');
+  }
+}
+
+void _showUsageStatsPermissionDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.security, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('Permission Required'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Coach needs access to Usage Stats to monitor which apps you\'re using.',
+              style: TextStyle(fontSize: 16),
+            ),
+            SizedBox(height: 12),
+            Text(
+              'This permission allows the app to detect when you open monitored apps and show focus reminders.',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _log.info('User cancelled Usage Stats permission request');
+            },
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              _log.info('User approved Usage Stats permission request');
+              try {
+                await ForegroundAppMonitor.requestUsageStatsPermission();
+                await PersistentLog.addLog('Opened Usage Stats settings for user');
+                
+                // Show a snackbar to inform user what to do
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please enable "Coach" in the Usage Access settings and return to the app'),
+                      duration: Duration(seconds: 5),
+                    ),
+                  );
+                }
+              } catch (e) {
+                _log.severe('Failed to open Usage Stats settings: $e');
+                await PersistentLog.addLog('Failed to open Usage Stats settings: $e');
+              }
+            },
+            child: const Text('Grant Permission'),
+          ),
+        ],
+      );
+    },
+  );
 }

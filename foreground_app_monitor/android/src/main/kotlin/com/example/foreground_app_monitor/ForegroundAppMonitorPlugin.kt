@@ -98,6 +98,24 @@ class ForegroundAppMonitorPlugin : FlutterPlugin, MethodCallHandler { // Impleme
         return Settings.canDrawOverlays(context)
     }
 
+    private fun hasUsageStatsPermission(): Boolean {
+        Log.d(TAG, "Checking for Usage Stats permission...")
+        val appOpsManager = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager?
+            ?: run {
+                Log.w(TAG, "AppOpsManager is not available. Cannot check permission.")
+                return false // Cannot check permission if service is unavailable
+            }
+
+        val mode = appOpsManager.checkOpNoThrow(
+            AppOpsManager.OPSTR_GET_USAGE_STATS,
+            Process.myUid(),
+            context.packageName
+        )
+        val granted = mode == AppOpsManager.MODE_ALLOWED
+        Log.d(TAG, "Usage Stats permission check result: mode=$mode, granted=$granted")
+        return granted
+    }
+
     private fun requestOverlayPermission() {
         val intent = Intent(
             Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -207,6 +225,12 @@ class ForegroundAppMonitorPlugin : FlutterPlugin, MethodCallHandler { // Impleme
                     Log.e(TAG, "Error opening Usage Access Settings", e)
                     result.error("ERROR_OPENING_SETTINGS", "Could not open Usage Access Settings.", e.localizedMessage)
                 }
+            }
+            "checkUsageStatsPermission" -> {
+                Log.d(TAG, "Received checkUsageStatsPermission call")
+                val hasPermission = hasUsageStatsPermission()
+                Log.d(TAG, "Usage Stats permission status: $hasPermission")
+                result.success(hasPermission)
             }
             "checkOverlayPermission" -> {
                 result.success(hasOverlayPermission())
