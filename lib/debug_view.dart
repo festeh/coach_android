@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:foreground_app_monitor/foreground_app_monitor.dart';
 import 'app_monitor.dart';
@@ -145,6 +146,57 @@ class _DebugViewState extends State<DebugView> with WidgetsBindingObserver {
                   Icons.refresh,
                   () async {
                     await _checkPermissions();
+                  },
+                ),
+                _buildActionButton(
+                  context,
+                  'Test Foreground App Detection',
+                  Icons.phone_android,
+                  () async {
+                    _log.info('Testing foreground app detection...');
+                    try {
+                      // Try to check current foreground app
+                      ForegroundAppMonitor.initialize();
+                      
+                      // Listen to stream for a few seconds to test
+                      late StreamSubscription<String> testSubscription;
+                      testSubscription = ForegroundAppMonitor.foregroundAppStream.listen(
+                        (String appPackage) {
+                          _log.info('Test detected foreground app: $appPackage');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Detected app: $appPackage'),
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
+                        },
+                        onError: (error) {
+                          _log.severe('Test stream error: $error');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Stream error: $error'),
+                              backgroundColor: Colors.red,
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
+                        },
+                      );
+                      
+                      // Cancel test after 10 seconds
+                      Timer(const Duration(seconds: 10), () {
+                        testSubscription.cancel();
+                        _log.info('Test completed');
+                      });
+                      
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Testing foreground app detection for 10 seconds...'),
+                          duration: Duration(seconds: 3),
+                        ),
+                      );
+                    } catch (e) {
+                      _log.severe('Error testing foreground app detection: $e');
+                    }
                   },
                 ),
               ],

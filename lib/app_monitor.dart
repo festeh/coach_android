@@ -22,6 +22,7 @@ Future<void> startAppMonitoring([BuildContext? context]) async {
   await _foregroundAppSubscription
       ?.cancel(); // Cancel previous subscription if any
 
+  _log.info('Initializing ForegroundAppMonitor...');
   ForegroundAppMonitor.initialize();
 
   // Check for overlay permission before starting
@@ -35,10 +36,21 @@ Future<void> startAppMonitoring([BuildContext? context]) async {
     _log.info('Overlay permission granted.');
   }
 
+  // Verify usage stats permission
+  bool hasUsageStatsPerm = await ForegroundAppMonitor.checkUsageStatsPermission();
+  if (!hasUsageStatsPerm) {
+    _log.severe('Usage Stats permission not granted. Monitoring will not work.');
+    await PersistentLog.addLog('Usage Stats permission not granted. Monitoring will not work.');
+    return;
+  } else {
+    _log.info('Usage Stats permission granted.');
+  }
+
   // Listen to the stream provided by the plugin
+  _log.info('Setting up foreground app stream listener...');
   _foregroundAppSubscription = ForegroundAppMonitor.foregroundAppStream.listen(
     (String foregroundAppPackage) async {
-      _log.finer('Foreground app changed: $foregroundAppPackage');
+      _log.info('Foreground app changed: $foregroundAppPackage');
       final isFocusing = await AppState.loadFocusingState();
       if (_monitoredPackages.contains(foregroundAppPackage) && isFocusing) {
         _log.info(
@@ -49,7 +61,7 @@ Future<void> startAppMonitoring([BuildContext? context]) async {
         if (!isFocusing) {
           _log.info('Not in focusing state. Skipping...');
         } else {
-          _log.finer(
+          _log.info(
             'App ($foregroundAppPackage) not in monitored list. Hiding overlay.',
           );
         }

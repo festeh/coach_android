@@ -287,20 +287,19 @@ class ForegroundAppStreamHandler(private val context: Context) : EventChannel.St
         handler = Handler(Looper.getMainLooper())
         runnable = object : Runnable {
             override fun run() {
+                Log.d(TAG, "Checking for foreground app...")
                 val foregroundApp = getForegroundAppPackageName()
-                Log.d(TAG, "Foreground app: $foregroundApp")
-                // Only send event if the app has actually changed
+                Log.d(TAG, "Detected foreground app: $foregroundApp, last: $lastForegroundApp")
+                
+                // Always send the current foreground app, even if it's the same
                 if (foregroundApp != null) {
-                     Log.d(TAG, "Foreground app: $foregroundApp")
+                     Log.d(TAG, "Sending foreground app to Flutter: $foregroundApp")
                      eventSink?.success(foregroundApp)
                      lastForegroundApp = foregroundApp
-                } else if (foregroundApp == null && lastForegroundApp != null) {
-                    // Optionally, send a null or empty string if no foreground app is detected
-                    // eventSink?.success("") // Or handle this case as needed
-                    // lastForegroundApp = null
-                    // Log.w(TAG, "Could not determine foreground app.")
+                } else {
+                    Log.w(TAG, "Could not determine foreground app.")
                 }
-                // Schedule the next check
+                // Schedule the next check 
                 handler?.postDelayed(this, 10000) 
             }
         }
