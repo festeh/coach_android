@@ -40,7 +40,8 @@ class _LogsViewState extends State<LogsView> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Logs'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -53,23 +54,42 @@ class _LogsViewState extends State<LogsView> {
             onPressed: () async {
               final confirm = await showDialog<bool>(
                 context: context,
-                builder:
-                    (context) => AlertDialog(
-                      title: const Text('Clear Logs?'),
-                      content: const Text(
-                        'Are you sure you want to delete all stored logs?',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(false),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(true),
-                          child: const Text('Clear'),
-                        ),
-                      ],
+                builder: (context) => AlertDialog(
+                  backgroundColor: Theme.of(context).colorScheme.surface,
+                  title: Text(
+                    'Clear Logs?',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
+                  ),
+                  content: Text(
+                    'Are you sure you want to delete all stored logs?',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: Text(
+                        'Clear',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               );
               if (confirm == true) {
                 await _clearLogs();
@@ -82,21 +102,44 @@ class _LogsViewState extends State<LogsView> {
           _isLoading
               ? const Center(child: CircularProgressIndicator())
               : _logs.isEmpty
-              ? const Center(
-                child: Text(
-                  'No logs available.',
-                  style: TextStyle(fontSize: 16),
+              ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.description_outlined,
+                      size: 64,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No logs available.',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
                 ),
               )
               : ListView.builder(
                 padding: const EdgeInsets.all(8.0),
                 itemCount: _logs.length,
                 itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  return Container(
+                    margin: const EdgeInsets.symmetric(vertical: 2.0, horizontal: 4.0),
+                    padding: const EdgeInsets.all(12.0),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     child: Text(
                       _logs[index],
-                      style: const TextStyle(fontFamily: 'monospace'),
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
                     ),
                   );
                 },

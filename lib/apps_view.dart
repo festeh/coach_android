@@ -89,10 +89,6 @@ class _AppsViewState extends State<AppsView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Apps'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-      ),
       body:
           _isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -156,55 +152,122 @@ class _AppsListContent extends StatelessWidget {
     final text = _getFocusingStateText(focusingState);
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        Container(
+          margin: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(16.0),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainer,
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Focusing Status:',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-              ),
               Text(
-                text,
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                'Focusing Status:',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: focusingState == FocusingState.focusing
+                          ? Theme.of(context).colorScheme.secondary
+                          : Theme.of(context).colorScheme.tertiary,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      text,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: focusingState == FocusingState.focusing
+                            ? Theme.of(context).colorScheme.onSecondary
+                            : Theme.of(context).colorScheme.onTertiary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Material(
+                    shape: const CircleBorder(),
+                    color: Colors.transparent,
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () {
+                        AppState.forceFetchFocusingState();
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Icon(
+                          Icons.refresh,
+                          size: 20,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: const Divider(),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(16.0),
           child: Text(
             'Total Apps: ${installedApps.length}',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
           ),
         ),
+        const SizedBox(height: 8),
         Expanded(
           child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
             itemCount: installedApps.length,
             itemBuilder: (context, index) {
               final app = installedApps[index];
-              return ListTile(
-                title: Text(app.name),
-                leading: IconButton(
-                  icon: Icon(
-                    // Check using package name
-                    selectedAppPackages.contains(app.packageName)
-                        ? Icons.check_box
-                        : Icons.check_box_outline_blank,
+              final isSelected = selectedAppPackages.contains(app.packageName);
+              return Container(
+                margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1)
+                      : Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                    width: 1,
                   ),
-                  onPressed: () {
-                    // Check using package name
-                    final currentlySelected = selectedAppPackages.contains(
-                      app.packageName,
-                    );
-                    // Pass package name to callback
-                    onAppSelected(app.packageName, !currentlySelected);
-                  },
+                ),
+                child: ListTile(
+                  title: Text(
+                    app.name,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
+                  leading: IconButton(
+                    icon: Icon(
+                      isSelected ? Icons.check_box : Icons.check_box_outline_blank,
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                    onPressed: () {
+                      onAppSelected(app.packageName, !isSelected);
+                    },
+                  ),
                 ),
               );
             },

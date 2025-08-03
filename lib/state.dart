@@ -41,6 +41,12 @@ class AppState {
     return isFocusing;
   }
 
+  static Future<void> forceFetchFocusingState() async {
+    _log.info('Force fetching focusing state');
+    focusingNotifier.value = FocusingState.loading;
+    await loadFocusingState();
+  }
+
   static Future<void> saveFocusingState(bool isFocusing) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_focusingKey, isFocusing);
