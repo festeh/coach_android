@@ -140,18 +140,22 @@ class _AppsListContent extends StatelessWidget {
     required this.onAppSelected,
   });
 
+  String _getFocusingStateText(FocusingState focusingState) {
+    if (focusingState == FocusingState.focusing) {
+      return 'Focusing';
+    } else if (focusingState == FocusingState.notFocusing) {
+      return 'Not Focusing';
+    } else if (focusingState == FocusingState.errorNoSuchKey) {
+      return 'Error: No such key';
+    } else if (focusingState == FocusingState.loading) {
+      return 'Loading...';
+    }
+    return '';
+  }
+
   @override
   Widget build(BuildContext context) {
-    String text = '';
-    if (focusingState == FocusingState.focusing) {
-      text = 'Focusing';
-    } else if (focusingState == FocusingState.notFocusing) {
-      text = 'Not Focusing';
-    } else if (focusingState == FocusingState.errorNoSuchKey) {
-      text = 'Error: No such key';
-    } else if (focusingState == FocusingState.loading) {
-      text = 'Loading...';
-    }
+    final text = _getFocusingStateText(focusingState);
     return Column(
       children: [
         Padding(
