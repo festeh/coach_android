@@ -31,36 +31,29 @@ Future<void> startAppMonitoring() async {
     // await ForegroundAppMonitor.requestOverlayPermission();
     await PersistentLog.addLog('Overlay permission not granted.');
   } else {
-     _log.info('Overlay permission granted.');
+    _log.info('Overlay permission granted.');
   }
-
 
   // Listen to the stream provided by the plugin
   _foregroundAppSubscription = ForegroundAppMonitor.foregroundAppStream.listen(
     (String foregroundAppPackage) async {
       _log.finer('Foreground app changed: $foregroundAppPackage');
-      bool hasOverlayPerm = await ForegroundAppMonitor.checkOverlayPermission(); // Re-check in case it changed
-      if (_monitoredPackages.contains(foregroundAppPackage)) {
-        _log.info('Monitored app in foreground: $foregroundAppPackage');
-        if (hasOverlayPerm) {
-           _log.info('Showing focus overlay window...');
-           await ForegroundAppMonitor.showOverlay();
-        } else {
-            _log.warning('Cannot show overlay: Permission not granted.');
-        }
+      final isFocusing = await AppState.loadFocusingState();
+      if (_monitoredPackages.contains(foregroundAppPackage) && isFocusing) {
+        _log.info(
+          'Focusing state. Showing focus overlay window for $foregroundAppPackage...',
+        );
+        await ForegroundAppMonitor.showOverlay(foregroundAppPackage);
       } else {
-        _log.info('Monitored app in foreground: $foregroundAppPackage');
-        if (hasOverlayPerm) {
-           _log.info('Showing focus overlay window for $foregroundAppPackage...');
-           // Pass the package name to showOverlay
-           await ForegroundAppMonitor.showOverlay(foregroundAppPackage);
+        if (!isFocusing) {
+          _log.info('Not in focusing state. Skipping...');
         } else {
-            _log.warning('Cannot show overlay: Permission not granted.');
+          _log.finer(
+            'App ($foregroundAppPackage) not in monitored list. Hiding overlay.',
+          );
         }
-      } else {
-         _log.finer('App ($foregroundAppPackage) not in monitored list. Hiding overlay.');
-         // Hide overlay if a non-monitored app comes to foreground
-         await ForegroundAppMonitor.hideOverlay();
+        // Hide overlay if a non-monitored app comes to foreground
+        await ForegroundAppMonitor.hideOverlay();
       }
     },
     onError: (error) {

@@ -14,7 +14,6 @@ import android.os.Process
 import android.provider.Settings
 import android.util.Log
 import android.view.LayoutInflater
-import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
@@ -96,26 +95,18 @@ class ForegroundAppMonitorPlugin : FlutterPlugin, MethodCallHandler { // Impleme
     // --- Overlay Management ---
 
     private fun hasOverlayPermission(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Settings.canDrawOverlays(context)
-        } else {
-            true // Before M, permission is granted by default
-        }
+        return Settings.canDrawOverlays(context)
     }
 
     private fun requestOverlayPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val intent = Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:${context.packageName}")
-            )
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(intent)
-        }
-        // No action needed for older versions
+        val intent = Intent(
+            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            Uri.parse("package:${context.packageName}")
+        )
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(intent)
     }
 
-    @RequiresApi(Build.VERSION_CODES.O) // TYPE_APPLICATION_OVERLAY requires API 26
     private fun showOverlay(packageName: String?) { // Accept package name
         if (overlayView != null) {
             Log.d(TAG, "Overlay already shown for $packageName.") // Log which package triggered it
@@ -230,16 +221,10 @@ class ForegroundAppMonitorPlugin : FlutterPlugin, MethodCallHandler { // Impleme
                  }
             }
             "showOverlay" -> {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    // Extract package name argument
-                    val packageName = call.argument<String>("packageName")
-                    Log.d(TAG, "Received showOverlay call with packageName: $packageName")
-                    showOverlay(packageName)
-                    result.success(null) // Indicate success
-                } else {
-                    Log.w(TAG, "showOverlay called on unsupported OS version: ${Build.VERSION.SDK_INT}")
-                    result.error("UNSUPPORTED_OS", "Overlay requires Android Oreo (API 26) or higher.", null)
-                }
+                val packageName = call.argument<String>("packageName")
+                Log.d(TAG, "Received showOverlay call with packageName: $packageName")
+                showOverlay(packageName)
+                result.success(null) // Indicate success
             }
             "hideOverlay" -> {
                 hideOverlay()

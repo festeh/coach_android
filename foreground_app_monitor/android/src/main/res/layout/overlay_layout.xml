@@ -2,9 +2,10 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:background="#80000000"
+    android:background="@drawable/overlay_background"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="24dp"
+    android:elevation="8dp">
 
     <TextView
         android:id="@+id/overlay_text"
@@ -12,13 +13,21 @@
         android:layout_height="wrap_content"
         android:text="Focus Time!"
         android:textColor="@android:color/white"
-        android:textSize="18sp" />
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:lineSpacing="4dp"
+        android:padding="8dp" />
 
     <Button
         android:id="@+id/close_overlay_button"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="Close" />
+        android:layout_marginTop="16dp"
+        android:text="Got it!"
+        android:textColor="@android:color/white"
+        android:backgroundTint="#FF5252"
+        android:padding="12dp"
+        android:textAllCaps="false"
+        android:textStyle="bold" />
 
 </LinearLayout>
