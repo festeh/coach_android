@@ -38,17 +38,54 @@ void connectWebSocket(
     return;
   }
 
-  _log.info('Attempting to connect to WebSocket: ${AppConfig.webSocketUrl}');
-  _channel = IOWebSocketChannel.connect(Uri.parse(AppConfig.webSocketUrl));
+  final wsUrl = AppConfig.webSocketUrl;
+  _log.info('Attempting to connect to WebSocket: $wsUrl');
+  // Also print directly to ensure visibility
+  // ignore: avoid_print
+  print('WebSocket: Attempting to connect to: $wsUrl');
+  
+  EnhancedLogger.info(
+    LogSource.webSocket,
+    LogCategory.connection,
+    'Connecting to WebSocket endpoint',
+    {'url': wsUrl},
+  );
+  
+  _channel = IOWebSocketChannel.connect(Uri.parse(wsUrl));
   _log.info('WebSocket connection established.');
+  // ignore: avoid_print
+  print('WebSocket: Connection established to: $wsUrl');
+  
+  EnhancedLogger.info(
+    LogSource.webSocket,
+    LogCategory.connection,
+    'WebSocket connection established',
+    {'endpoint': wsUrl},
+  );
   _reconnectAttempts = 0; // Reset attempts on successful connection
 
   _channelSubscription = _channel!.stream.listen(
     (message) async {
       _log.fine('Raw WebSocket message received: $message');
+      // ignore: avoid_print
+      print('WebSocket: Received message: $message');
+      
       try {
         final data = jsonDecode(message as String) as Map<String, dynamic>;
         _log.info('Parsed WebSocket message: $data');
+        
+        // Log the WebSocket response with enhanced logger
+        EnhancedLogger.info(
+          LogSource.webSocket,
+          LogCategory.connection,
+          'WebSocket message received',
+          {
+            'type': data['type'] ?? 'status_update',
+            'focusing': data['focusing'],
+            'num_focuses': data['num_focuses'],
+            'focus_time_left': data['focus_time_left'],
+          },
+        );
 
         final focusing = data['focusing'] as bool? ?? false;
         final numFocuses = data['num_focuses'] as int? ?? 0;
@@ -89,6 +126,15 @@ void connectWebSocket(
     },
     onError: (error) {
       _log.severe('WebSocket error: $error');
+      EnhancedLogger.error(
+        LogSource.webSocket,
+        LogCategory.connection,
+        'WebSocket connection error',
+        {
+          'error': error.toString(),
+          'endpoint': AppConfig.webSocketUrl,
+        },
+      );
 
       notificationsPlugin.show(
         notificationId,
@@ -101,6 +147,12 @@ void connectWebSocket(
     },
     onDone: () {
       _log.info('WebSocket connection closed by server.');
+      EnhancedLogger.warning(
+        LogSource.webSocket,
+        LogCategory.connection,
+        'WebSocket connection closed by server',
+        {'endpoint': AppConfig.webSocketUrl},
+      );
       _scheduleReconnect(service, notificationsPlugin, androidDetails, notificationId);
     },
     cancelOnError: true,
@@ -161,8 +213,13 @@ void resetReconnectAttempts() {
 }
 
 void requestFocusStatus() {
+  // ignore: avoid_print
+  print('WebSocket: requestFocusStatus() called');
+  
   if (_channel == null) {
     _log.warning('Cannot request focus status - WebSocket not connected');
+    // ignore: avoid_print
+    print('WebSocket: Cannot request - not connected');
     EnhancedLogger.warning(
       LogSource.webSocket,
       LogCategory.connection,
@@ -173,21 +230,31 @@ void requestFocusStatus() {
   
   try {
     // Send a request to the WebSocket server for current focus status
-    final request = jsonEncode({'type': 'status_request'});
-    _channel!.sink.add(request);
-    _log.info('Requested focus status from WebSocket');
+    final request = {'type': 'status_request'};
+    final requestJson = jsonEncode(request);
+    
     EnhancedLogger.info(
       LogSource.webSocket,
       LogCategory.connection,
-      'Sent focus status request to WebSocket server',
-      {'request': request},
+      'Sending focus status request to WebSocket',
+      {
+        'endpoint': AppConfig.webSocketUrl,
+        'request': request,
+      },
     );
+    
+    _channel!.sink.add(requestJson);
+    _log.info('Requested focus status from WebSocket: $requestJson');
+    // ignore: avoid_print
+    print('WebSocket: Sent request to ${AppConfig.webSocketUrl}: $requestJson');
+    
   } catch (e) {
     _log.severe('Error requesting focus status: $e');
     EnhancedLogger.error(
       LogSource.webSocket,
       LogCategory.connection,
-      'Failed to request focus status: $e',
+      'Failed to send focus status request',
+      {'error': e.toString()},
     );
   }
 }

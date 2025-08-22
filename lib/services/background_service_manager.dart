@@ -11,6 +11,7 @@ import 'service_health_monitor.dart';
 
 final _log = Logger('BackgroundServiceManager');
 
+@pragma('vm:entry-point')
 class BackgroundServiceManager {
   static final _instance = BackgroundServiceManager._internal();
   factory BackgroundServiceManager() => _instance;
@@ -152,6 +153,11 @@ class BackgroundServiceManager {
       'Background service started successfully',
     );
     
+    // Test WebSocket requestFocusStatus directly
+    // ignore: avoid_print
+    print('BackgroundService: Testing direct requestFocusStatus call');
+    requestFocusStatus();
+    
     return true;
   }
   
@@ -203,8 +209,11 @@ class BackgroundServiceManager {
       }
     });
     
-    // Handle request for focus status
+    // Handle request for focus status - THIS RUNS IN BACKGROUND SERVICE
     service.on('requestFocusStatus').listen((event) async {
+      // ignore: avoid_print
+      print('BackgroundService: Received requestFocusStatus event in background isolate');
+      
       EnhancedLogger.info(
         LogSource.service,
         LogCategory.system,

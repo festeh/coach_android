@@ -4,6 +4,7 @@ import 'package:logging/logging.dart';
 import '../models/focus_state.dart';
 import '../../models/log_entry.dart';
 import '../../services/enhanced_logger.dart';
+import '../../config.dart';
 import '../services/state_service.dart';
 
 final _log = Logger('FocusProvider');
@@ -16,25 +17,29 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
   }
 
   Future<void> _loadInitialState() async {
+    // Don't load from local storage on init - WebSocket is the source of truth
+    // Just request fresh data from WebSocket
     state = state.copyWith(status: FocusStatus.loading);
-    try {
-      final isFocusing = await _stateService.loadFocusingState();
-      if (isFocusing != null) {
-        state = state.copyWith(
-          isFocusing: isFocusing,
-          status: FocusStatus.ready,
-        );
-      } else {
-        state = state.copyWith(
-          status: FocusStatus.error,
-          errorMessage: 'No focusing state found',
-        );
-      }
-    } catch (e) {
-      _log.severe('Error loading focus state: $e');
+    
+    EnhancedLogger.info(
+      LogSource.ui,
+      LogCategory.connection,
+      'Initial load - requesting focus status from WebSocket',
+      {'endpoint': AppConfig.webSocketUrl},
+    );
+    
+    final service = FlutterBackgroundService();
+    service.invoke('requestFocusStatus');
+    
+    // Wait for WebSocket response
+    await Future.delayed(const Duration(seconds: 2));
+    
+    // If still loading, show error
+    if (state.status == FocusStatus.loading) {
       state = state.copyWith(
         status: FocusStatus.error,
-        errorMessage: e.toString(),
+        errorMessage: 'Unable to connect to server',
+        isFocusing: false,
       );
     }
   }
@@ -53,7 +58,7 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
       status: FocusStatus.ready,
     );
 
-    // Persist the focusing state
+    // Note: We only persist for display caching, WebSocket is source of truth
     await _stateService.saveFocusingState(isFocusing);
   }
 
@@ -63,31 +68,46 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
       LogSource.ui,
       LogCategory.connection,
       'Requesting fresh focus status from WebSocket',
+      {'endpoint': AppConfig.webSocketUrl},
     );
     
     state = state.copyWith(status: FocusStatus.loading);
     
     // Request fresh data from the background service/WebSocket
     final service = FlutterBackgroundService();
+    
+    // Check if service is running
+    final isRunning = await service.isRunning();
+    // ignore: avoid_print
+    print('FocusProvider: Background service running: $isRunning');
+    
+    // ignore: avoid_print
+    print('FocusProvider: Invoking requestFocusStatus on background service');
     service.invoke('requestFocusStatus');
+    // ignore: avoid_print
+    print('FocusProvider: Invoked requestFocusStatus');
     
-    // Also load from local storage as a fallback
-    // Give WebSocket a moment to respond before falling back
-    await Future.delayed(const Duration(milliseconds: 500));
+    // Wait for WebSocket response
+    await Future.delayed(const Duration(seconds: 2));
     
-    // If still loading after WebSocket request, load from storage
+    // If still loading after WebSocket request timeout, show error
     if (state.status == FocusStatus.loading) {
-      EnhancedLogger.warning(
+      EnhancedLogger.error(
         LogSource.ui,
         LogCategory.connection,
-        'No WebSocket response, loading from local storage',
+        'WebSocket request timeout - no response received',
+        {'endpoint': AppConfig.webSocketUrl, 'timeout': '2 seconds'},
       );
-      await _loadInitialState();
-    } else {
-      EnhancedLogger.info(
-        LogSource.ui,
-        LogCategory.connection,
-        'Focus status updated from WebSocket',
+      
+      // Invalidate cache and show error state
+      await _stateService.saveFocusingState(false);
+      
+      state = state.copyWith(
+        status: FocusStatus.error,
+        errorMessage: 'Unable to connect to server',
+        isFocusing: false,
+        numFocuses: 0,
+        focusTimeLeft: 0,
       );
     }
   }
@@ -97,22 +117,29 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
     final numFocuses = data['num_focuses'] as int? ?? 0;
     final timeLeft = (data['focus_time_left'] as int? ?? 0) / 60;
     
-    EnhancedLogger.debug(
+    EnhancedLogger.info(
       LogSource.webSocket,
       LogCategory.connection,
-      'Received focus update from WebSocket',
+      'Focus status response received from WebSocket',
       {
         'focusing': focusing,
         'numFocuses': numFocuses,
         'timeLeft': timeLeft,
+        'responseType': data['type'] ?? 'status_update',
       },
     );
     
-    updateFocusState(
+    // Update state and mark as ready since we got a response
+    state = state.copyWith(
       isFocusing: focusing,
       numFocuses: numFocuses,
       focusTimeLeft: timeLeft,
+      status: FocusStatus.ready,
+      errorMessage: null,
     );
+    
+    // Still persist to cache for display purposes only (not as source of truth)
+    _stateService.saveFocusingState(focusing);
   }
 }
 
