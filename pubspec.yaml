@@ -21,12 +21,18 @@ dependencies:
   foreground_app_monitor:
     path: ./foreground_app_monitor 
   flutter_background_service: ^5.1.0
+  flutter_riverpod: ^2.6.1
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
+  build_runner: ^2.4.13
+  freezed: ^2.5.7
+  json_serializable: ^6.8.0
 
 flutter:
 
