@@ -96,15 +96,20 @@ void connectWebSocket(
         await stateService.saveFocusingState(focusing);
         
         // Send update to UI with all the data
-        service.invoke(
-          'updateFocusingState',
-          {
-            'isFocusing': focusing,
-            'focusing': focusing, // For backward compatibility
-            'num_focuses': numFocuses,
-            'focus_time_left': timeLeft * 60, // Convert back to seconds
-          },
-        );
+        try {
+          service.invoke(
+            'updateFocusingState',
+            {
+              'isFocusing': focusing,
+              'focusing': focusing, // For backward compatibility
+              'num_focuses': numFocuses,
+              'focus_time_left': timeLeft * 60, // Convert back to seconds
+            },
+          );
+        } catch (e) {
+          // Ignore MissingPluginException when UI isn't ready
+          _log.fine('Could not send update to UI (UI may not be ready): $e');
+        }
 
         final notificationMessage =
             'Focusing: $focusing. Time left: ${timeLeft.toStringAsFixed(1)}. Focuses: [$numFocuses]';

@@ -51,7 +51,7 @@ class BackgroundServiceManager {
         >()!
         .createNotificationChannel(channel);
     
-    service.configure(
+    await service.configure(
       androidConfiguration: AndroidConfiguration(
         autoStart: true,
         isForegroundMode: true,
@@ -62,6 +62,14 @@ class BackgroundServiceManager {
       ),
       iosConfiguration: IosConfiguration(autoStart: true),
     );
+    
+    // Start the service after configuration
+    final isRunning = await service.isRunning();
+    if (!isRunning) {
+      service.startService();
+      // ignore: avoid_print
+      print('BackgroundServiceManager: Started background service');
+    }
     
     _setupServiceListeners();
   }
@@ -152,11 +160,6 @@ class BackgroundServiceManager {
       LogCategory.system,
       'Background service started successfully',
     );
-    
-    // Test WebSocket requestFocusStatus directly
-    // ignore: avoid_print
-    print('BackgroundService: Testing direct requestFocusStatus call');
-    requestFocusStatus();
     
     return true;
   }
@@ -380,11 +383,20 @@ class BackgroundServiceManager {
       _healthMonitor.reportHeartbeat();
       
       // Send health status to UI
-      service.invoke('healthUpdate', {
-        'webSocketHealthy': true, // Would be determined by actual WebSocket status
-        'monitoringHealthy': true, // Would be determined by actual monitoring status
-        'timestamp': DateTime.now().toIso8601String(),
-      });
+      try {
+        service.invoke('healthUpdate', {
+          'webSocketHealthy': true, // Would be determined by actual WebSocket status
+          'monitoringHealthy': true, // Would be determined by actual monitoring status
+          'timestamp': DateTime.now().toIso8601String(),
+        });
+      } catch (e) {
+        // Ignore MissingPluginException when UI isn't ready
+        EnhancedLogger.debug(
+          LogSource.service,
+          LogCategory.health,
+          'Could not send health update to UI: $e',
+        );
+      }
       
       EnhancedLogger.debug(
         LogSource.service,
