@@ -1,111 +1,29 @@
-import 'package:coach_android/app_monitor.dart';
-import 'package:coach_android/websocket.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
-import 'dart:async';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:logging/logging.dart';
+import 'services/background_service_manager.dart';
+import 'services/enhanced_logger.dart';
+import 'models/log_entry.dart';
 
-final _log = Logger('BackgroundService');
-
-const int notificationId = 888;
-
+/// Initialize the background service with enhanced management
 Future<void> initBgService() async {
-  final service = FlutterBackgroundService();
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
-
-  const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'coach_channel', // id
-    'Coach Notifications', // name
-    description: 'Notifications from Coach app',
-    importance: Importance.high,
+  EnhancedLogger.info(
+    LogSource.service,
+    LogCategory.system,
+    'Initializing background service',
   );
-
-  await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin
-      >()!
-      .createNotificationChannel(channel);
-
-  service.configure(
-    androidConfiguration: AndroidConfiguration(
-      autoStart: true,
-      isForegroundMode: true,
-      onStart: onStart,
-      foregroundServiceTypes: [AndroidForegroundType.specialUse],
-      notificationChannelId: 'coach_channel',
-      foregroundServiceNotificationId: notificationId,
-    ),
-    iosConfiguration: IosConfiguration(autoStart: true),
+  
+  final manager = BackgroundServiceManager();
+  await manager.initialize();
+  
+  EnhancedLogger.info(
+    LogSource.service,
+    LogCategory.system,
+    'Background service initialization complete',
   );
 }
 
-Future<AndroidNotificationDetails> showNotification(
-  FlutterLocalNotificationsPlugin notificationsPlugin,
-) async {
-  final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-    'coach_channel',
-    'Coach Notifications',
-    importance: Importance.max,
-    priority: Priority.high,
-    ongoing: true,
-    onlyAlertOnce: true,
-    icon: 'ic_bg_service_small',
-  );
-
-  await notificationsPlugin.show(
-    notificationId,
-    'Coach',
-    'Time to Focus',
-    NotificationDetails(android: androidDetails),
-  );
-  return androidDetails;
-}
-
+/// Entry point for the background service
+/// This is called by the BackgroundServiceManager
 @pragma('vm:entry-point')
 Future<bool> onStart(ServiceInstance service) async {
-  // DartPluginRegistrant.ensureInitialized();
-
-  Logger.root.level = Level.ALL; // Log all levels
-  Logger.root.onRecord.listen((record) {
-    // ignore: avoid_print
-    print(
-      'BG ${record.level.name}: ${record.time}: ${record.loggerName}: ${record.message}',
-    );
-  });
-
-  _log.info("Background service starting...");
-
-  service.on('stopService').listen((event) async {
-    _log.info('stopService event received.');
-    closeWebSocket(); // Close WebSocket connection
-    stopAppMonitoring(); // Stop app monitoring
-    service.stopSelf(); // Stop the background service
-    _log.info('Background service stopped.');
-  });
-
-  final FlutterLocalNotificationsPlugin notificationsPlugin =
-      FlutterLocalNotificationsPlugin();
-
-  final AndroidNotificationDetails androidDetails = await showNotification(
-    notificationsPlugin,
-  );
-
-  await startAppMonitoring();
-
-  connectWebSocket(
-    service,
-    notificationsPlugin,
-    androidDetails,
-    notificationId,
-  );
-
-  Timer.periodic(const Duration(seconds: 60), (timer) {
-    _log.fine('Background service is still running.');
-  });
-
-  _log.info("Background service started successfully.");
-  return true; // Indicate that the service started successfully
+  return BackgroundServiceManager.onServiceStart(service);
 }
-
-// Overlay code moved to lib/overlay.dart
