@@ -108,12 +108,8 @@ class EnhancedLogger {
     // Persist asynchronously
     _persistLog(entry);
     
-    // Also log to standard logger for debugging
-    final logLevel = _mapToLoggingLevel(entry.level);
-    Logger(entry.source.displayName).log(
-      logLevel,
-      '${entry.category.displayName}: ${entry.message}',
-    );
+    // Don't log to standard Logger in background service to avoid circular references
+    // The background service should use EnhancedLogger directly
   }
   
   static Level _mapToLoggingLevel(LogLevel level) {

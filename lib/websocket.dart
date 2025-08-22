@@ -1,6 +1,8 @@
 import 'package:coach_android/config.dart';
 import 'package:coach_android/persistent_log.dart';
 import 'package:coach_android/state_management/services/state_service.dart';
+import 'package:coach_android/models/log_entry.dart';
+import 'package:coach_android/services/enhanced_logger.dart';
 import 'package:logging/logging.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -156,4 +158,36 @@ void closeWebSocket() {
 
 void resetReconnectAttempts() {
   _reconnectAttempts = 0;
+}
+
+void requestFocusStatus() {
+  if (_channel == null) {
+    _log.warning('Cannot request focus status - WebSocket not connected');
+    EnhancedLogger.warning(
+      LogSource.webSocket,
+      LogCategory.connection,
+      'Cannot request focus status - WebSocket not connected',
+    );
+    return;
+  }
+  
+  try {
+    // Send a request to the WebSocket server for current focus status
+    final request = jsonEncode({'type': 'status_request'});
+    _channel!.sink.add(request);
+    _log.info('Requested focus status from WebSocket');
+    EnhancedLogger.info(
+      LogSource.webSocket,
+      LogCategory.connection,
+      'Sent focus status request to WebSocket server',
+      {'request': request},
+    );
+  } catch (e) {
+    _log.severe('Error requesting focus status: $e');
+    EnhancedLogger.error(
+      LogSource.webSocket,
+      LogCategory.connection,
+      'Failed to request focus status: $e',
+    );
+  }
 }

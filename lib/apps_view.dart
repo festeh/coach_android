@@ -5,6 +5,8 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'dart:async';
 import 'package:logging/logging.dart';
 import 'models/app_info.dart';
+import 'models/log_entry.dart';
+import 'services/enhanced_logger.dart';
 import 'app_monitor.dart';
 import 'state_management/providers/focus_provider.dart';
 import 'state_management/providers/app_selection_provider.dart';
@@ -167,6 +169,12 @@ class _AppsViewState extends ConsumerState<AppsView> {
                 child: InkWell(
                   customBorder: const CircleBorder(),
                   onTap: () {
+                    _log.info('User tapped refresh button for focus status');
+                    EnhancedLogger.info(
+                      LogSource.ui,
+                      LogCategory.user,
+                      'Focus status refresh requested by user',
+                    );
                     ref.read(focusStateProvider.notifier).forceFetch();
                   },
                   child: Padding(

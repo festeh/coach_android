@@ -104,16 +104,13 @@ class BackgroundServiceManager {
   @pragma('vm:entry-point')
   static Future<bool> onServiceStart(ServiceInstance service) async {
     // Set up logging for background service
+    // Note: We don't redirect Logger.root to EnhancedLogger to avoid circular logging
     Logger.root.level = Level.ALL;
     Logger.root.onRecord.listen((record) {
-      // Use EnhancedLogger in background
-      final level = _mapLoggingLevel(record.level);
-      EnhancedLogger.log(
-        level: level,
-        source: LogSource.service,
-        category: LogCategory.system,
-        message: '${record.loggerName}: ${record.message}',
-      );
+      // Just print to console for debugging, don't use EnhancedLogger here
+      // to avoid circular references
+      // ignore: avoid_print
+      print('BG ${record.level.name}: ${record.loggerName}: ${record.message}');
     });
     
     final manager = BackgroundServiceManager();
@@ -156,14 +153,6 @@ class BackgroundServiceManager {
     );
     
     return true;
-  }
-  
-  static LogLevel _mapLoggingLevel(Level level) {
-    if (level == Level.SHOUT) return LogLevel.critical;
-    if (level == Level.SEVERE) return LogLevel.error;
-    if (level == Level.WARNING) return LogLevel.warning;
-    if (level == Level.INFO) return LogLevel.info;
-    return LogLevel.debug;
   }
   
   static void _setupServiceHandlers(ServiceInstance service, BackgroundServiceManager manager) {
@@ -212,6 +201,18 @@ class BackgroundServiceManager {
         final component = event['component'] as String;
         await _restartComponent(component, service, manager);
       }
+    });
+    
+    // Handle request for focus status
+    service.on('requestFocusStatus').listen((event) async {
+      EnhancedLogger.info(
+        LogSource.service,
+        LogCategory.system,
+        'Focus status request received from UI',
+      );
+      
+      // Request fresh status from WebSocket
+      requestFocusStatus();
     });
   }
   
