@@ -47,6 +47,7 @@ class FocusMonitorService : Service() {
         serviceInstance = this
         
         Log.d(TAG, "Service onCreate")
+        System.out.println("KOTLIN LOG: FocusMonitorService onCreate() called")
         
         notificationManager = ServiceNotificationManager(this)
         appMonitor = AppMonitorHandler(this)
@@ -55,6 +56,7 @@ class FocusMonitorService : Service() {
         notificationManager.createNotificationChannel()
         
         // Initialize background Flutter engine
+        System.out.println("KOTLIN LOG: About to initialize background Flutter engine")
         initializeBackgroundEngine()
     }
     
@@ -152,26 +154,56 @@ class FocusMonitorService : Service() {
     
     private fun initializeBackgroundEngine() {
         try {
-            Log.d(TAG, "Initializing background Flutter engine...")
+            Log.d(TAG, "=== STARTING BACKGROUND ENGINE INITIALIZATION ===")
             
-            // Create a new Flutter engine instance
+            // Step 1: Create Flutter engine
+            Log.d(TAG, "Step 1: Creating FlutterEngine with context: ${this.applicationContext}")
             backgroundEngine = FlutterEngine(this.applicationContext)
+            Log.d(TAG, "Step 1: FlutterEngine created successfully: ${backgroundEngine != null}")
             
-            // Set up method channels for communication with background Dart
+            // Step 2: Set up method channels
+            Log.d(TAG, "Step 2: Setting up background channels...")
             setupBackgroundChannels()
+            Log.d(TAG, "Step 2: Background channels setup completed")
             
-            // Execute the background Dart isolate
-            val dartEntrypoint = DartExecutor.DartEntrypoint(
-                "lib/background_isolate.dart",
-                "backgroundMain"
+            // Step 3: Create DartEntrypoint with explicit library path
+            Log.d(TAG, "Step 3: Creating DartEntrypoint...")
+            val defaultEntrypoint = DartExecutor.DartEntrypoint.createDefault()
+            Log.d(TAG, "Step 3: Default entrypoint created - library: '${defaultEntrypoint.dartEntrypointLibrary}', function: '${defaultEntrypoint.dartEntrypointFunctionName}'")
+            
+            // Get the app bundle path from FlutterInjector
+            val flutterLoader = io.flutter.FlutterInjector.instance().flutterLoader()
+            val appBundlePath = flutterLoader.findAppBundlePath()
+            Log.d(TAG, "Step 3: App bundle path from FlutterInjector: '$appBundlePath'")
+            
+            // Use the 3-parameter constructor with null library
+            val backgroundEntrypoint = DartExecutor.DartEntrypoint(
+                appBundlePath, // asset bundle path from FlutterInjector
+                // null, // null library - let Flutter find backgroundMain
+                "backgroundMain" // function name
             )
+            Log.d(TAG, "Step 3: Background entrypoint created - library: '${backgroundEntrypoint.dartEntrypointLibrary}', function: '${backgroundEntrypoint.dartEntrypointFunctionName}'")
             
-            backgroundEngine?.dartExecutor?.executeDartEntrypoint(dartEntrypoint)
+            // Step 4: Execute Dart entrypoint
+            Log.d(TAG, "Step 4: About to execute Dart entrypoint...")
+            val dartExecutor = backgroundEngine?.dartExecutor
+            Log.d(TAG, "Step 4: DartExecutor obtained: ${dartExecutor != null}")
             
-            Log.d(TAG, "Background Flutter engine initialized successfully")
+            if (dartExecutor != null) {
+                Log.d(TAG, "Step 4: Calling executeDartEntrypoint...")
+                dartExecutor.executeDartEntrypoint(backgroundEntrypoint)
+                Log.d(TAG, "Step 4: executeDartEntrypoint call completed")
+            } else {
+                Log.e(TAG, "Step 4: ERROR - DartExecutor is null!")
+            }
+            
+            Log.d(TAG, "=== BACKGROUND ENGINE INITIALIZATION COMPLETED ===")
             
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize background Flutter engine", e)
+            Log.e(TAG, "FATAL ERROR in initializeBackgroundEngine", e)
+            Log.e(TAG, "Exception type: ${e.javaClass.simpleName}")
+            Log.e(TAG, "Exception message: ${e.message}")
+            Log.e(TAG, "Stack trace: ${e.stackTrace.joinToString("\n")}")
         }
     }
     

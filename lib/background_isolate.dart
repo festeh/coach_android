@@ -4,12 +4,15 @@ import 'package:logging/logging.dart';
 
 final _log = Logger('BackgroundIsolate');
 
+bool _isMainIsolate = true;
+
 /// This is the entry point for the background Flutter isolate
 /// It runs independently of the main UI and handles all monitoring logic
 @pragma('vm:entry-point')
 void backgroundMain() {
+  WidgetsFlutterBinding.ensureInitialized();
   _log.info('Background isolate started');
-  
+
   // Initialize the background monitor handler (which will initialize WebSocket)
   BackgroundMonitorHandler.initialize();
 }
@@ -20,3 +23,4 @@ void backgroundCallback() {
   _log.info('Background callback invoked');
   backgroundMain();
 }
+
