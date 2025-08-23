@@ -124,14 +124,24 @@ class BackgroundMonitorHandler {
     _log.fine('App changed to: $packageName');
     
     try {
+      // Log current state for debugging
+      _log.info('Overlay decision for $packageName - isFocusing: $_isFocusing, monitored packages: ${_monitoredPackages.join(", ")}');
+      
       // This is the core decision logic (same as in app_monitor.dart)
       final shouldShow = _shouldShowOverlay(packageName);
       
       if (shouldShow) {
-        _log.info('Should show overlay for app: $packageName');
+        _log.info('SHOWING overlay for app: $packageName (app is monitored AND currently focusing)');
         _showOverlay(packageName);
       } else {
-        _log.fine('Should hide overlay for app: $packageName');
+        final isMonitored = _monitoredPackages.contains(packageName);
+        if (isMonitored && !_isFocusing) {
+          _log.info('NOT SHOWING overlay for app: $packageName (app is monitored but NOT focusing)');
+        } else if (!isMonitored && _isFocusing) {
+          _log.fine('NOT SHOWING overlay for app: $packageName (app is NOT monitored but focusing)');
+        } else if (!isMonitored && !_isFocusing) {
+          _log.fine('NOT SHOWING overlay for app: $packageName (app is NOT monitored and NOT focusing)');
+        }
         _hideOverlay();
       }
     } catch (e) {
@@ -141,8 +151,12 @@ class BackgroundMonitorHandler {
 
   /// Determine if overlay should be shown (matches logic from app_monitor.dart)
   static bool _shouldShowOverlay(String packageName) {
-    // Check if app is in the blocked/monitored list AND we are currently focusing
-    return _monitoredPackages.contains(packageName) && _isFocusing;
+    final isMonitored = _monitoredPackages.contains(packageName);
+    final shouldShow = isMonitored && _isFocusing;
+    
+    _log.fine('Overlay decision: packageName=$packageName, isMonitored=$isMonitored, isFocusing=$_isFocusing, shouldShow=$shouldShow');
+    
+    return shouldShow;
   }
 
   /// Show overlay via native method channel
@@ -275,12 +289,6 @@ class BackgroundMonitorHandler {
     }
     
     try {
-      // Test connection health before making the request
-      if (_webSocketService != null) {
-        final isHealthy = await _webSocketService!.testConnection();
-        _log.info('Background isolate: WebSocket health check result: $isHealthy');
-      }
-      
       // Add a timeout wrapper around the WebSocket request
       final response = await _webSocketService!.requestFocusStatus().timeout(
         const Duration(seconds: 12), // Slightly longer than the internal timeout

@@ -263,7 +263,7 @@ class FocusMonitorService : Service() {
             Log.d(TAG, "Sent app '$packageName' to background isolate")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send app to background isolate", e)
-        }
+          }
     }
     
     // --- WebSocket Bridge Methods ---

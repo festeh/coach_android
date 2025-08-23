@@ -150,7 +150,7 @@ class WebSocketService {
       // Handle response to pending requests
       // Map server response types to our request types
       String? requestKey;
-      if (messageType == 'focusing_status' || (messageType == null && data.containsKey('focusing'))) {
+      if (messageType == 'focusing_status' || messageType == 'focusing' || (messageType == null && data.containsKey('focusing'))) {
         requestKey = 'focusing_status';
       } else if (messageType != null) {
         requestKey = messageType;

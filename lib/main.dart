@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
@@ -44,15 +45,28 @@ Future<void> _startBackgroundService() async {
 /// It runs independently of the main UI and handles all monitoring logic
 @pragma('vm:entry-point')
 void backgroundMain() {
+  final _backgroundLog = Logger('BackgroundIsolate');
+  
   try {
+    // Configure logging for background isolate to output to Android logcat
+    Logger.root.level = Level.ALL;
+    Logger.root.onRecord.listen((record) {
+      // Use print() to ensure logs appear in Android logcat
+      // ignore: avoid_print
+      print('${record.level.name}: ${record.time}: ${record.loggerName}: ${record.message}');
+    });
+    
+    _backgroundLog.info('Background isolate entry point called');
+    
     WidgetsFlutterBinding.ensureInitialized();
-    final _backgroundLog = Logger('BackgroundIsolate');
+    _backgroundLog.info('Flutter binding initialized');
+    
     _backgroundLog.info('Background isolate started');
 
     // Initialize the background monitor handler (which will initialize WebSocket)
     BackgroundMonitorHandler.initialize();
+    _backgroundLog.info('BackgroundMonitorHandler.initialize() called');
   } catch (e, stackTrace) {
-    final _backgroundLog = Logger('BackgroundIsolate');
     _backgroundLog.severe('Failed to start background isolate: $e', e, stackTrace);
     // Re-throw so the native side can handle the error
     rethrow;
