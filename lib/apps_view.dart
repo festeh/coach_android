@@ -31,7 +31,6 @@ class _AppsViewState extends ConsumerState<AppsView> {
   void initState() {
     super.initState();
     _loadInstalledApps();
-    _listenForFocusingUpdates();
     _checkPermissions();
   }
 
@@ -39,12 +38,6 @@ class _AppsViewState extends ConsumerState<AppsView> {
   void dispose() {
     _focusingStateSubscription?.cancel();
     super.dispose();
-  }
-
-  void _listenForFocusingUpdates() {
-    // Focus updates are now handled automatically by the FocusStateNotifier
-    // through the service event bus, so no manual subscription needed here
-    _log.info('Focus updates will be received through service event system');
   }
 
   Future<void> _checkPermissions() async {

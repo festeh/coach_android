@@ -240,6 +240,12 @@ class FocusMonitorService : Service() {
                     ForegroundAppMonitorPlugin.getInstance()?.notifyFocusStateChanged(arguments ?: emptyMap())
                     result.success(null)
                 }
+                "refreshFocusState" -> {
+                    Log.d(TAG, "Main UI requests focus state refresh")
+                    // Forward to background isolate
+                    backgroundMethodChannel?.invokeMethod("refreshFocusState", null)
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         }
