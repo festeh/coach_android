@@ -6,7 +6,6 @@ import 'package:coach_android/services/enhanced_logger.dart';
 import 'package:logging/logging.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_background_service/flutter_background_service.dart'; 
 import 'dart:async';
 import 'dart:convert';
@@ -22,9 +21,6 @@ const Duration _baseReconnectDelay = Duration(seconds: 2);
 
 void connectWebSocket(
   ServiceInstance service,
-  FlutterLocalNotificationsPlugin notificationsPlugin,
-  AndroidNotificationDetails androidDetails,
-  int notificationId,
 ) {
   if (_channel != null || _reconnectTimer != null) {
     _log.fine(
@@ -111,15 +107,6 @@ void connectWebSocket(
           _log.fine('Could not send update to UI (UI may not be ready): $e');
         }
 
-        final notificationMessage =
-            'Focusing: $focusing. Time left: ${timeLeft.toStringAsFixed(1)}. Focuses: [$numFocuses]';
-
-        notificationsPlugin.show(
-          notificationId,
-          'Coach',
-          notificationMessage,
-          NotificationDetails(android: androidDetails),
-        );
         PersistentLog.addLog(message);
       } catch (e) {
         _log.severe('Error processing WebSocket message: $e');
@@ -141,14 +128,8 @@ void connectWebSocket(
         },
       );
 
-      notificationsPlugin.show(
-        notificationId,
-        'Coach',
-        'Connection Error',
-        NotificationDetails(android: androidDetails),
-      );
       closeWebSocket();
-      _scheduleReconnect(service, notificationsPlugin, androidDetails, notificationId);
+      _scheduleReconnect(service);
     },
     onDone: () {
       _log.info('WebSocket connection closed by server.');
@@ -158,7 +139,7 @@ void connectWebSocket(
         'WebSocket connection closed by server',
         {'endpoint': AppConfig.webSocketUrl},
       );
-      _scheduleReconnect(service, notificationsPlugin, androidDetails, notificationId);
+      _scheduleReconnect(service);
     },
     cancelOnError: true,
   );
@@ -166,9 +147,6 @@ void connectWebSocket(
 
 void _scheduleReconnect(
   ServiceInstance service,
-  FlutterLocalNotificationsPlugin notificationsPlugin,
-  AndroidNotificationDetails androidDetails,
-  int notificationId,
 ) {
   if (_reconnectTimer != null) {
     _log.fine('Reconnection already scheduled.');
@@ -177,12 +155,6 @@ void _scheduleReconnect(
 
   if (_reconnectAttempts >= _maxReconnectAttempts) {
     _log.severe('Max reconnection attempts reached. Giving up.');
-    notificationsPlugin.show(
-      notificationId,
-      'Coach',
-      'Connection failed after $_maxReconnectAttempts attempts',
-      NotificationDetails(android: androidDetails),
-    );
     return;
   }
 
@@ -199,7 +171,7 @@ void _scheduleReconnect(
   
   _reconnectTimer = Timer(reconnectDelay, () {
     _reconnectTimer = null;
-    connectWebSocket(service, notificationsPlugin, androidDetails, notificationId);
+    connectWebSocket(service);
   });
 }
 

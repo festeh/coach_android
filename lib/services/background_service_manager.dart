@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:logging/logging.dart';
 import '../app_monitor.dart';
 import '../websocket.dart';
@@ -24,7 +23,6 @@ class BackgroundServiceManager {
   Timer? _heartbeatTimer;
   StreamSubscription? _serviceEventSubscription;
   
-  static const int notificationId = 888;
   
   ServiceStatus get status => _status;
   
@@ -36,29 +34,12 @@ class BackgroundServiceManager {
     );
     
     final service = FlutterBackgroundService();
-    final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-    
-    const AndroidNotificationChannel channel = AndroidNotificationChannel(
-      'coach_channel',
-      'Coach Notifications',
-      description: 'Notifications from Coach app',
-      importance: Importance.high,
-    );
-    
-    await flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()!
-        .createNotificationChannel(channel);
     
     await service.configure(
       androidConfiguration: AndroidConfiguration(
         autoStart: true,
-        isForegroundMode: true,
+        isForegroundMode: false,
         onStart: onServiceStart,
-        foregroundServiceTypes: [AndroidForegroundType.specialUse],
-        notificationChannelId: 'coach_channel',
-        foregroundServiceNotificationId: notificationId,
       ),
       iosConfiguration: IosConfiguration(autoStart: true),
     );
@@ -137,15 +118,12 @@ class BackgroundServiceManager {
     // Set up service event handlers
     _setupServiceHandlers(service, manager);
     
-    // Initialize notifications
-    final notificationsPlugin = FlutterLocalNotificationsPlugin();
-    final androidDetails = await _showNotification(notificationsPlugin);
     
     // Start app monitoring
     await _startAppMonitoring(manager);
     
     // Connect WebSocket
-    _connectWebSocket(service, notificationsPlugin, androidDetails, manager);
+    _connectWebSocket(service, manager);
     
     // Start health monitoring
     manager._healthMonitor.startMonitoring();
@@ -233,9 +211,7 @@ class BackgroundServiceManager {
       // Restart WebSocket
       closeWebSocket();
       await Future.delayed(const Duration(seconds: 1));
-      final notificationsPlugin = FlutterLocalNotificationsPlugin();
-      final androidDetails = await _showNotification(notificationsPlugin);
-      _connectWebSocket(service, notificationsPlugin, androidDetails, manager);
+      _connectWebSocket(service, manager);
       
       // Restart monitoring
       stopAppMonitoring();
@@ -268,9 +244,7 @@ class BackgroundServiceManager {
         case 'websocket':
           closeWebSocket();
           await Future.delayed(const Duration(seconds: 1));
-          final notificationsPlugin = FlutterLocalNotificationsPlugin();
-          final androidDetails = await _showNotification(notificationsPlugin);
-          _connectWebSocket(service, notificationsPlugin, androidDetails, manager);
+          _connectWebSocket(service, manager);
           break;
         case 'monitor':
           stopAppMonitoring();
@@ -293,28 +267,6 @@ class BackgroundServiceManager {
     }
   }
   
-  static Future<AndroidNotificationDetails> _showNotification(
-    FlutterLocalNotificationsPlugin notificationsPlugin,
-  ) async {
-    final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'coach_channel',
-      'Coach Notifications',
-      importance: Importance.max,
-      priority: Priority.high,
-      ongoing: true,
-      onlyAlertOnce: true,
-      icon: 'ic_bg_service_small',
-    );
-    
-    await notificationsPlugin.show(
-      notificationId,
-      'Coach',
-      'Service Running',
-      NotificationDetails(android: androidDetails),
-    );
-    
-    return androidDetails;
-  }
   
   static Future<void> _startAppMonitoring(BackgroundServiceManager manager) async {
     try {
@@ -346,12 +298,10 @@ class BackgroundServiceManager {
   
   static void _connectWebSocket(
     ServiceInstance service,
-    FlutterLocalNotificationsPlugin notificationsPlugin,
-    AndroidNotificationDetails androidDetails,
     BackgroundServiceManager manager,
   ) {
     try {
-      connectWebSocket(service, notificationsPlugin, androidDetails, notificationId);
+      connectWebSocket(service);
       manager._eventBus.emitSimple(ServiceEventType.webSocketConnected, 'WebSocket connected');
       manager._healthMonitor.updateWebSocketHealth(true);
       
