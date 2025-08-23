@@ -276,18 +276,6 @@ class ForegroundAppMonitorPlugin : FlutterPlugin, MethodCallHandler {
                 Log.d(TAG, "Service running check: $isRunning")
                 result.success(isRunning)
             }
-            "requestFocusStatus" -> {
-                Log.d(TAG, "Received requestFocusStatus bridge call")
-                handleRequestFocusStatus(result)
-            }
-            "initializeWebSocket" -> {
-                Log.d(TAG, "Received initializeWebSocket bridge call")
-                handleInitializeWebSocket(result)
-            }
-            "disposeWebSocket" -> {
-                Log.d(TAG, "Received disposeWebSocket bridge call")
-                handleDisposeWebSocket(result)
-            }
             else -> {
                 Log.w(TAG, "Method not implemented: ${call.method}")
                 result.notImplemented()
@@ -350,88 +338,12 @@ class ForegroundAppMonitorPlugin : FlutterPlugin, MethodCallHandler {
         hideOverlay()
     }
     
-    // --- WebSocket Bridge Methods ---
-    
-    private fun handleRequestFocusStatus(result: MethodChannel.Result) {
-        val service = FocusMonitorService.getInstance()
-        if (service == null) {
-            Log.d(TAG, "Focus monitor service not running, starting it first...")
-            // Start the service first
-            startFocusMonitorService()
-            
-            // Wait a bit for service to start and retry
-            Handler(Looper.getMainLooper()).postDelayed({
-                val retryService = FocusMonitorService.getInstance()
-                if (retryService != null) {
-                    Log.d(TAG, "Service started, forwarding focus status request to background isolate")
-                    retryService.requestFocusStatusFromBackground { response ->
-                        result.success(response)
-                    }
-                } else {
-                    Log.e(TAG, "Failed to start focus monitor service for focus status request")
-                    result.error("SERVICE_START_FAILED", "Failed to start focus monitor service", null)
-                }
-            }, 1000) // Wait 1 second for service to start
-        } else {
-            Log.d(TAG, "Forwarding focus status request to background isolate")
-            service.requestFocusStatusFromBackground { response ->
-                result.success(response)
-            }
-        }
+    fun notifyFocusStateChanged(data: Map<String, Any>) {
+        Log.d(TAG, "Background service notifies focus state changed: $data")
+        // Forward to the main UI via method channel
+        methodChannel?.invokeMethod("focusStateChanged", data)
     }
     
-    private fun handleInitializeWebSocket(result: MethodChannel.Result) {
-        val service = FocusMonitorService.getInstance()
-        if (service == null) {
-            Log.d(TAG, "Focus monitor service not running, starting it first...")
-            // Start the service first
-            startFocusMonitorService()
-            
-            // Wait a bit for service to start and retry
-            Handler(Looper.getMainLooper()).postDelayed({
-                val retryService = FocusMonitorService.getInstance()
-                if (retryService != null) {
-                    Log.d(TAG, "Service started, forwarding WebSocket initialization to background isolate")
-                    retryService.initializeWebSocketInBackground { success ->
-                        if (success) {
-                            result.success(mapOf("success" to true))
-                        } else {
-                            result.error("INIT_FAILED", "Failed to initialize WebSocket in background", null)
-                        }
-                    }
-                } else {
-                    Log.e(TAG, "Failed to start focus monitor service")
-                    result.error("SERVICE_START_FAILED", "Failed to start focus monitor service", null)
-                }
-            }, 1000) // Wait 1 second for service to start
-        } else {
-            Log.d(TAG, "Forwarding WebSocket initialization to background isolate")
-            service.initializeWebSocketInBackground { success ->
-                if (success) {
-                    result.success(mapOf("success" to true))
-                } else {
-                    result.error("INIT_FAILED", "Failed to initialize WebSocket in background", null)
-                }
-            }
-        }
-    }
-    
-    private fun handleDisposeWebSocket(result: MethodChannel.Result) {
-        val service = FocusMonitorService.getInstance()
-        if (service != null) {
-            Log.d(TAG, "Forwarding WebSocket disposal to background isolate")
-            service.disposeWebSocketInBackground { success ->
-                if (success) {
-                    result.success(mapOf("success" to true))
-                } else {
-                    result.error("DISPOSE_FAILED", "Failed to dispose WebSocket in background", null)
-                }
-            }
-        } else {
-            Log.e(TAG, "Focus monitor service not available")
-            result.error("SERVICE_UNAVAILABLE", "Focus monitor service not available", null)
-        }
-    }
 }
 
 

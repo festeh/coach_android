@@ -22,6 +22,7 @@ class BackgroundMonitorHandler {
   static Set<String> _monitoredPackages = {};
   static bool _isInitialized = false;
   static WebSocketService? _webSocketService;
+  static StreamSubscription<Map<String, dynamic>>? _focusUpdatesSubscription;
 
   /// Initialize the background monitor handler
   static Future<void> initialize() async {
@@ -48,6 +49,9 @@ class BackgroundMonitorHandler {
       
       // Initialize WebSocket service in background
       await _initializeWebSocketService();
+      
+      // Set up focus updates listener
+      _setupFocusUpdatesListener();
       
       // Notify native service that background isolate is ready
       await _methodChannel?.invokeMethod('backgroundReady');
@@ -218,6 +222,55 @@ class BackgroundMonitorHandler {
   /// Get current monitored packages
   static Set<String> get monitoredPackages => Set.from(_monitoredPackages);
 
+  /// Set up focus updates listener from WebSocket
+  static void _setupFocusUpdatesListener() {
+    if (_webSocketService == null) {
+      _log.warning('Cannot setup focus updates listener - WebSocket service not initialized');
+      return;
+    }
+
+    try {
+      _focusUpdatesSubscription = _webSocketService!.focusUpdates.listen(
+        (data) {
+          final focusing = data['focusing'] as bool?;
+          if (focusing != null && focusing != _isFocusing) {
+            _isFocusing = focusing;
+            _log.info('Focus state updated from WebSocket: $_isFocusing');
+            
+            // Save to SharedPreferences for persistence
+            SharedPreferences.getInstance().then((prefs) {
+              prefs.setBool(StorageKeys.focusingState, _isFocusing);
+            });
+            
+            // Push update to UI via method channel
+            _notifyUIFocusChanged(data);
+          }
+        },
+        onError: (error) {
+          _log.severe('Error in focus updates stream: $error');
+        },
+      );
+      
+      _log.info('Focus updates listener setup complete');
+    } catch (e) {
+      _log.severe('Failed to setup focus updates listener: $e');
+    }
+  }
+
+  /// Notify UI of focus state change
+  static Future<void> _notifyUIFocusChanged(Map<String, dynamic> data) async {
+    try {
+      await _methodChannel?.invokeMethod('focusStateChanged', {
+        'focusing': _isFocusing,
+        'focusTimeLeft': data['focus_time_left'],
+        'numFocuses': data['num_focuses'],
+      });
+      _log.info('Notified UI of focus state change: $_isFocusing');
+    } catch (e) {
+      _log.severe('Failed to notify UI of focus state change: $e');
+    }
+  }
+
   /// Initialize WebSocket service in background
   static Future<void> _initializeWebSocketService() async {
     _log.info('Background isolate: Initializing WebSocket service...');
@@ -248,15 +301,8 @@ class BackgroundMonitorHandler {
     
     try {
       switch (call.method) {
-        case 'requestFocusStatus':
-          return await _requestFocusStatus();
-        case 'initializeWebSocket':
-          await _initializeWebSocketService();
-          return {'success': true};
-        case 'disposeWebSocket':
-          await _webSocketService?.dispose();
-          _webSocketService = null;
-          return {'success': true};
+        case 'refreshFocusState':
+          return await _refreshFocusState();
         default:
           throw PlatformException(
             code: 'UNKNOWN_METHOD',
@@ -272,9 +318,9 @@ class BackgroundMonitorHandler {
     }
   }
 
-  /// Request focus status via WebSocket
-  static Future<Map<String, dynamic>> _requestFocusStatus() async {
-    _log.info('Background isolate: Handling focus status request');
+  /// Refresh focus state by requesting current status from WebSocket and notifying UI
+  static Future<Map<String, dynamic>> _refreshFocusState() async {
+    _log.info('Background isolate: Handling refresh focus state request');
     
     if (_webSocketService == null) {
       const error = 'WebSocket service not initialized in background isolate';
@@ -293,15 +339,19 @@ class BackgroundMonitorHandler {
       final response = await _webSocketService!.requestFocusStatus().timeout(
         const Duration(seconds: 12), // Slightly longer than the internal timeout
         onTimeout: () {
-          _log.severe('Background isolate: Focus status request timed out after 12 seconds');
-          throw TimeoutException('Background WebSocket request timed out', const Duration(seconds: 12));
+          _log.severe('Background isolate: Focus state refresh timed out after 12 seconds');
+          throw TimeoutException('Background WebSocket refresh timed out', const Duration(seconds: 12));
         },
       );
       
-      _log.info('Background isolate: Focus status response received: $response');
-      return response;
+      _log.info('Background isolate: Focus state refresh response received: $response');
+      
+      // Notify UI directly with the fresh data
+      await _notifyUIFocusChanged(response);
+      
+      return {'success': true, 'data': response};
     } on TimeoutException catch (e) {
-      final errorMsg = 'Background isolate: WebSocket focus status request timed out: $e';
+      final errorMsg = 'Background isolate: WebSocket focus state refresh timed out: $e';
       _log.severe(errorMsg);
       
       // Try to reinitialize WebSocket service for next request
@@ -315,7 +365,7 @@ class BackgroundMonitorHandler {
       
       throw Exception(errorMsg);
     } catch (e) {
-      final errorMsg = 'Background isolate: Failed to request focus status: $e';
+      final errorMsg = 'Background isolate: Failed to refresh focus state: $e';
       _log.severe(errorMsg);
       
       // Check if it's a connection issue and try to reinitialize
@@ -340,6 +390,9 @@ class BackgroundMonitorHandler {
     _isInitialized = false;
     await _appStreamSubscription?.cancel();
     _appStreamSubscription = null;
+    
+    await _focusUpdatesSubscription?.cancel();
+    _focusUpdatesSubscription = null;
     
     // Dispose WebSocket service
     await _webSocketService?.dispose();

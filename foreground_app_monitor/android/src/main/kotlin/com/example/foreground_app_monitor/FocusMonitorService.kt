@@ -234,6 +234,12 @@ class FocusMonitorService : Service() {
                     ForegroundAppMonitorPlugin.getInstance()?.hideOverlayFromService()
                     result.success(null)
                 }
+                "focusStateChanged" -> {
+                    Log.d(TAG, "Background isolate notifies focus state changed: ${call.arguments}")
+                    val arguments = call.arguments as? Map<String, Any>
+                    ForegroundAppMonitorPlugin.getInstance()?.notifyFocusStateChanged(arguments ?: emptyMap())
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         }
@@ -266,80 +272,6 @@ class FocusMonitorService : Service() {
           }
     }
     
-    // --- WebSocket Bridge Methods ---
-    
-    fun requestFocusStatusFromBackground(callback: (Map<String, Any>) -> Unit) {
-        Log.d(TAG, "Requesting focus status from background isolate")
-        
-        backgroundMethodChannel?.invokeMethod("requestFocusStatus", null, object : MethodChannel.Result {
-            override fun success(result: Any?) {
-                Log.d(TAG, "Focus status response from background: $result")
-                if (result is Map<*, *>) {
-                    val responseMap = result as Map<String, Any>
-                    Log.d(TAG, "Returning focus status response with ${responseMap.size} keys")
-                    callback(responseMap)
-                } else {
-                    Log.e(TAG, "Invalid focus status response format: ${result?.javaClass?.simpleName}")
-                    // Return empty map but log the issue
-                    callback(emptyMap())
-                }
-            }
-            
-            override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) {
-                val fullError = "Native service error - Code: $errorCode, Message: $errorMessage, Details: $errorDetails"
-                Log.e(TAG, "Error requesting focus status from background: $fullError")
-                
-                // Still return empty map but with better logging
-                callback(emptyMap())
-            }
-            
-            override fun notImplemented() {
-                Log.e(TAG, "requestFocusStatus not implemented in background isolate")
-                callback(emptyMap())
-            }
-        }) ?: run {
-            Log.e(TAG, "Background method channel is null - cannot request focus status")
-            callback(emptyMap())
-        }
-    }
-    
-    fun initializeWebSocketInBackground(callback: (Boolean) -> Unit) {
-        backgroundMethodChannel?.invokeMethod("initializeWebSocket", null, object : MethodChannel.Result {
-            override fun success(result: Any?) {
-                Log.d(TAG, "WebSocket initialization response from background: $result")
-                callback(true)
-            }
-            
-            override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) {
-                Log.e(TAG, "Error initializing WebSocket in background: $errorCode - $errorMessage")
-                callback(false)
-            }
-            
-            override fun notImplemented() {
-                Log.e(TAG, "initializeWebSocket not implemented in background")
-                callback(false)
-            }
-        })
-    }
-    
-    fun disposeWebSocketInBackground(callback: (Boolean) -> Unit) {
-        backgroundMethodChannel?.invokeMethod("disposeWebSocket", null, object : MethodChannel.Result {
-            override fun success(result: Any?) {
-                Log.d(TAG, "WebSocket disposal response from background: $result")
-                callback(true)
-            }
-            
-            override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) {
-                Log.e(TAG, "Error disposing WebSocket in background: $errorCode - $errorMessage")
-                callback(false)
-            }
-            
-            override fun notImplemented() {
-                Log.e(TAG, "disposeWebSocket not implemented in background")
-                callback(false)
-            }
-        })
-    }
     
     private fun cleanupBackgroundEngine() {
         try {

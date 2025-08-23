@@ -31,6 +31,10 @@ class WebSocketService {
   final Map<String, Completer<Map<String, dynamic>>> _pendingRequests = {};
   final _eventBus = ServiceEventBus();
   
+  // Stream for focus updates that can be listened to directly
+  final _focusUpdatesController = StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get focusUpdates => _focusUpdatesController.stream;
+  
   bool get isConnected => _isConnected;
   
   /// Get detailed connection status for debugging
@@ -160,6 +164,12 @@ class WebSocketService {
         final completer = _pendingRequests.remove(requestKey);
         completer?.complete(data);
         return;
+      }
+      
+      // Emit focus updates to dedicated stream
+      if (messageType == 'focusing' || messageType == 'focusing_status' || 
+          (messageType == null && data.containsKey('focusing'))) {
+        _focusUpdatesController.add(data);
       }
       
       // Broadcast message to interested parties via event bus
@@ -452,6 +462,8 @@ class WebSocketService {
     
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
+    
+    await _focusUpdatesController.close();
     
     _cleanup();
   }
