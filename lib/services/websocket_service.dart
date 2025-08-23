@@ -26,9 +26,9 @@ class WebSocketService {
   int _reconnectAttempts = 0;
   static const int _maxReconnectAttempts = 10;
   static const Duration _baseReconnectDelay = Duration(seconds: 2);
-  static const Duration _heartbeatInterval = Duration(seconds: 30);
+  static const Duration _heartbeatInterval = Duration(seconds: 60 * 5);
 
-  final Map<String, Completer<Map<String, dynamic>>> _pendingRequests = {};
+  Completer<Map<String, dynamic>>? _pendingRequest;
   final _eventBus = ServiceEventBus();
 
   // Stream for focus updates that can be listened to directly
@@ -45,7 +45,7 @@ class WebSocketService {
       'isConnected': _isConnected,
       'isConnecting': _isConnecting,
       'reconnectAttempts': _reconnectAttempts,
-      'pendingRequests': _pendingRequests.keys.toList(),
+      'hasPendingRequest': _pendingRequest != null,
       'hasChannel': _channel != null,
       'hasSubscription': _subscription != null,
       'websocketUrl': AppConfig.webSocketUrl,
@@ -136,17 +136,10 @@ class WebSocketService {
 
       // Handle response to pending requests
       // Map server response types to our request types
-      String? requestKey;
-      if (messageType == 'focusing_status' ||
-          messageType == 'focusing' ||
-          (messageType == null && data.containsKey('focusing'))) {
-        requestKey = 'focusing_status';
-      } else if (messageType != null) {
-        requestKey = messageType;
-      }
 
-      if (requestKey != null && _pendingRequests.containsKey(requestKey)) {
-        final completer = _pendingRequests.remove(requestKey);
+      if (_pendingRequest != null) {
+        final completer = _pendingRequest;
+        _pendingRequest = null;
         completer?.complete(data);
         return;
       }
@@ -220,13 +213,11 @@ class WebSocketService {
 
     _updateConnectionStatus(false);
 
-    // Complete any pending requests with error
-    for (final completer in _pendingRequests.values) {
-      if (!completer.isCompleted) {
-        completer.completeError(Exception('WebSocket connection lost'));
-      }
+    // Complete any pending request with error
+    if (_pendingRequest != null && !_pendingRequest!.isCompleted) {
+      _pendingRequest!.completeError(Exception('WebSocket connection lost'));
+      _pendingRequest = null;
     }
-    _pendingRequests.clear();
   }
 
   /// Schedule reconnection with exponential backoff
@@ -403,7 +394,7 @@ class WebSocketService {
 
     // Create a completer for this request
     final completer = Completer<Map<String, dynamic>>();
-    _pendingRequests['focusing_status'] = completer;
+    _pendingRequest = completer;
 
     try {
       // Send the request
@@ -419,7 +410,7 @@ class WebSocketService {
       final response = await completer.future.timeout(
         const Duration(seconds: 10),
         onTimeout: () {
-          _pendingRequests.remove('focusing_status');
+          _pendingRequest = null;
 
           final timeoutError =
               'Focus status request timed out after 10s - WebSocket connected: $_isConnected, URL: ${AppConfig.webSocketUrl}';
@@ -433,7 +424,7 @@ class WebSocketService {
               'timeoutSeconds': 10,
               'isConnected': _isConnected,
               'url': AppConfig.webSocketUrl,
-              'pendingRequests': _pendingRequests.keys.toList(),
+              'hasPendingRequest': _pendingRequest != null,
             },
           );
 
@@ -450,7 +441,7 @@ class WebSocketService {
 
       return response;
     } catch (e) {
-      _pendingRequests.remove('focusing_status');
+      _pendingRequest = null;
       _log.severe('Focus status request failed: $e');
 
       EnhancedLogger.error(
