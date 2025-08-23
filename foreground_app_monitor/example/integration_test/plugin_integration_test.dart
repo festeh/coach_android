@@ -15,11 +15,14 @@ import 'package:foreground_app_monitor/foreground_app_monitor.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('getPlatformVersion test', (WidgetTester tester) async {
-    final ForegroundAppMonitor plugin = ForegroundAppMonitor();
-    final String? version = await plugin.getPlatformVersion();
-    // The version string depends on the host platform running the test, so
-    // just assert that some non-empty string is returned.
-    expect(version?.isNotEmpty, true);
+  testWidgets('foreground app monitoring test', (WidgetTester tester) async {
+    // Initialize the plugin
+    ForegroundAppMonitor.initialize();
+    
+    // Test that the stream is available
+    expect(ForegroundAppMonitor.foregroundAppStream, isA<Stream<String>>());
+    
+    // Clean up
+    ForegroundAppMonitor.dispose();
   });
 }

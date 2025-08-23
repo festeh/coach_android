@@ -154,6 +154,7 @@ class _DebugViewState extends State<DebugView> with WidgetsBindingObserver {
                   Icons.phone_android,
                   () async {
                     _log.info('Testing foreground app detection...');
+                    final messenger = ScaffoldMessenger.of(context);
                     try {
                       // Try to check current foreground app
                       ForegroundAppMonitor.initialize();
@@ -163,22 +164,26 @@ class _DebugViewState extends State<DebugView> with WidgetsBindingObserver {
                       testSubscription = ForegroundAppMonitor.foregroundAppStream.listen(
                         (String appPackage) {
                           _log.info('Test detected foreground app: $appPackage');
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Detected app: $appPackage'),
-                              duration: const Duration(seconds: 3),
-                            ),
-                          );
+                          if (mounted) {
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('Detected app: $appPackage'),
+                                duration: const Duration(seconds: 3),
+                              ),
+                            );
+                          }
                         },
                         onError: (error) {
                           _log.severe('Test stream error: $error');
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Stream error: $error'),
-                              backgroundColor: Colors.red,
-                              duration: const Duration(seconds: 3),
-                            ),
-                          );
+                          if (mounted) {
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('Stream error: $error'),
+                                backgroundColor: Colors.red,
+                                duration: const Duration(seconds: 3),
+                              ),
+                            );
+                          }
                         },
                       );
                       
@@ -188,7 +193,7 @@ class _DebugViewState extends State<DebugView> with WidgetsBindingObserver {
                         _log.info('Test completed');
                       });
                       
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      messenger.showSnackBar(
                         const SnackBar(
                           content: Text('Testing foreground app detection for 10 seconds...'),
                           duration: Duration(seconds: 3),

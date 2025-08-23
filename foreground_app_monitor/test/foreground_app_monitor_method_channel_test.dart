@@ -23,7 +23,13 @@ void main() {
       onListen: (arguments, sink) {
         // Pipe events from the controller to the sink the plugin listens to
         controller!.stream.listen((event) => sink.success(event),
-            onError: (error) => sink.error(error.code, error.message, error.details),
+            onError: (error) {
+              if (error is PlatformException) {
+                sink.error(code: error.code, message: error.message, details: error.details);
+              } else {
+                sink.error(code: 'ERROR', message: error.toString());
+              }
+            },
             onDone: () => sink.endOfStream());
       },
       onCancel: (arguments) {

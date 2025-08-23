@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:flutter/services.dart';
 // Import the platform interface and method channel implementation if needed for direct access
@@ -52,11 +53,11 @@ class _MyAppState extends State<MyApp> {
           _foregroundApp = packageName;
           _error = null; // Clear previous error on successful event
         });
-        print("Foreground App: $packageName"); // Log to console
+        developer.log("Foreground App: $packageName"); // Log to console
       },
       onError: (error) {
         if (!mounted) return;
-        print("Error listening to foreground app stream: $error");
+        developer.log("Error listening to foreground app stream: $error");
         String errorMessage = 'Failed to get foreground app.';
         if (error is PlatformException) {
           errorMessage = 'Error: ${error.message} (Code: ${error.code})';
@@ -72,13 +73,13 @@ class _MyAppState extends State<MyApp> {
       },
       onDone: () {
         if (!mounted) return;
-        print("Foreground app stream closed.");
+        developer.log("Foreground app stream closed.");
         setState(() {
           _foregroundApp = 'Stream closed';
         });
       },
     );
-     print("Started listening to foreground app stream.");
+     developer.log("Started listening to foreground app stream.");
   }
 
 

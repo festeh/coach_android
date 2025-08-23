@@ -8,7 +8,6 @@ import 'enhanced_logger.dart';
 import 'service_event_bus.dart';
 import 'service_health_monitor.dart';
 
-final _log = Logger('BackgroundServiceManager');
 
 @pragma('vm:entry-point')
 class BackgroundServiceManager {

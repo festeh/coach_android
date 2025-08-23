@@ -112,20 +112,6 @@ class EnhancedLogger {
     // The background service should use EnhancedLogger directly
   }
   
-  static Level _mapToLoggingLevel(LogLevel level) {
-    switch (level) {
-      case LogLevel.debug:
-        return Level.FINE;
-      case LogLevel.info:
-        return Level.INFO;
-      case LogLevel.warning:
-        return Level.WARNING;
-      case LogLevel.error:
-        return Level.SEVERE;
-      case LogLevel.critical:
-        return Level.SHOUT;
-    }
-  }
   
   static Future<void> _persistLog(LogEntry entry) async {
     try {
