@@ -206,13 +206,25 @@ class BackgroundMonitorHandler {
 
   /// Initialize WebSocket service in background
   static Future<void> _initializeWebSocketService() async {
+    _log.info('Background isolate: Initializing WebSocket service...');
+    
     try {
       _webSocketService = WebSocketService();
       await _webSocketService!.initialize();
-      _log.info('WebSocket service initialized in background monitor handler');
+      
+      // Verify the connection is working
+      final isConnected = _webSocketService!.isConnected;
+      _log.info('Background isolate: WebSocket service initialized - Connected: $isConnected');
+      
+      if (!isConnected) {
+        _log.warning('Background isolate: WebSocket service initialized but not connected');
+      }
     } catch (e) {
-      _log.severe('Failed to initialize WebSocket service in background: $e');
+      final errorMsg = 'Failed to initialize WebSocket service in background isolate: $e';
+      _log.severe(errorMsg);
       _webSocketService = null;
+      
+      // Don't rethrow - let the system continue and handle errors when requests are made
     }
   }
 
@@ -248,19 +260,68 @@ class BackgroundMonitorHandler {
 
   /// Request focus status via WebSocket
   static Future<Map<String, dynamic>> _requestFocusStatus() async {
+    _log.info('Background isolate: Handling focus status request');
+    
     if (_webSocketService == null) {
-      throw Exception('WebSocket service not initialized');
+      const error = 'WebSocket service not initialized in background isolate';
+      _log.severe(error);
+      throw Exception(error);
     }
     
-    _log.info('Requesting focus status from WebSocket in background');
+    // Log detailed connection status for debugging
+    if (_webSocketService != null) {
+      final connectionStatus = _webSocketService!.getConnectionStatus();
+      _log.info('Background isolate: WebSocket connection status: $connectionStatus');
+    }
     
     try {
-      final response = await _webSocketService!.requestFocusStatus();
-      _log.info('Focus status response received in background: $response');
+      // Test connection health before making the request
+      if (_webSocketService != null) {
+        final isHealthy = await _webSocketService!.testConnection();
+        _log.info('Background isolate: WebSocket health check result: $isHealthy');
+      }
+      
+      // Add a timeout wrapper around the WebSocket request
+      final response = await _webSocketService!.requestFocusStatus().timeout(
+        const Duration(seconds: 12), // Slightly longer than the internal timeout
+        onTimeout: () {
+          _log.severe('Background isolate: Focus status request timed out after 12 seconds');
+          throw TimeoutException('Background WebSocket request timed out', const Duration(seconds: 12));
+        },
+      );
+      
+      _log.info('Background isolate: Focus status response received: $response');
       return response;
+    } on TimeoutException catch (e) {
+      final errorMsg = 'Background isolate: WebSocket focus status request timed out: $e';
+      _log.severe(errorMsg);
+      
+      // Try to reinitialize WebSocket service for next request
+      try {
+        _log.info('Background isolate: Attempting to reinitialize WebSocket service after timeout');
+        await _webSocketService?.dispose();
+        await _initializeWebSocketService();
+      } catch (reinitError) {
+        _log.severe('Background isolate: Failed to reinitialize WebSocket service: $reinitError');
+      }
+      
+      throw Exception(errorMsg);
     } catch (e) {
-      _log.severe('Failed to request focus status in background: $e');
-      rethrow;
+      final errorMsg = 'Background isolate: Failed to request focus status: $e';
+      _log.severe(errorMsg);
+      
+      // Check if it's a connection issue and try to reinitialize
+      if (e.toString().contains('WebSocket') || e.toString().contains('connection')) {
+        try {
+          _log.info('Background isolate: Connection error detected, attempting to reinitialize WebSocket service');
+          await _webSocketService?.dispose();
+          await _initializeWebSocketService();
+        } catch (reinitError) {
+          _log.severe('Background isolate: Failed to reinitialize WebSocket service: $reinitError');
+        }
+      }
+      
+      throw Exception(errorMsg);
     }
   }
 

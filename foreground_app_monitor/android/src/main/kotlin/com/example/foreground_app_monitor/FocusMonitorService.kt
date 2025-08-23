@@ -269,27 +269,38 @@ class FocusMonitorService : Service() {
     // --- WebSocket Bridge Methods ---
     
     fun requestFocusStatusFromBackground(callback: (Map<String, Any>) -> Unit) {
+        Log.d(TAG, "Requesting focus status from background isolate")
+        
         backgroundMethodChannel?.invokeMethod("requestFocusStatus", null, object : MethodChannel.Result {
             override fun success(result: Any?) {
                 Log.d(TAG, "Focus status response from background: $result")
                 if (result is Map<*, *>) {
-                    callback(result as Map<String, Any>)
+                    val responseMap = result as Map<String, Any>
+                    Log.d(TAG, "Returning focus status response with ${responseMap.size} keys")
+                    callback(responseMap)
                 } else {
-                    Log.e(TAG, "Invalid focus status response format")
+                    Log.e(TAG, "Invalid focus status response format: ${result?.javaClass?.simpleName}")
+                    // Return empty map but log the issue
                     callback(emptyMap())
                 }
             }
             
             override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) {
-                Log.e(TAG, "Error requesting focus status from background: $errorCode - $errorMessage")
+                val fullError = "Native service error - Code: $errorCode, Message: $errorMessage, Details: $errorDetails"
+                Log.e(TAG, "Error requesting focus status from background: $fullError")
+                
+                // Still return empty map but with better logging
                 callback(emptyMap())
             }
             
             override fun notImplemented() {
-                Log.e(TAG, "requestFocusStatus not implemented in background")
+                Log.e(TAG, "requestFocusStatus not implemented in background isolate")
                 callback(emptyMap())
             }
-        })
+        }) ?: run {
+            Log.e(TAG, "Background method channel is null - cannot request focus status")
+            callback(emptyMap())
+        }
     }
     
     fun initializeWebSocketInBackground(callback: (Boolean) -> Unit) {

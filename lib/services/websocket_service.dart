@@ -33,6 +33,37 @@ class WebSocketService {
   
   bool get isConnected => _isConnected;
   
+  /// Get detailed connection status for debugging
+  Map<String, dynamic> getConnectionStatus() {
+    return {
+      'isConnected': _isConnected,
+      'isConnecting': _isConnecting,
+      'reconnectAttempts': _reconnectAttempts,
+      'pendingRequests': _pendingRequests.keys.toList(),
+      'hasChannel': _channel != null,
+      'hasSubscription': _subscription != null,
+      'websocketUrl': AppConfig.webSocketUrl,
+    };
+  }
+  
+  /// Test WebSocket connection health
+  Future<bool> testConnection() async {
+    if (!_isConnected) {
+      _log.warning('Connection test failed: not connected');
+      return false;
+    }
+    
+    try {
+      // Send a simple ping to test the connection
+      await _sendMessage({'type': 'ping'});
+      _log.info('Connection test: ping sent successfully');
+      return true;
+    } catch (e) {
+      _log.severe('Connection test failed: $e');
+      return false;
+    }
+  }
+  
   /// Initialize and connect to WebSocket server
   Future<void> initialize() async {
     if (AppConfig.webSocketUrl.isEmpty) {
@@ -291,24 +322,65 @@ class WebSocketService {
   /// Request focus status from WebSocket server
   /// This is the abstracted method that handles connection management
   Future<Map<String, dynamic>> requestFocusStatus() async {
-    _log.info('Requesting focus status from WebSocket');
+    _log.info('Requesting focus status from WebSocket - Connection state: $_isConnected');
     
     // Check if connected, if not try to connect
     if (!_isConnected) {
       _log.info('WebSocket not connected, attempting to connect first');
-      await _connect();
       
-      // Wait a bit for connection to establish
-      for (int i = 0; i < 50 && !_isConnected; i++) {
-        await Future.delayed(const Duration(milliseconds: 100));
-      }
+      EnhancedLogger.info(
+        LogSource.webSocket,
+        LogCategory.connection,
+        'WebSocket not connected, attempting connection before focus status request',
+        {'url': AppConfig.webSocketUrl, 'reconnectAttempts': _reconnectAttempts},
+      );
       
-      if (!_isConnected) {
-        final errorMsg = 'Could not establish WebSocket connection after 5 seconds. URL: ${AppConfig.webSocketUrl}';
-        _log.severe(errorMsg);
-        throw Exception(errorMsg);
+      try {
+        await _connect();
+        
+        // Wait a bit for connection to establish with exponential backoff
+        const maxWaitTime = Duration(seconds: 8);
+        const checkInterval = Duration(milliseconds: 200);
+        var totalWaitTime = Duration.zero;
+        
+        while (!_isConnected && totalWaitTime < maxWaitTime) {
+          await Future.delayed(checkInterval);
+          totalWaitTime += checkInterval;
+          _log.fine('Waiting for connection... ${totalWaitTime.inMilliseconds}ms elapsed');
+        }
+        
+        if (!_isConnected) {
+          final errorMsg = 'Could not establish WebSocket connection after ${totalWaitTime.inSeconds}s. URL: ${AppConfig.webSocketUrl}';
+          _log.severe(errorMsg);
+          
+          EnhancedLogger.error(
+            LogSource.webSocket,
+            LogCategory.connection,
+            'WebSocket connection failed before focus status request',
+            {
+              'url': AppConfig.webSocketUrl, 
+              'waitTimeSeconds': totalWaitTime.inSeconds,
+              'reconnectAttempts': _reconnectAttempts
+            },
+          );
+          
+          throw Exception(errorMsg);
+        }
+        _log.info('WebSocket connection established successfully for focus status request');
+      } catch (e) {
+        _log.severe('Failed to establish WebSocket connection: $e');
+        
+        EnhancedLogger.error(
+          LogSource.webSocket,
+          LogCategory.connection,
+          'Exception during WebSocket connection attempt',
+          {'error': e.toString(), 'url': AppConfig.webSocketUrl},
+        );
+        
+        throw Exception('WebSocket connection failed: $e');
       }
-      _log.info('WebSocket connection established successfully');
+    } else {
+      _log.info('WebSocket already connected, proceeding with focus status request');
     }
     
     // Create a completer for this request
@@ -330,7 +402,23 @@ class WebSocketService {
         const Duration(seconds: 10),
         onTimeout: () {
           _pendingRequests.remove('focusing_status');
-          throw TimeoutException('Focus status request timed out', const Duration(seconds: 10));
+          
+          final timeoutError = 'Focus status request timed out after 10s - WebSocket connected: $_isConnected, URL: ${AppConfig.webSocketUrl}';
+          _log.severe(timeoutError);
+          
+          EnhancedLogger.error(
+            LogSource.webSocket,
+            LogCategory.connection,
+            'Focus status request timeout',
+            {
+              'timeoutSeconds': 10,
+              'isConnected': _isConnected,
+              'url': AppConfig.webSocketUrl,
+              'pendingRequests': _pendingRequests.keys.toList(),
+            },
+          );
+          
+          throw TimeoutException(timeoutError, const Duration(seconds: 10));
         },
       );
       

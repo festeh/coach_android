@@ -624,100 +624,76 @@ class _LogsViewState extends ConsumerState<LogsView> {
     }
   }
   
-  void _showLevelPicker() {
+  void _showGenericPicker<T>({
+    required String allItemsText,
+    required List<T> items,
+    required String Function(T) getDisplayName,
+    required T? currentValue,
+    required void Function(T?) onSelectionChanged,
+    Widget? Function(T)? buildLeading,
+  }) {
     showModalBottomSheet(
       context: context,
       builder: (context) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
-            title: const Text('All Levels'),
+            title: Text(allItemsText),
             onTap: () {
               setState(() {
-                _selectedLevel = null;
+                onSelectionChanged(null);
                 _applyFilters();
               });
               Navigator.pop(context);
             },
           ),
-          ...LogLevel.values.map((level) => ListTile(
-            title: Text(level.displayName),
-            leading: CircleAvatar(
-              backgroundColor: _getLevelColor(level),
-              radius: 8,
-            ),
+          ...items.map((item) => ListTile(
+            title: Text(getDisplayName(item)),
+            leading: buildLeading?.call(item),
             onTap: () {
               setState(() {
-                _selectedLevel = level;
+                onSelectionChanged(item);
                 _applyFilters();
               });
               Navigator.pop(context);
             },
           )),
         ],
+      ),
+    );
+  }
+
+  void _showLevelPicker() {
+    _showGenericPicker<LogLevel>(
+      allItemsText: 'All Levels',
+      items: LogLevel.values,
+      getDisplayName: (level) => level.displayName,
+      currentValue: _selectedLevel,
+      onSelectionChanged: (level) => _selectedLevel = level,
+      buildLeading: (level) => CircleAvatar(
+        backgroundColor: _getLevelColor(level),
+        radius: 8,
       ),
     );
   }
   
   void _showSourcePicker() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            title: const Text('All Sources'),
-            onTap: () {
-              setState(() {
-                _selectedSource = null;
-                _applyFilters();
-              });
-              Navigator.pop(context);
-            },
-          ),
-          ...LogSource.values.map((source) => ListTile(
-            title: Text(source.displayName),
-            onTap: () {
-              setState(() {
-                _selectedSource = source;
-                _applyFilters();
-              });
-              Navigator.pop(context);
-            },
-          )),
-        ],
-      ),
+    _showGenericPicker<LogSource>(
+      allItemsText: 'All Sources',
+      items: LogSource.values,
+      getDisplayName: (source) => source.displayName,
+      currentValue: _selectedSource,
+      onSelectionChanged: (source) => _selectedSource = source,
     );
   }
   
   void _showCategoryPicker() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            title: const Text('All Categories'),
-            onTap: () {
-              setState(() {
-                _selectedCategory = null;
-                _applyFilters();
-              });
-              Navigator.pop(context);
-            },
-          ),
-          ...LogCategory.values.map((category) => ListTile(
-            title: Text(category.displayName),
-            onTap: () {
-              setState(() {
-                _selectedCategory = category;
-                _applyFilters();
-              });
-              Navigator.pop(context);
-            },
-          )),
-        ],
-      ),
+    _showGenericPicker<LogCategory>(
+      allItemsText: 'All Categories',
+      items: LogCategory.values,
+      getDisplayName: (category) => category.displayName,
+      currentValue: _selectedCategory,
+      onSelectionChanged: (category) => _selectedCategory = category,
     );
   }
   

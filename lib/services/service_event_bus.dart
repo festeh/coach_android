@@ -70,7 +70,6 @@ class ServiceEventBus {
     _eventController.add(event);
     _addToHistory(event);
     _logEvent(event);
-    _sendToService(event);
   }
   
   void emitSimple(ServiceEventType type, [String? message, Map<String, dynamic>? data]) {
@@ -117,10 +116,6 @@ class ServiceEventBus {
     }
   }
   
-  void _sendToService(ServiceEvent event) {
-    // Service events are now handled through the native service event system
-    // No need to send to Flutter background service
-  }
   
   Stream<ServiceEvent> filterEvents(ServiceEventType type) {
     return events.where((event) => event.type == type);

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:coach_android/persistent_log.dart';
+import 'package:coach_android/services/enhanced_logger.dart';
+import 'package:coach_android/models/log_entry.dart';
 import 'package:coach_android/state_management/services/state_service.dart';
 import 'package:foreground_app_monitor/foreground_app_monitor.dart';
 import 'package:flutter/material.dart';
@@ -34,7 +35,7 @@ Future<void> startAppMonitoring([BuildContext? context]) async {
   bool hasOverlayPerm = await ForegroundAppMonitor.checkOverlayPermission();
   if (!hasOverlayPerm) {
     _log.warning('Overlay permission not granted. Overlay will not be shown.');
-    await PersistentLog.addLog('Overlay permission not granted.');
+    EnhancedLogger.warning(LogSource.system, LogCategory.system, 'Overlay permission not granted.');
   } else {
     _log.info('Overlay permission granted.');
   }
@@ -43,7 +44,7 @@ Future<void> startAppMonitoring([BuildContext? context]) async {
   bool hasUsageStatsPerm = await ForegroundAppMonitor.checkUsageStatsPermission();
   if (!hasUsageStatsPerm) {
     _log.severe('Usage Stats permission not granted. Monitoring will not work.');
-    await PersistentLog.addLog('Usage Stats permission not granted. Monitoring will not work.');
+    EnhancedLogger.error(LogSource.system, LogCategory.system, 'Usage Stats permission not granted. Monitoring will not work.');
     return;
   } else {
     _log.info('Usage Stats permission granted.');
@@ -64,7 +65,7 @@ Future<void> startAppMonitoring([BuildContext? context]) async {
       // This is where Flutter makes the decision about overlay
       if (_shouldShowOverlay(packageName)) {
         _log.info('Should show overlay for app: $packageName');
-        PersistentLog.addLog('Blocked app opened during focus: $packageName');
+        EnhancedLogger.info(LogSource.monitor, LogCategory.monitoring, 'Blocked app opened during focus: $packageName');
         ForegroundAppMonitor.showOverlay(packageName); // Show overlay
       } else {
         ForegroundAppMonitor.hideOverlay(); // Hide overlay for non-blocked apps
@@ -72,14 +73,14 @@ Future<void> startAppMonitoring([BuildContext? context]) async {
     });
 
     _log.info('App monitoring started successfully.');
-    await PersistentLog.addLog('App monitoring started.');
+    EnhancedLogger.info(LogSource.system, LogCategory.monitoring, 'App monitoring started.');
     
     // Sync current state to background isolate
     await _syncFocusStateToBackground(_isFocusing);
     await _syncMonitoredAppsToBackground(_monitoredPackages);
   } catch (e) {
     _log.severe('Failed to start monitoring service: $e');
-    await PersistentLog.addLog('Failed to start monitoring service: $e');
+    EnhancedLogger.error(LogSource.system, LogCategory.monitoring, 'Failed to start monitoring service: $e');
     rethrow;
   }
 }
@@ -121,10 +122,10 @@ Future<void> stopAppMonitoring() async {
     ForegroundAppMonitor.hideOverlay(); // Ensure overlay is hidden
     
     _log.info('App monitoring stopped.');
-    await PersistentLog.addLog('App monitoring stopped.');
+    EnhancedLogger.info(LogSource.system, LogCategory.monitoring, 'App monitoring stopped.');
   } catch (e) {
     _log.severe('Failed to stop monitoring service: $e');
-    await PersistentLog.addLog('Failed to stop monitoring service: $e');
+    EnhancedLogger.error(LogSource.system, LogCategory.monitoring, 'Failed to stop monitoring service: $e');
   }
 }
 
