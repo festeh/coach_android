@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/log_entry.dart';
 import 'enhanced_logger.dart';
@@ -119,15 +118,8 @@ class ServiceEventBus {
   }
   
   void _sendToService(ServiceEvent event) {
-    // Send event to background service if it's running
-    try {
-      FlutterBackgroundService().invoke(
-        'serviceEvent',
-        event.toJson(),
-      );
-    } catch (e) {
-      // Service might not be running
-    }
+    // Service events are now handled through the native service event system
+    // No need to send to Flutter background service
   }
   
   Stream<ServiceEvent> filterEvents(ServiceEventType type) {

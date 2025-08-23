@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:logging/logging.dart';
 import '../models/focus_state.dart';
 import '../../models/log_entry.dart';
 import '../../services/enhanced_logger.dart';
 import '../../config.dart';
 import '../services/state_service.dart';
+import '../../app_monitor.dart' as app_monitor;
 
 final _log = Logger('FocusProvider');
 
@@ -17,31 +17,23 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
   }
 
   Future<void> _loadInitialState() async {
-    // Don't load from local storage on init - WebSocket is the source of truth
-    // Just request fresh data from WebSocket
-    state = state.copyWith(status: FocusStatus.loading);
+    // Load cached state initially
+    final cachedFocusing = await _stateService.loadFocusingState() ?? false;
+    
+    state = state.copyWith(
+      isFocusing: cachedFocusing,
+      status: FocusStatus.ready,
+    );
+    
+    // Update app monitor with initial focus state
+    app_monitor.updateFocusState(cachedFocusing);
     
     EnhancedLogger.info(
       LogSource.ui,
-      LogCategory.connection,
-      'Initial load - requesting focus status from WebSocket',
-      {'endpoint': AppConfig.webSocketUrl},
+      LogCategory.system,
+      'Initial focus state loaded from cache',
+      {'focusing': cachedFocusing},
     );
-    
-    final service = FlutterBackgroundService();
-    service.invoke('requestFocusStatus');
-    
-    // Wait for WebSocket response
-    await Future.delayed(const Duration(seconds: 2));
-    
-    // If still loading, show error
-    if (state.status == FocusStatus.loading) {
-      state = state.copyWith(
-        status: FocusStatus.error,
-        errorMessage: 'Unable to connect to server',
-        isFocusing: false,
-      );
-    }
   }
 
   Future<void> updateFocusState({
@@ -58,58 +50,33 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
       status: FocusStatus.ready,
     );
 
-    // Note: We only persist for display caching, WebSocket is source of truth
+    // Update app monitor with new focus state
+    app_monitor.updateFocusState(isFocusing);
+
+    // Persist for caching
     await _stateService.saveFocusingState(isFocusing);
   }
 
   Future<void> forceFetch() async {
-    _log.info('Force fetching focus state from WebSocket');
+    _log.info('Force fetch requested - for now just refreshing from cache');
     EnhancedLogger.info(
       LogSource.ui,
       LogCategory.connection,
-      'Requesting fresh focus status from WebSocket',
-      {'endpoint': AppConfig.webSocketUrl},
+      'Refreshing focus state from cache',
     );
     
-    state = state.copyWith(status: FocusStatus.loading);
+    // For now, just reload from cache
+    // TODO: In the future, implement HTTP request to WebSocket server
+    final cachedFocusing = await _stateService.loadFocusingState() ?? false;
     
-    // Request fresh data from the background service/WebSocket
-    final service = FlutterBackgroundService();
+    state = state.copyWith(
+      isFocusing: cachedFocusing,
+      status: FocusStatus.ready,
+      errorMessage: null,
+    );
     
-    // Check if service is running
-    final isRunning = await service.isRunning();
-    // ignore: avoid_print
-    print('FocusProvider: Background service running: $isRunning');
-    
-    // ignore: avoid_print
-    print('FocusProvider: Invoking requestFocusStatus on background service');
-    service.invoke('requestFocusStatus');
-    // ignore: avoid_print
-    print('FocusProvider: Invoked requestFocusStatus');
-    
-    // Wait for WebSocket response
-    await Future.delayed(const Duration(seconds: 2));
-    
-    // If still loading after WebSocket request timeout, show error
-    if (state.status == FocusStatus.loading) {
-      EnhancedLogger.error(
-        LogSource.ui,
-        LogCategory.connection,
-        'WebSocket request timeout - no response received',
-        {'endpoint': AppConfig.webSocketUrl, 'timeout': '2 seconds'},
-      );
-      
-      // Invalidate cache and show error state
-      await _stateService.saveFocusingState(false);
-      
-      state = state.copyWith(
-        status: FocusStatus.error,
-        errorMessage: 'Unable to connect to server',
-        isFocusing: false,
-        numFocuses: 0,
-        focusTimeLeft: 0,
-      );
-    }
+    // Update app monitor
+    app_monitor.updateFocusState(cachedFocusing);
   }
 
   void updateFromWebSocket(Map<String, dynamic> data) {
@@ -138,7 +105,10 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
       errorMessage: null,
     );
     
-    // Still persist to cache for display purposes only (not as source of truth)
+    // Update app monitor with new focus state
+    app_monitor.updateFocusState(focusing);
+    
+    // Persist to cache
     _stateService.saveFocusingState(focusing);
   }
 }

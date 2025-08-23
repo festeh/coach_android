@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_background_service/flutter_background_service.dart';
 import 'dart:async';
 import 'package:logging/logging.dart';
 import 'models/app_info.dart';
@@ -12,7 +11,6 @@ import 'state_management/providers/focus_provider.dart';
 import 'state_management/providers/app_selection_provider.dart';
 import 'state_management/models/app_selection_state.dart';
 import 'state_management/models/focus_state.dart';
-import 'state_management/services/background_service_interface.dart';
 
 final _log = Logger('AppsView');
 
@@ -32,8 +30,6 @@ class _AppsViewState extends ConsumerState<AppsView> {
   @override
   void initState() {
     super.initState();
-    // Initialize background service interface with ref
-    BackgroundServiceManager.initializeForWidget(ref);
     _loadInstalledApps();
     _listenForFocusingUpdates();
     _checkPermissions();
@@ -42,20 +38,13 @@ class _AppsViewState extends ConsumerState<AppsView> {
   @override
   void dispose() {
     _focusingStateSubscription?.cancel();
-    BackgroundServiceManager.dispose();
     super.dispose();
   }
 
   void _listenForFocusingUpdates() {
-    _focusingStateSubscription = FlutterBackgroundService()
-        .on('updateFocusingState')
-        .listen((event) {
-          if (event != null) {
-            _log.info('Received focusing update from background: $event');
-            // Update the focus state through the provider
-            ref.read(focusStateProvider.notifier).updateFromWebSocket(event);
-          }
-        });
+    // Focus updates are now handled automatically by the FocusStateNotifier
+    // through the service event bus, so no manual subscription needed here
+    _log.info('Focus updates will be received through service event system');
   }
 
   Future<void> _checkPermissions() async {

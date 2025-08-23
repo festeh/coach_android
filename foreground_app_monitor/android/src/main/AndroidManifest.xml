@@ -1,7 +1,18 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
   package="com.example.foreground_app_monitor">
 
-    <!-- Required permission for drawing system overlays -->
+    <!-- Required permissions -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"/>
+    
+    <application>
+        <!-- Focus Monitor Background Service -->
+        <service
+            android:name=".FocusMonitorService"
+            android:foregroundServiceType="specialUse"
+            android:exported="false" />
+    </application>
 
 </manifest>

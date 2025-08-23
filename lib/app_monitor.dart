@@ -12,6 +12,9 @@ StreamSubscription<String>? _foregroundAppSubscription;
 // Set to hold the package names of apps we are monitoring
 Set<String> _monitoredPackages = {};
 
+// Focus state - to be updated by the focus provider
+bool _isFocusing = false;
+
 Future<void> startAppMonitoring([BuildContext? context]) async {
   _log.info('Initializing app monitoring...');
 
@@ -44,31 +47,65 @@ Future<void> startAppMonitoring([BuildContext? context]) async {
     _log.info('Usage Stats permission granted.');
   }
 
-  // Listen to the stream provided by the plugin
-  _log.info('Setting up foreground app stream listener...');
-  _foregroundAppSubscription = ForegroundAppMonitor.foregroundAppStream.listen((packageName) {
-    _log.fine('Foreground app: $packageName');
-    
-    if (_monitoredPackages.contains(packageName)) {
-      _log.info('Detected monitored app: $packageName');
-      PersistentLog.addLog('Opened monitored app: $packageName');
-      ForegroundAppMonitor.showOverlay('Focus Time!'); // Show overlay when monitored app is opened
-    } else {
-      ForegroundAppMonitor.hideOverlay(); // Hide overlay for non-monitored apps
+  try {
+    // Start the native background service
+    final serviceStarted = await ForegroundAppMonitor.startFocusMonitorService();
+    if (!serviceStarted) {
+      throw Exception('Failed to start native service');
     }
-  });
 
-  _log.info('App monitoring started successfully.');
-  PersistentLog.addLog('App monitoring started.');
+    // Listen to the stream provided by the native service
+    _log.info('Setting up foreground app stream listener...');
+    _foregroundAppSubscription = ForegroundAppMonitor.foregroundAppStream.listen((packageName) {
+      _log.fine('Foreground app: $packageName');
+      
+      // This is where Flutter makes the decision about overlay
+      if (_shouldShowOverlay(packageName)) {
+        _log.info('Should show overlay for app: $packageName');
+        PersistentLog.addLog('Blocked app opened during focus: $packageName');
+        ForegroundAppMonitor.showOverlay(packageName); // Show overlay
+      } else {
+        ForegroundAppMonitor.hideOverlay(); // Hide overlay for non-blocked apps
+      }
+    });
+
+    _log.info('App monitoring started successfully.');
+    await PersistentLog.addLog('App monitoring started.');
+  } catch (e) {
+    _log.severe('Failed to start monitoring service: $e');
+    await PersistentLog.addLog('Failed to start monitoring service: $e');
+    rethrow;
+  }
 }
 
-void stopAppMonitoring() {
+// Helper function to determine if overlay should be shown
+bool _shouldShowOverlay(String packageName) {
+  // Check if app is in the blocked/monitored list AND we are currently focusing
+  return _monitoredPackages.contains(packageName) && _isFocusing;
+}
+
+// Function to update focus state (called from focus provider)
+void updateFocusState(bool focusing) {
+  _isFocusing = focusing;
+  _log.info('Focus state updated: $_isFocusing');
+}
+
+Future<void> stopAppMonitoring() async {
   _log.info('Stopping app monitoring...');
-  _foregroundAppSubscription?.cancel();
-  _foregroundAppSubscription = null;
-  ForegroundAppMonitor.hideOverlay(); // Ensure overlay is hidden
-  _log.info('App monitoring stopped.');
-  PersistentLog.addLog('App monitoring stopped.');
+  
+  try {
+    _foregroundAppSubscription?.cancel();
+    _foregroundAppSubscription = null;
+    
+    await ForegroundAppMonitor.stopFocusMonitorService();
+    ForegroundAppMonitor.hideOverlay(); // Ensure overlay is hidden
+    
+    _log.info('App monitoring stopped.');
+    await PersistentLog.addLog('App monitoring stopped.');
+  } catch (e) {
+    _log.severe('Failed to stop monitoring service: $e');
+    await PersistentLog.addLog('Failed to stop monitoring service: $e');
+  }
 }
 
 Future<void> updateMonitoredApps(Set<String> packages) async {

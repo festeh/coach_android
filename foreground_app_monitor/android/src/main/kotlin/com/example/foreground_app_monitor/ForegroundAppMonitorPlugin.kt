@@ -3,12 +3,12 @@ package com.example.foreground_app_monitor
 import android.app.AppOpsManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
-import android.content.Context
-import android.content.Intent
+import android.content.*
 import android.graphics.PixelFormat
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
+import android.os.IBinder
 import android.os.Looper
 import android.os.Process
 import android.provider.Settings
@@ -27,9 +27,9 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 
 /** ForegroundAppMonitorPlugin */
-class ForegroundAppMonitorPlugin : FlutterPlugin, MethodCallHandler { // Implement MethodCallHandler
+class ForegroundAppMonitorPlugin : FlutterPlugin, MethodCallHandler {
     private var eventChannel: EventChannel? = null
-    private var methodChannel: MethodChannel? = null // Add MethodChannel
+    private var methodChannel: MethodChannel? = null
     private var streamHandler: ForegroundAppStreamHandler? = null
     private lateinit var context: Context
     private lateinit var messenger: BinaryMessenger
@@ -37,22 +37,27 @@ class ForegroundAppMonitorPlugin : FlutterPlugin, MethodCallHandler { // Impleme
     private var overlayView: View? = null
     private var layoutInflater: LayoutInflater? = null
 
-
     companion object {
         const val EVENT_CHANNEL_NAME = "com.example.foreground_app_monitor/foregroundApp"
-        const val METHOD_CHANNEL_NAME = "com.example.foreground_app_monitor/methods" // Define method channel name
+        const val METHOD_CHANNEL_NAME = "com.example.foreground_app_monitor/methods"
         const val TAG = "FgAppMonitorPlugin"
+        
+        private var instance: ForegroundAppMonitorPlugin? = null
+        
+        fun getInstance(): ForegroundAppMonitorPlugin? = instance
     }
 
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         Log.d(TAG, "onAttachedToEngine")
+        instance = this
         setupChannels(binding.applicationContext, binding.binaryMessenger)
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         Log.d(TAG, "onDetachedFromEngine")
         teardownChannels()
+        instance = null
     }
 
     private fun setupChannels(context: Context, messenger: BinaryMessenger) {
@@ -61,7 +66,7 @@ class ForegroundAppMonitorPlugin : FlutterPlugin, MethodCallHandler { // Impleme
         this.layoutInflater = LayoutInflater.from(this.context)
         this.windowManager = this.context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
-        // Setup EventChannel
+        // Setup EventChannel for app monitoring
         eventChannel = EventChannel(messenger, EVENT_CHANNEL_NAME)
         streamHandler = ForegroundAppStreamHandler(context)
         eventChannel?.setStreamHandler(streamHandler)
@@ -254,11 +259,63 @@ class ForegroundAppMonitorPlugin : FlutterPlugin, MethodCallHandler { // Impleme
                 hideOverlay()
                 result.success(null) // Indicate success
             }
+            "startFocusMonitorService" -> {
+                startFocusMonitorService()
+                result.success(true)
+            }
+            "stopFocusMonitorService" -> {
+                stopFocusMonitorService()
+                result.success(true)
+            }
             else -> {
                 Log.w(TAG, "Method not implemented: ${call.method}")
                 result.notImplemented()
             }
         }
+    }
+
+    // --- Service Management Methods ---
+    
+    private fun startFocusMonitorService() {
+        Log.d(TAG, "Starting FocusMonitorService")
+        
+        val intent = Intent(context, FocusMonitorService::class.java).apply {
+            action = FocusMonitorService.ACTION_START_SERVICE
+        }
+        
+        try {
+            context.startForegroundService(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting service", e)
+        }
+    }
+    
+    private fun stopFocusMonitorService() {
+        Log.d(TAG, "Stopping FocusMonitorService")
+        
+        val intent = Intent(context, FocusMonitorService::class.java).apply {
+            action = FocusMonitorService.ACTION_STOP_SERVICE
+        }
+        
+        try {
+            context.startService(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping service", e)
+        }
+    }
+    
+    // --- Service Event Callbacks ---
+    
+    fun onServiceStatusChanged(status: String) {
+        Log.d(TAG, "Service status changed: $status")
+        // Service status changes can be logged or handled if needed
+    }
+    
+    fun onAppDetected(packageName: String) {
+        Log.d(TAG, "App detected: $packageName")
+        
+        // Send the app to the Flutter side via the stream handler
+        streamHandler?.sendAppDetected(packageName)
     }
 }
 
@@ -361,4 +418,9 @@ class ForegroundAppStreamHandler(private val context: Context) : EventChannel.St
         Log.d(TAG, "Usage Stats permission check result: mode=$mode, granted=$granted")
         return granted
     }
+    
+    fun sendAppDetected(packageName: String) {
+        eventSink?.success(packageName)
+    }
 }
+

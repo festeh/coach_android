@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
 import 'app.dart';
-import 'bg.dart';
 
 
 void main() async {
@@ -15,7 +14,7 @@ void main() async {
     print('${record.level.name}: ${record.time}: ${record.loggerName}: ${record.message}');
   });
   
-  await initBgService();
+  // Background service initialization is now handled by the app monitor
   runApp(
     const ProviderScope(
       child: MyApp(),

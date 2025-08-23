@@ -8,7 +8,6 @@ class ForegroundAppMonitor {
   static const EventChannel _eventChannel = EventChannel(
     'com.example.foreground_app_monitor/foregroundApp',
   );
-  // Add MethodChannel corresponding to the native side
   static const MethodChannel _methodChannel = MethodChannel(
     'com.example.foreground_app_monitor/methods',
   );
@@ -25,6 +24,8 @@ class ForegroundAppMonitor {
       return;
     }
     _log.info('Initializing app monitor plugin...');
+    
+    // Initialize foreground app monitoring stream
     _platformSubscription = _eventChannel.receiveBroadcastStream().listen(
       (dynamic event) {
         if (event is String) {
@@ -55,6 +56,7 @@ class ForegroundAppMonitor {
       },
       cancelOnError: false, // Continue listening after errors
     );
+    
     _isInitialized = true;
     _log.info('Initialization complete. Listening to platform stream.');
   }
@@ -180,6 +182,42 @@ class ForegroundAppMonitor {
       _log.severe('Failed to hide overlay: ${e.message}', e);
     } catch (e) {
       _log.severe('Unknown error hiding overlay: $e');
+    }
+  }
+
+  /// Starts the simple focus monitor background service.
+  static Future<bool> startFocusMonitorService() async {
+    try {
+      _log.info('Starting focus monitor service...');
+      final result = await _methodChannel.invokeMethod<bool>(
+        'startFocusMonitorService',
+      );
+      _log.info('Focus monitor service start result: $result');
+      return result ?? false;
+    } on PlatformException catch (e) {
+      _log.severe('Failed to start focus monitor service: ${e.message}', e);
+      return false;
+    } catch (e) {
+      _log.severe('Unknown error starting focus monitor service: $e');
+      return false;
+    }
+  }
+
+  /// Stops the focus monitor background service.
+  static Future<bool> stopFocusMonitorService() async {
+    try {
+      _log.info('Stopping focus monitor service...');
+      final result = await _methodChannel.invokeMethod<bool>(
+        'stopFocusMonitorService',
+      );
+      _log.info('Focus monitor service stop result: $result');
+      return result ?? false;
+    } on PlatformException catch (e) {
+      _log.severe('Failed to stop focus monitor service: ${e.message}', e);
+      return false;
+    } catch (e) {
+      _log.severe('Unknown error stopping focus monitor service: $e');
+      return false;
     }
   }
 }
