@@ -1,4 +1,5 @@
 import 'package:coach_android/background_monitor_handler.dart';
+import 'package:coach_android/services/websocket_service.dart';
 import 'package:logging/logging.dart';
 
 final _log = Logger('BackgroundIsolate');
@@ -9,7 +10,7 @@ final _log = Logger('BackgroundIsolate');
 void backgroundMain() {
   _log.info('Background isolate started');
   
-  // Initialize the background monitor handler
+  // Initialize the background monitor handler (which will initialize WebSocket)
   BackgroundMonitorHandler.initialize();
 }
 

@@ -14,6 +14,7 @@ void main() async {
     print('${record.level.name}: ${record.time}: ${record.loggerName}: ${record.message}');
   });
   
+  // WebSocket service initialization is now handled by the background isolate
   // Background service initialization is now handled by the app monitor
   runApp(
     const ProviderScope(

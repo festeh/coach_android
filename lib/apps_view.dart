@@ -117,7 +117,7 @@ class _AppsViewState extends ConsumerState<AppsView> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            'Focusing Status:',
+            'Status:',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,

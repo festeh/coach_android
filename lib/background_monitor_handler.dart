@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'services/websocket_service.dart';
 
 final _log = Logger('BackgroundMonitorHandler');
 
@@ -20,6 +21,7 @@ class BackgroundMonitorHandler {
   static bool _isFocusing = false;
   static Set<String> _monitoredPackages = {};
   static bool _isInitialized = false;
+  static WebSocketService? _webSocketService;
 
   /// Initialize the background monitor handler
   static Future<void> initialize() async {
@@ -35,11 +37,17 @@ class BackgroundMonitorHandler {
       _methodChannel = const MethodChannel(_methodChannelName);
       _eventChannel = const EventChannel(_eventChannelName);
       
+      // Set up method call handler for WebSocket operations from native service
+      _methodChannel?.setMethodCallHandler(_handleMethodCall);
+      
       // Load persisted state
       await _loadPersistedState();
       
       // Set up listener for app changes from native service
       _setupAppListener();
+      
+      // Initialize WebSocket service in background
+      await _initializeWebSocketService();
       
       // Notify native service that background isolate is ready
       await _methodChannel?.invokeMethod('backgroundReady');
@@ -196,6 +204,66 @@ class BackgroundMonitorHandler {
   /// Get current monitored packages
   static Set<String> get monitoredPackages => Set.from(_monitoredPackages);
 
+  /// Initialize WebSocket service in background
+  static Future<void> _initializeWebSocketService() async {
+    try {
+      _webSocketService = WebSocketService();
+      await _webSocketService!.initialize();
+      _log.info('WebSocket service initialized in background monitor handler');
+    } catch (e) {
+      _log.severe('Failed to initialize WebSocket service in background: $e');
+      _webSocketService = null;
+    }
+  }
+
+  /// Handle method calls from main isolate
+  static Future<dynamic> _handleMethodCall(MethodCall call) async {
+    _log.fine('Received method call: ${call.method}');
+    
+    try {
+      switch (call.method) {
+        case 'requestFocusStatus':
+          return await _requestFocusStatus();
+        case 'initializeWebSocket':
+          await _initializeWebSocketService();
+          return {'success': true};
+        case 'disposeWebSocket':
+          await _webSocketService?.dispose();
+          _webSocketService = null;
+          return {'success': true};
+        default:
+          throw PlatformException(
+            code: 'UNKNOWN_METHOD',
+            message: 'Unknown method: ${call.method}',
+          );
+      }
+    } catch (e) {
+      _log.severe('Error handling method call ${call.method}: $e');
+      throw PlatformException(
+        code: 'METHOD_ERROR', 
+        message: 'Error handling ${call.method}: $e',
+      );
+    }
+  }
+
+  /// Request focus status via WebSocket
+  static Future<Map<String, dynamic>> _requestFocusStatus() async {
+    if (_webSocketService == null) {
+      throw Exception('WebSocket service not initialized');
+    }
+    
+    _log.info('Requesting focus status from WebSocket in background');
+    
+    try {
+      final response = await _webSocketService!.requestFocusStatus();
+      _log.info('Focus status response received in background: $response');
+      return response;
+    } catch (e) {
+      _log.severe('Failed to request focus status in background: $e');
+      rethrow;
+    }
+  }
+
   /// Dispose resources
   static Future<void> dispose() async {
     _log.info('Disposing background monitor handler...');
@@ -203,6 +271,11 @@ class BackgroundMonitorHandler {
     _isInitialized = false;
     await _appStreamSubscription?.cancel();
     _appStreamSubscription = null;
+    
+    // Dispose WebSocket service
+    await _webSocketService?.dispose();
+    _webSocketService = null;
+    
     _methodChannel = null;
     _eventChannel = null;
     

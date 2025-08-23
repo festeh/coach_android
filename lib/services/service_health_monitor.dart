@@ -8,7 +8,9 @@ import '../app_monitor.dart' as app_monitor;
 class ServiceHealthMonitor {
   static final _instance = ServiceHealthMonitor._internal();
   factory ServiceHealthMonitor() => _instance;
-  ServiceHealthMonitor._internal();
+  ServiceHealthMonitor._internal() {
+    _setupEventListeners();
+  }
   
   Timer? _healthCheckTimer;
   Timer? _watchdogTimer;
@@ -23,6 +25,21 @@ class ServiceHealthMonitor {
   bool _isServiceResponding = true;
   
   final _eventBus = ServiceEventBus();
+  
+  void _setupEventListeners() {
+    _eventBus.events.listen((event) {
+      switch (event.type) {
+        case ServiceEventType.webSocketConnected:
+          updateWebSocketHealth(true);
+          break;
+        case ServiceEventType.webSocketDisconnected:
+          updateWebSocketHealth(false);
+          break;
+        default:
+          break;
+      }
+    });
+  }
   
   void startMonitoring() {
     EnhancedLogger.info(
@@ -223,6 +240,8 @@ class ServiceHealthMonitor {
       // Attempt to restart the monitoring service
       await _attemptServiceRestart();
       
+      // WebSocket has its own reconnection logic, so we don't need to handle it here
+      
       // Wait a moment for service to initialize
       await Future.delayed(const Duration(seconds: 3));
       
@@ -319,6 +338,7 @@ class ServiceHealthMonitor {
       },
     };
   }
+  
   
   /// Attempts to restart the monitoring service
   Future<void> _attemptServiceRestart() async {

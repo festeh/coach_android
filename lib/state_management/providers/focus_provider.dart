@@ -1,8 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
+import 'dart:async';
 import '../models/focus_state.dart';
 import '../../models/log_entry.dart';
 import '../../services/enhanced_logger.dart';
+import '../../services/background_websocket_bridge.dart';
+import '../../services/service_event_bus.dart';
 import '../services/state_service.dart';
 import '../../app_monitor.dart' as app_monitor;
 
@@ -10,9 +13,45 @@ final _log = Logger('FocusProvider');
 
 class FocusStateNotifier extends StateNotifier<FocusState> {
   final StateService _stateService;
+  final BackgroundWebSocketBridge _webSocketBridge;
+  final ServiceEventBus _eventBus = ServiceEventBus();
+  StreamSubscription<ServiceEvent>? _eventSubscription;
 
-  FocusStateNotifier(this._stateService) : super(const FocusState()) {
+  FocusStateNotifier(this._stateService, this._webSocketBridge) : super(const FocusState()) {
     _loadInitialState();
+    _setupWebSocketMessageListener();
+    _initializeBridge();
+  }
+
+  @override
+  void dispose() {
+    _eventSubscription?.cancel();
+    _webSocketBridge.dispose();
+    super.dispose();
+  }
+
+  /// Initialize the background WebSocket bridge
+  void _initializeBridge() async {
+    try {
+      await _webSocketBridge.initialize();
+      _log.info('Background WebSocket bridge initialized');
+    } catch (e) {
+      _log.severe('Failed to initialize background WebSocket bridge: $e');
+    }
+  }
+
+  void _setupWebSocketMessageListener() {
+    _eventSubscription = _eventBus.events.listen((event) {
+      if (event.type == ServiceEventType.webSocketMessage) {
+        final data = event.data;
+        if (data != null) {
+          // Check if this is a focus status message
+          if (data.containsKey('focusing') || data['type'] == 'focusing_status') {
+            updateFromWebSocket(data);
+          }
+        }
+      }
+    });
   }
 
   Future<void> _loadInitialState() async {
@@ -57,25 +96,45 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
   }
 
   Future<void> forceFetch() async {
-    _log.info('Force fetch requested - for now just refreshing from cache');
-    EnhancedLogger.info(
-      LogSource.ui,
-      LogCategory.connection,
-      'Refreshing focus state from cache',
-    );
+    _log.info('Force fetch requested - fetching from WebSocket server');
     
-    // For now, just reload from cache
-    // TODO: In the future, implement HTTP request to WebSocket server
-    final cachedFocusing = await _stateService.loadFocusingState() ?? false;
+    state = state.copyWith(status: FocusStatus.loading);
     
-    state = state.copyWith(
-      isFocusing: cachedFocusing,
-      status: FocusStatus.ready,
-      errorMessage: null,
-    );
-    
-    // Update app monitor
-    app_monitor.updateFocusState(cachedFocusing);
+    try {
+      EnhancedLogger.info(
+        LogSource.ui,
+        LogCategory.connection,
+        'Requesting focus state from WebSocket server',
+      );
+      
+      // Request focus status from background WebSocket service
+      final response = await _webSocketBridge.requestFocusStatus();
+      
+      // Process the response
+      updateFromWebSocket(response);
+      
+    } catch (e) {
+      _log.severe('Failed to fetch focus state from WebSocket: $e');
+      
+      EnhancedLogger.error(
+        LogSource.ui,
+        LogCategory.connection,
+        'Failed to fetch focus state from WebSocket server',
+        {'error': e.toString()},
+      );
+      
+      // Fall back to cached state
+      final cachedFocusing = await _stateService.loadFocusingState() ?? false;
+      
+      state = state.copyWith(
+        isFocusing: cachedFocusing,
+        status: FocusStatus.ready,
+        errorMessage: 'Failed to connect to server: ${e.toString()}',
+      );
+      
+      // Update app monitor with cached state
+      app_monitor.updateFocusState(cachedFocusing);
+    }
   }
 
   void updateFromWebSocket(Map<String, dynamic> data) {
@@ -114,7 +173,10 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
 
 final stateServiceProvider = Provider<StateService>((ref) => StateService());
 
+final backgroundWebSocketBridgeProvider = Provider<BackgroundWebSocketBridge>((ref) => BackgroundWebSocketBridge());
+
 final focusStateProvider = StateNotifierProvider<FocusStateNotifier, FocusState>((ref) {
   final stateService = ref.watch(stateServiceProvider);
-  return FocusStateNotifier(stateService);
+  final webSocketBridge = ref.watch(backgroundWebSocketBridgeProvider);
+  return FocusStateNotifier(stateService, webSocketBridge);
 });

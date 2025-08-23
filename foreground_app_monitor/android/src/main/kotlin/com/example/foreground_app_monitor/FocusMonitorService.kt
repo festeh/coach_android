@@ -235,6 +235,70 @@ class FocusMonitorService : Service() {
         }
     }
     
+    // --- WebSocket Bridge Methods ---
+    
+    fun requestFocusStatusFromBackground(callback: (Map<String, Any>) -> Unit) {
+        backgroundMethodChannel?.invokeMethod("requestFocusStatus", null, object : MethodChannel.Result {
+            override fun success(result: Any?) {
+                Log.d(TAG, "Focus status response from background: $result")
+                if (result is Map<*, *>) {
+                    callback(result as Map<String, Any>)
+                } else {
+                    Log.e(TAG, "Invalid focus status response format")
+                    callback(emptyMap())
+                }
+            }
+            
+            override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) {
+                Log.e(TAG, "Error requesting focus status from background: $errorCode - $errorMessage")
+                callback(emptyMap())
+            }
+            
+            override fun notImplemented() {
+                Log.e(TAG, "requestFocusStatus not implemented in background")
+                callback(emptyMap())
+            }
+        })
+    }
+    
+    fun initializeWebSocketInBackground(callback: (Boolean) -> Unit) {
+        backgroundMethodChannel?.invokeMethod("initializeWebSocket", null, object : MethodChannel.Result {
+            override fun success(result: Any?) {
+                Log.d(TAG, "WebSocket initialization response from background: $result")
+                callback(true)
+            }
+            
+            override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) {
+                Log.e(TAG, "Error initializing WebSocket in background: $errorCode - $errorMessage")
+                callback(false)
+            }
+            
+            override fun notImplemented() {
+                Log.e(TAG, "initializeWebSocket not implemented in background")
+                callback(false)
+            }
+        })
+    }
+    
+    fun disposeWebSocketInBackground(callback: (Boolean) -> Unit) {
+        backgroundMethodChannel?.invokeMethod("disposeWebSocket", null, object : MethodChannel.Result {
+            override fun success(result: Any?) {
+                Log.d(TAG, "WebSocket disposal response from background: $result")
+                callback(true)
+            }
+            
+            override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) {
+                Log.e(TAG, "Error disposing WebSocket in background: $errorCode - $errorMessage")
+                callback(false)
+            }
+            
+            override fun notImplemented() {
+                Log.e(TAG, "disposeWebSocket not implemented in background")
+                callback(false)
+            }
+        })
+    }
+    
     private fun cleanupBackgroundEngine() {
         try {
             Log.d(TAG, "Cleaning up background Flutter engine...")
