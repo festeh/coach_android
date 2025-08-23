@@ -1,8 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:coach_android/services/enhanced_logger.dart';
 import 'package:coach_android/models/log_entry.dart';
 import 'package:coach_android/state_management/services/state_service.dart';
+import 'package:coach_android/constants/storage_keys.dart';
+import 'package:coach_android/background_monitor_handler.dart';
 import 'package:foreground_app_monitor/foreground_app_monitor.dart';
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
@@ -77,7 +78,8 @@ Future<void> startAppMonitoring([BuildContext? context]) async {
     
     // Sync current state to background isolate
     await _syncFocusStateToBackground(_isFocusing);
-    await _syncMonitoredAppsToBackground(_monitoredPackages);
+    // Sync monitored apps to background isolate immediately
+    await BackgroundMonitorHandler.updateMonitoredPackages(_monitoredPackages);
   } catch (e) {
     _log.severe('Failed to start monitoring service: $e');
     EnhancedLogger.error(LogSource.system, LogCategory.monitoring, 'Failed to start monitoring service: $e');
@@ -104,7 +106,7 @@ void updateFocusState(bool focusing) async {
 Future<void> _syncFocusStateToBackground(bool focusing) async {
   try {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('background_focus_state', focusing);
+    await prefs.setBool(StorageKeys.focusingState, focusing);
     _log.info('Synced focus state to background: $focusing');
   } catch (e) {
     _log.severe('Failed to sync focus state to background: $e');
@@ -137,20 +139,11 @@ Future<void> updateMonitoredApps(Set<String> packages) async {
   final stateService = StateService();
   await stateService.saveSelectedApps(packages);
   
-  // Sync to SharedPreferences for background isolate
-  await _syncMonitoredAppsToBackground(packages);
+  // Sync to background isolate immediately  
+  await BackgroundMonitorHandler.updateMonitoredPackages(packages);
 }
 
-// Sync monitored apps to SharedPreferences for background isolate
-Future<void> _syncMonitoredAppsToBackground(Set<String> packages) async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('background_monitored_apps', jsonEncode(packages.toList()));
-    _log.info('Synced monitored apps to background: ${packages.length} apps');
-  } catch (e) {
-    _log.severe('Failed to sync monitored apps to background: $e');
-  }
-}
+// Note: Removed _syncMonitoredAppsToBackground() - now using BackgroundMonitorHandler.updateMonitoredPackages() directly
 
 Future<bool> checkAndRequestUsageStatsPermission(BuildContext context) async {
   bool hasPermission = await ForegroundAppMonitor.checkUsageStatsPermission();

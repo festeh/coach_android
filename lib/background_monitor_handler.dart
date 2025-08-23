@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/websocket_service.dart';
+import 'constants/storage_keys.dart';
 
 final _log = Logger('BackgroundMonitorHandler');
 
@@ -11,8 +12,7 @@ class BackgroundMonitorHandler {
   static const String _methodChannelName = 'com.example.coach_android/background';
   static const String _eventChannelName = 'com.example.coach_android/background_events';
   
-  static const String _focusStateKey = 'background_focus_state';
-  static const String _monitoredAppsKey = 'background_monitored_apps';
+  // Use shared storage keys for consistency between UI and background engines
   
   static MethodChannel? _methodChannel;
   static EventChannel? _eventChannel;
@@ -70,10 +70,10 @@ class BackgroundMonitorHandler {
       final prefs = await SharedPreferences.getInstance();
       
       // Load focus state
-      _isFocusing = prefs.getBool(_focusStateKey) ?? false;
+      _isFocusing = prefs.getBool(StorageKeys.focusingState) ?? false;
       
-      // Load monitored packages
-      final monitoredAppsJson = prefs.getString(_monitoredAppsKey);
+      // Load monitored packages - now reading from same key as UI engine
+      final monitoredAppsJson = prefs.getString(StorageKeys.selectedAppPackages);
       if (monitoredAppsJson != null) {
         final List<dynamic> packagesList = jsonDecode(monitoredAppsJson);
         _monitoredPackages = packagesList.cast<String>().toSet();
@@ -187,7 +187,7 @@ class BackgroundMonitorHandler {
     try {
       // Persist the state
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_focusStateKey, _isFocusing);
+      await prefs.setBool(StorageKeys.focusingState, _isFocusing);
       
       // If we're no longer focusing, hide overlay immediately
       if (!_isFocusing) {
@@ -206,7 +206,7 @@ class BackgroundMonitorHandler {
     try {
       // Persist the packages
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_monitoredAppsKey, jsonEncode(packages.toList()));
+      await prefs.setString(StorageKeys.selectedAppPackages, jsonEncode(packages.toList()));
     } catch (e) {
       _log.severe('Failed to update monitored packages: $e');
     }
