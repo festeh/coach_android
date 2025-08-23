@@ -304,8 +304,11 @@ class WebSocketService {
       }
       
       if (!_isConnected) {
-        throw Exception('Could not establish WebSocket connection');
+        final errorMsg = 'Could not establish WebSocket connection after 5 seconds. URL: ${AppConfig.webSocketUrl}';
+        _log.severe(errorMsg);
+        throw Exception(errorMsg);
       }
+      _log.info('WebSocket connection established successfully');
     }
     
     // Create a completer for this request

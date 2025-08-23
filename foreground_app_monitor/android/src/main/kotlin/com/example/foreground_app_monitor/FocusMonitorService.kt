@@ -176,11 +176,10 @@ class FocusMonitorService : Service() {
             val appBundlePath = flutterLoader.findAppBundlePath()
             Log.d(TAG, "Step 3: App bundle path from FlutterInjector: '$appBundlePath'")
             
-            // Use the 3-parameter constructor with null library
+            // Use the 2-parameter constructor (library defaults to null)
             val backgroundEntrypoint = DartExecutor.DartEntrypoint(
                 appBundlePath, // asset bundle path from FlutterInjector
-                // null, // null library - let Flutter find backgroundMain
-                "backgroundMain" // function name
+                "backgroundMain" // function name (in main.dart)
             )
             Log.d(TAG, "Step 3: Background entrypoint created - library: '${backgroundEntrypoint.dartEntrypointLibrary}', function: '${backgroundEntrypoint.dartEntrypointFunctionName}'")
             

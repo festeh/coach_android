@@ -122,9 +122,11 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
         'Requesting focus state from WebSocket server',
       );
       
+      _log.info('About to call _webSocketBridge.requestFocusStatus()');
       // The bridge will automatically ensure it's initialized and service is running
       final response = await _webSocketBridge.requestFocusStatus();
       
+      _log.info('Received response from WebSocket bridge: $response');
       // Process the response
       updateFromWebSocket(response);
       
