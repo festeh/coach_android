@@ -259,6 +259,10 @@ class ForegroundAppMonitorPlugin : FlutterPlugin, MethodCallHandler {
                 hideOverlay()
                 result.success(null) // Indicate success
             }
+            "startService" -> {
+                startFocusMonitorService()
+                result.success(true)
+            }
             "startFocusMonitorService" -> {
                 startFocusMonitorService()
                 result.success(true)
@@ -266,6 +270,11 @@ class ForegroundAppMonitorPlugin : FlutterPlugin, MethodCallHandler {
             "stopFocusMonitorService" -> {
                 stopFocusMonitorService()
                 result.success(true)
+            }
+            "isServiceRunning" -> {
+                val isRunning = FocusMonitorService.getInstance() != null
+                Log.d(TAG, "Service running check: $isRunning")
+                result.success(isRunning)
             }
             "requestFocusStatus" -> {
                 Log.d(TAG, "Received requestFocusStatus bridge call")

@@ -27,6 +27,9 @@ class BackgroundWebSocketBridge {
     try {
       _methodChannel = const MethodChannel(_methodChannelName);
       
+      // Ensure service is running first
+      await _ensureServiceIsRunning();
+      
       // Initialize WebSocket in background isolate
       await _methodChannel?.invokeMethod('initializeWebSocket');
       
@@ -38,8 +41,51 @@ class BackgroundWebSocketBridge {
     }
   }
 
+  /// Ensure the background service is running, with retry logic
+  Future<void> _ensureServiceIsRunning() async {
+    for (int retry = 0; retry < 3; retry++) {
+      try {
+        final isRunning = await _methodChannel?.invokeMethod('isServiceRunning') as bool?;
+        if (isRunning == true) {
+          _log.info('Background service is running');
+          return;
+        }
+        
+        _log.info('Background service not running, starting it (attempt ${retry + 1})');
+        await _methodChannel?.invokeMethod('startService');
+        
+        // Wait a bit for service to start
+        await Future.delayed(Duration(milliseconds: 500 + (retry * 500)));
+        
+        // Check again
+        final isRunningAfter = await _methodChannel?.invokeMethod('isServiceRunning') as bool?;
+        if (isRunningAfter == true) {
+          _log.info('Background service started successfully');
+          return;
+        }
+      } catch (e) {
+        _log.warning('Service check/start attempt ${retry + 1} failed: $e');
+        if (retry == 2) rethrow;
+        await Future.delayed(Duration(milliseconds: 1000));
+      }
+    }
+    
+    throw Exception('Failed to ensure background service is running after 3 attempts');
+  }
+
+  /// Ensure bridge is initialized, with retry logic
+  Future<void> ensureInitialized() async {
+    if (_isInitialized) return;
+    
+    _log.info('Ensuring bridge is initialized');
+    await initialize();
+  }
+
   /// Request focus status from background WebSocket
   Future<Map<String, dynamic>> requestFocusStatus() async {
+    // Ensure bridge is initialized before making the request
+    await ensureInitialized();
+    
     if (!_isInitialized || _methodChannel == null) {
       throw Exception('Background WebSocket bridge not initialized');
     }

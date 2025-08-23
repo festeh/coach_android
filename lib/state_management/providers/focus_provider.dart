@@ -20,7 +20,7 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
   FocusStateNotifier(this._stateService, this._webSocketBridge) : super(const FocusState()) {
     _loadInitialState();
     _setupWebSocketMessageListener();
-    _initializeBridge();
+    _initializeBridgeWithRetry();
   }
 
   @override
@@ -30,13 +30,28 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
     super.dispose();
   }
 
-  /// Initialize the background WebSocket bridge
-  void _initializeBridge() async {
+  /// Initialize the background WebSocket bridge with retry logic
+  void _initializeBridgeWithRetry() async {
     try {
+      // Wait a moment to allow main.dart service start to complete
+      await Future.delayed(const Duration(milliseconds: 500));
+      
       await _webSocketBridge.initialize();
       _log.info('Background WebSocket bridge initialized');
     } catch (e) {
       _log.severe('Failed to initialize background WebSocket bridge: $e');
+      
+      // Retry initialization after delay
+      _log.info('Will retry bridge initialization in 2 seconds');
+      Timer(const Duration(seconds: 2), () async {
+        try {
+          await _webSocketBridge.initialize();
+          _log.info('Background WebSocket bridge initialized on retry');
+        } catch (retryError) {
+          _log.severe('Bridge initialization retry also failed: $retryError');
+          // The bridge will try again when forceFetch is called
+        }
+      });
     }
   }
 
@@ -107,7 +122,7 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
         'Requesting focus state from WebSocket server',
       );
       
-      // Request focus status from background WebSocket service
+      // The bridge will automatically ensure it's initialized and service is running
       final response = await _webSocketBridge.requestFocusStatus();
       
       // Process the response

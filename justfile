@@ -11,8 +11,8 @@ run:
     fi
     echo "Running app with WEBSOCKET_URL=${WEBSOCKET_URL}"
     if ! command -v flutter &>/dev/null; then
-        fvm flutter run --dart-define=WEBSOCKET_URL="${WEBSOCKET_URL}"
+        fvm flutter run --dart-define=WEBSOCKET_URL="${WEBSOCKET_URL}" | grep -v -E "ApkAssets"
         exit 1
     else
-        flutter run --dart-define=WEBSOCKET_URL="${WEBSOCKET_URL}"
+        flutter run --dart-define=WEBSOCKET_URL="${WEBSOCKET_URL}" | grep -v -E "ApkAssets"
     fi
