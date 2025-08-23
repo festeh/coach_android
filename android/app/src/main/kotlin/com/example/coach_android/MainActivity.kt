@@ -151,6 +151,17 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
                     result.error("SERVICE_NOT_RUNNING", "FocusMonitorService is not running", null)
                 }
             }
+            "sendFocusCommand" -> {
+                Log.d(TAG, "Received focus command from main UI")
+                val service = FocusMonitorService.getInstance()
+                if (service != null) {
+                    service.sendFocusCommand()
+                    result.success(true)
+                } else {
+                    Log.w(TAG, "Service not running, cannot send focus command")
+                    result.error("SERVICE_NOT_RUNNING", "FocusMonitorService is not running", null)
+                }
+            }
             "testMethodCall" -> {
                 Log.d(TAG, "Received test method call from UI")
                 result.success("Test method call successful")

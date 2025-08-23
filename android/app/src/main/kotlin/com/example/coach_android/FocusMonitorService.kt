@@ -291,6 +291,15 @@ class FocusMonitorService : Service() {
         }
     }
     
+    fun sendFocusCommand() {
+        Log.d(TAG, "Main UI requests focus command - forwarding to background isolate")
+        try {
+            backgroundMethodChannel?.invokeMethod("startFocus", null)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error forwarding focus command to background isolate", e)
+        }
+    }
+    
     private fun cleanupBackgroundEngine() {
         try {
             Log.d(TAG, "Cleaning up background Flutter engine...")

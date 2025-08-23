@@ -21,9 +21,7 @@ FocusState _$FocusStateFromJson(Map<String, dynamic> json) {
 
 /// @nodoc
 mixin _$FocusState {
-  bool get isFocusing => throw _privateConstructorUsedError;
-  int get numFocuses => throw _privateConstructorUsedError;
-  double get focusTimeLeft => throw _privateConstructorUsedError;
+  FocusData get focusData => throw _privateConstructorUsedError;
   FocusStatus get status => throw _privateConstructorUsedError;
   String? get errorMessage => throw _privateConstructorUsedError;
 
@@ -44,13 +42,9 @@ abstract class $FocusStateCopyWith<$Res> {
     $Res Function(FocusState) then,
   ) = _$FocusStateCopyWithImpl<$Res, FocusState>;
   @useResult
-  $Res call({
-    bool isFocusing,
-    int numFocuses,
-    double focusTimeLeft,
-    FocusStatus status,
-    String? errorMessage,
-  });
+  $Res call({FocusData focusData, FocusStatus status, String? errorMessage});
+
+  $FocusDataCopyWith<$Res> get focusData;
 }
 
 /// @nodoc
@@ -68,26 +62,16 @@ class _$FocusStateCopyWithImpl<$Res, $Val extends FocusState>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? isFocusing = null,
-    Object? numFocuses = null,
-    Object? focusTimeLeft = null,
+    Object? focusData = null,
     Object? status = null,
     Object? errorMessage = freezed,
   }) {
     return _then(
       _value.copyWith(
-            isFocusing: null == isFocusing
-                ? _value.isFocusing
-                : isFocusing // ignore: cast_nullable_to_non_nullable
-                      as bool,
-            numFocuses: null == numFocuses
-                ? _value.numFocuses
-                : numFocuses // ignore: cast_nullable_to_non_nullable
-                      as int,
-            focusTimeLeft: null == focusTimeLeft
-                ? _value.focusTimeLeft
-                : focusTimeLeft // ignore: cast_nullable_to_non_nullable
-                      as double,
+            focusData: null == focusData
+                ? _value.focusData
+                : focusData // ignore: cast_nullable_to_non_nullable
+                      as FocusData,
             status: null == status
                 ? _value.status
                 : status // ignore: cast_nullable_to_non_nullable
@@ -100,6 +84,16 @@ class _$FocusStateCopyWithImpl<$Res, $Val extends FocusState>
           as $Val,
     );
   }
+
+  /// Create a copy of FocusState
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $FocusDataCopyWith<$Res> get focusData {
+    return $FocusDataCopyWith<$Res>(_value.focusData, (value) {
+      return _then(_value.copyWith(focusData: value) as $Val);
+    });
+  }
 }
 
 /// @nodoc
@@ -111,13 +105,10 @@ abstract class _$$FocusStateImplCopyWith<$Res>
   ) = __$$FocusStateImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({
-    bool isFocusing,
-    int numFocuses,
-    double focusTimeLeft,
-    FocusStatus status,
-    String? errorMessage,
-  });
+  $Res call({FocusData focusData, FocusStatus status, String? errorMessage});
+
+  @override
+  $FocusDataCopyWith<$Res> get focusData;
 }
 
 /// @nodoc
@@ -134,26 +125,16 @@ class __$$FocusStateImplCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? isFocusing = null,
-    Object? numFocuses = null,
-    Object? focusTimeLeft = null,
+    Object? focusData = null,
     Object? status = null,
     Object? errorMessage = freezed,
   }) {
     return _then(
       _$FocusStateImpl(
-        isFocusing: null == isFocusing
-            ? _value.isFocusing
-            : isFocusing // ignore: cast_nullable_to_non_nullable
-                  as bool,
-        numFocuses: null == numFocuses
-            ? _value.numFocuses
-            : numFocuses // ignore: cast_nullable_to_non_nullable
-                  as int,
-        focusTimeLeft: null == focusTimeLeft
-            ? _value.focusTimeLeft
-            : focusTimeLeft // ignore: cast_nullable_to_non_nullable
-                  as double,
+        focusData: null == focusData
+            ? _value.focusData
+            : focusData // ignore: cast_nullable_to_non_nullable
+                  as FocusData,
         status: null == status
             ? _value.status
             : status // ignore: cast_nullable_to_non_nullable
@@ -171,9 +152,7 @@ class __$$FocusStateImplCopyWithImpl<$Res>
 @JsonSerializable()
 class _$FocusStateImpl implements _FocusState {
   const _$FocusStateImpl({
-    this.isFocusing = false,
-    this.numFocuses = 0,
-    this.focusTimeLeft = 0.0,
+    this.focusData = const FocusData(),
     this.status = FocusStatus.loading,
     this.errorMessage,
   });
@@ -183,13 +162,7 @@ class _$FocusStateImpl implements _FocusState {
 
   @override
   @JsonKey()
-  final bool isFocusing;
-  @override
-  @JsonKey()
-  final int numFocuses;
-  @override
-  @JsonKey()
-  final double focusTimeLeft;
+  final FocusData focusData;
   @override
   @JsonKey()
   final FocusStatus status;
@@ -198,7 +171,7 @@ class _$FocusStateImpl implements _FocusState {
 
   @override
   String toString() {
-    return 'FocusState(isFocusing: $isFocusing, numFocuses: $numFocuses, focusTimeLeft: $focusTimeLeft, status: $status, errorMessage: $errorMessage)';
+    return 'FocusState(focusData: $focusData, status: $status, errorMessage: $errorMessage)';
   }
 
   @override
@@ -206,12 +179,8 @@ class _$FocusStateImpl implements _FocusState {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$FocusStateImpl &&
-            (identical(other.isFocusing, isFocusing) ||
-                other.isFocusing == isFocusing) &&
-            (identical(other.numFocuses, numFocuses) ||
-                other.numFocuses == numFocuses) &&
-            (identical(other.focusTimeLeft, focusTimeLeft) ||
-                other.focusTimeLeft == focusTimeLeft) &&
+            (identical(other.focusData, focusData) ||
+                other.focusData == focusData) &&
             (identical(other.status, status) || other.status == status) &&
             (identical(other.errorMessage, errorMessage) ||
                 other.errorMessage == errorMessage));
@@ -219,14 +188,7 @@ class _$FocusStateImpl implements _FocusState {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    isFocusing,
-    numFocuses,
-    focusTimeLeft,
-    status,
-    errorMessage,
-  );
+  int get hashCode => Object.hash(runtimeType, focusData, status, errorMessage);
 
   /// Create a copy of FocusState
   /// with the given fields replaced by the non-null parameter values.
@@ -244,9 +206,7 @@ class _$FocusStateImpl implements _FocusState {
 
 abstract class _FocusState implements FocusState {
   const factory _FocusState({
-    final bool isFocusing,
-    final int numFocuses,
-    final double focusTimeLeft,
+    final FocusData focusData,
     final FocusStatus status,
     final String? errorMessage,
   }) = _$FocusStateImpl;
@@ -255,11 +215,7 @@ abstract class _FocusState implements FocusState {
       _$FocusStateImpl.fromJson;
 
   @override
-  bool get isFocusing;
-  @override
-  int get numFocuses;
-  @override
-  double get focusTimeLeft;
+  FocusData get focusData;
   @override
   FocusStatus get status;
   @override

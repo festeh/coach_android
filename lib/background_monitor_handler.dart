@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'services/websocket_service.dart';
 import 'constants/storage_keys.dart';
 import 'constants/channel_names.dart';
+import 'models/focus_data.dart';
 
 final _log = Logger('BackgroundMonitorHandler');
 
@@ -17,10 +18,7 @@ class BackgroundMonitorHandler {
   static EventChannel? _eventChannel;
   static StreamSubscription<dynamic>? _appStreamSubscription;
   
-  static bool _isFocusing = false;
-  static int _sinceLastChange = 0;
-  static int _focusTimeLeft = 0;
-  static int _numFocuses = 0;
+  static FocusData _focusData = const FocusData();
   static Set<String> _monitoredPackages = {};
   static bool _isInitialized = false;
   static WebSocketService? _webSocketService;
@@ -62,7 +60,7 @@ class BackgroundMonitorHandler {
       _log.info('Background monitor handler initialized successfully');
       
       // Log current state for debugging
-      _log.info('Loaded state - isFocusing: $_isFocusing, monitored apps: ${_monitoredPackages.length}');
+      _log.info('Loaded state - focusing: ${_focusData.isFocusing}, monitored apps: ${_monitoredPackages.length}');
       
     } catch (e) {
       _log.severe('Failed to initialize background monitor handler: $e');
@@ -75,11 +73,13 @@ class BackgroundMonitorHandler {
     try {
       final prefs = await SharedPreferences.getInstance();
       
-      // Load focus state and related fields
-      _isFocusing = prefs.getBool(StorageKeys.focusingState) ?? false;
-      _sinceLastChange = prefs.getInt('sinceLastChange') ?? 0;
-      _focusTimeLeft = prefs.getInt('focusTimeLeft') ?? 0;
-      _numFocuses = prefs.getInt('numFocuses') ?? 0;
+      // Load focus data
+      _focusData = FocusData.fromSharedPreferences(
+        isFocusing: prefs.getBool(StorageKeys.focusingState) ?? false,
+        sinceLastChange: prefs.getInt('sinceLastChange') ?? 0,
+        focusTimeLeft: prefs.getInt('focusTimeLeft') ?? 0,
+        numFocuses: prefs.getInt('numFocuses') ?? 0,
+      );
       
       // Load monitored packages - now reading from same key as UI engine
       final monitoredAppsJson = prefs.getString(StorageKeys.selectedAppPackages);
@@ -88,14 +88,11 @@ class BackgroundMonitorHandler {
         _monitoredPackages = packagesList.cast<String>().toSet();
       }
       
-      _log.info('Loaded persisted state - isFocusing: $_isFocusing, monitored packages: ${_monitoredPackages.join(", ")}');
+      _log.info('Loaded persisted state - focusing: ${_focusData.isFocusing}, monitored packages: ${_monitoredPackages.join(", ")}');
     } catch (e) {
       _log.severe('Failed to load persisted state: $e');
       // Continue with default values
-      _isFocusing = false;
-      _sinceLastChange = 0;
-      _focusTimeLeft = 0;
-      _numFocuses = 0;
+      _focusData = const FocusData();
       _monitoredPackages = {};
     }
   }
@@ -137,7 +134,7 @@ class BackgroundMonitorHandler {
     
     try {
       // Log current state for debugging
-      _log.info('Overlay decision for $packageName - isFocusing: $_isFocusing, monitored packages: ${_monitoredPackages.join(", ")}');
+      _log.info('Overlay decision for $packageName - focusing: ${_focusData.isFocusing}, monitored packages: ${_monitoredPackages.join(", ")}');
       
       // This is the core decision logic (same as in app_monitor.dart)
       final shouldShow = _shouldShowOverlay(packageName);
@@ -147,11 +144,11 @@ class BackgroundMonitorHandler {
         _showOverlay(packageName);
       } else {
         final isMonitored = _monitoredPackages.contains(packageName);
-        if (isMonitored && !_isFocusing) {
+        if (isMonitored && !_focusData.isFocusing) {
           _log.info('NOT SHOWING overlay for app: $packageName (app is monitored but NOT focusing)');
-        } else if (!isMonitored && _isFocusing) {
+        } else if (!isMonitored && _focusData.isFocusing) {
           _log.fine('NOT SHOWING overlay for app: $packageName (app is NOT monitored but focusing)');
-        } else if (!isMonitored && !_isFocusing) {
+        } else if (!isMonitored && !_focusData.isFocusing) {
           _log.fine('NOT SHOWING overlay for app: $packageName (app is NOT monitored and NOT focusing)');
         }
         _hideOverlay();
@@ -164,9 +161,9 @@ class BackgroundMonitorHandler {
   /// Determine if overlay should be shown (matches logic from app_monitor.dart)
   static bool _shouldShowOverlay(String packageName) {
     final isMonitored = _monitoredPackages.contains(packageName);
-    final shouldShow = isMonitored && _isFocusing;
+    final shouldShow = isMonitored && _focusData.isFocusing;
     
-    _log.fine('Overlay decision: packageName=$packageName, isMonitored=$isMonitored, isFocusing=$_isFocusing, shouldShow=$shouldShow');
+    _log.fine('Overlay decision: packageName=$packageName, isMonitored=$isMonitored, focusing=${_focusData.isFocusing}, shouldShow=$shouldShow');
     
     return shouldShow;
   }
@@ -193,16 +190,16 @@ class BackgroundMonitorHandler {
 
   /// Update focus state (called when main app changes focus state)
   static Future<void> updateFocusState(bool isFocusing) async {
-    _isFocusing = isFocusing;
-    _log.info('Focus state updated to: $_isFocusing');
+    _focusData = _focusData.copyWith(isFocusing: isFocusing);
+    _log.info('Focus state updated to: ${_focusData.isFocusing}');
     
     try {
       // Persist the state
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(StorageKeys.focusingState, _isFocusing);
+      await prefs.setBool(StorageKeys.focusingState, _focusData.isFocusing);
       
       // If we're no longer focusing, hide overlay immediately
-      if (!_isFocusing) {
+      if (!_focusData.isFocusing) {
         await _hideOverlay();
       }
     } catch (e) {
@@ -225,7 +222,10 @@ class BackgroundMonitorHandler {
   }
 
   /// Get current focus state
-  static bool get isFocusing => _isFocusing;
+  static bool get isFocusing => _focusData.isFocusing;
+  
+  /// Get current focus data
+  static FocusData get focusData => _focusData;
 
   /// Get current monitored packages
   static Set<String> get monitoredPackages => Set.from(_monitoredPackages);
@@ -240,28 +240,26 @@ class BackgroundMonitorHandler {
     try {
       _focusUpdatesSubscription = _webSocketService!.focusUpdates.listen(
         (data) {
-          final focusing = data['focusing'] as bool? ?? _isFocusing;
-          final sinceLastChange = data['since_last_change'] as int? ?? 0;
-          final focusTimeLeft = data['focus_time_left'] as int? ?? 0;
-          final numFocuses = data['num_focuses'] as int? ?? 0;
+          final newFocusData = FocusData.fromWebSocketResponse(data);
           
-          _isFocusing = focusing;
-          _sinceLastChange = sinceLastChange;
-          _focusTimeLeft = focusTimeLeft;
-          _numFocuses = numFocuses;
-          
-          _log.info('Focus data updated from WebSocket: focusing=$_isFocusing, sinceLastChange=$_sinceLastChange, focusTimeLeft=$_focusTimeLeft, numFocuses=$_numFocuses');
-          
-          // Save all fields to SharedPreferences for persistence
-          SharedPreferences.getInstance().then((prefs) {
-            prefs.setBool(StorageKeys.focusingState, _isFocusing);
-            prefs.setInt('sinceLastChange', _sinceLastChange);
-            prefs.setInt('focusTimeLeft', _focusTimeLeft);
-            prefs.setInt('numFocuses', _numFocuses);
-          });
-          
-          // Push update to UI via method channel
-          _notifyUIFocusChanged(data);
+          // Only update if there's a significant change
+          if (_focusData.hasSignificantDifference(newFocusData)) {
+            _focusData = newFocusData;
+            
+            _log.info('Focus data updated from WebSocket: focusing=${_focusData.isFocusing}, sinceLastChange=${_focusData.sinceLastChange}, focusTimeLeft=${_focusData.focusTimeLeft}, numFocuses=${_focusData.numFocuses}');
+            
+            // Save to SharedPreferences for persistence
+            SharedPreferences.getInstance().then((prefs) {
+              final dataMap = _focusData.toSharedPreferencesMap();
+              prefs.setBool(StorageKeys.focusingState, dataMap['focusing'] as bool);
+              prefs.setInt('sinceLastChange', dataMap['sinceLastChange'] as int);
+              prefs.setInt('focusTimeLeft', dataMap['focusTimeLeft'] as int);
+              prefs.setInt('numFocuses', dataMap['numFocuses'] as int);
+            });
+            
+            // Push update to UI via method channel
+            _notifyUIFocusChanged(_focusData.toMethodChannelMap());
+          }
         },
         onError: (error) {
           _log.severe('Error in focus updates stream: $error');
@@ -277,13 +275,8 @@ class BackgroundMonitorHandler {
   /// Notify UI of focus state change
   static Future<void> _notifyUIFocusChanged(Map<String, dynamic> data) async {
     try {
-      await _methodChannel?.invokeMethod('focusStateChanged', {
-        'focusing': _isFocusing,
-        'sinceLastChange': _sinceLastChange,
-        'focusTimeLeft': _focusTimeLeft,
-        'numFocuses': _numFocuses,
-      });
-      _log.info('Notified UI of focus data: focusing=$_isFocusing, sinceLastChange=$_sinceLastChange, focusTimeLeft=$_focusTimeLeft, numFocuses=$_numFocuses');
+      await _methodChannel?.invokeMethod('focusStateChanged', data);
+      _log.info('Notified UI of focus data: focusing=${_focusData.isFocusing}, sinceLastChange=${_focusData.sinceLastChange}, focusTimeLeft=${_focusData.focusTimeLeft}, numFocuses=${_focusData.numFocuses}');
     } catch (e) {
       _log.severe('Failed to notify UI of focus state change: $e');
     }
@@ -321,6 +314,8 @@ class BackgroundMonitorHandler {
       switch (call.method) {
         case 'refreshFocusState':
           return await _refreshFocusState();
+        case 'startFocus':
+          return await _startFocus();
         default:
           throw PlatformException(
             code: 'UNKNOWN_METHOD',
@@ -346,14 +341,57 @@ class BackgroundMonitorHandler {
       throw Exception(error);
     }
     
-    // Just notify UI with current focus state - WebSocket updates will come through the listener
-    await _notifyUIFocusChanged({
-      'focusing': _isFocusing,
-      'focus_time_left': 0,
-      'num_focuses': 0,
-    });
+    try {
+      // Request fresh focus status from WebSocket server
+      _log.info('Background isolate: Requesting focus status from WebSocket');
+      final response = await _webSocketService!.requestFocusStatus();
+      
+      // Update focus data from response
+      _focusData = FocusData.fromWebSocketResponse(response);
+      
+      _log.info('Background isolate: Updated focus state from WebSocket - focusing=${_focusData.isFocusing}, sinceLastChange=${_focusData.sinceLastChange}, focusTimeLeft=${_focusData.focusTimeLeft}, numFocuses=${_focusData.numFocuses}');
+      
+      // Save to SharedPreferences for persistence
+      final prefs = await SharedPreferences.getInstance();
+      final dataMap = _focusData.toSharedPreferencesMap();
+      await prefs.setBool(StorageKeys.focusingState, dataMap['focusing'] as bool);
+      await prefs.setInt('sinceLastChange', dataMap['sinceLastChange'] as int);
+      await prefs.setInt('focusTimeLeft', dataMap['focusTimeLeft'] as int);
+      await prefs.setInt('numFocuses', dataMap['numFocuses'] as int);
+      
+      // Notify UI with fresh data
+      await _notifyUIFocusChanged(_focusData.toMethodChannelMap());
+      
+      return {'success': true};
+    } catch (e) {
+      _log.severe('Background isolate: Failed to refresh focus state from WebSocket: $e');
+      
+      // Fallback: notify UI with current cached state
+      await _notifyUIFocusChanged(_focusData.toMethodChannelMap());
+      
+      throw Exception('Failed to refresh focus state: $e');
+    }
+  }
+
+  /// Start focus session by sending message to WebSocket server
+  static Future<Map<String, dynamic>> _startFocus() async {
+    _log.info('Background isolate: Handling start focus request');
     
-    return {'success': true};
+    if (_webSocketService == null) {
+      const error = 'WebSocket service not initialized in background isolate';
+      _log.severe(error);
+      throw Exception(error);
+    }
+    
+    try {
+      // Send focus command to WebSocket server
+      await _webSocketService!.sendFocusCommand();
+      _log.info('Focus command sent to WebSocket server');
+      return {'success': true};
+    } catch (e) {
+      _log.severe('Failed to send focus command: $e');
+      throw Exception('Failed to send focus command: $e');
+    }
   }
 
   /// Dispose resources

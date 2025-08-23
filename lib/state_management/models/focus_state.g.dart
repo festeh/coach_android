@@ -8,9 +8,9 @@ part of 'focus_state.dart';
 
 _$FocusStateImpl _$$FocusStateImplFromJson(Map<String, dynamic> json) =>
     _$FocusStateImpl(
-      isFocusing: json['isFocusing'] as bool? ?? false,
-      numFocuses: (json['numFocuses'] as num?)?.toInt() ?? 0,
-      focusTimeLeft: (json['focusTimeLeft'] as num?)?.toDouble() ?? 0.0,
+      focusData: json['focusData'] == null
+          ? const FocusData()
+          : FocusData.fromJson(json['focusData'] as Map<String, dynamic>),
       status:
           $enumDecodeNullable(_$FocusStatusEnumMap, json['status']) ??
           FocusStatus.loading,
@@ -19,9 +19,7 @@ _$FocusStateImpl _$$FocusStateImplFromJson(Map<String, dynamic> json) =>
 
 Map<String, dynamic> _$$FocusStateImplToJson(_$FocusStateImpl instance) =>
     <String, dynamic>{
-      'isFocusing': instance.isFocusing,
-      'numFocuses': instance.numFocuses,
-      'focusTimeLeft': instance.focusTimeLeft,
+      'focusData': instance.focusData,
       'status': _$FocusStatusEnumMap[instance.status]!,
       'errorMessage': instance.errorMessage,
     };

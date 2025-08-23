@@ -19,14 +19,14 @@ class WebSocketService {
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
   Timer? _reconnectTimer;
-  Timer? _heartbeatTimer;
+  Timer? _focusQueryTimer;
 
   bool _isConnected = false;
   bool _isConnecting = false;
   int _reconnectAttempts = 0;
   static const int _maxReconnectAttempts = 10;
   static const Duration _baseReconnectDelay = Duration(seconds: 2);
-  static const Duration _heartbeatInterval = Duration(seconds: 60 * 5);
+  static const Duration _focusQueryInterval = Duration(seconds: 60);
 
   Completer<Map<String, dynamic>>? _pendingRequest;
   final _eventBus = ServiceEventBus();
@@ -48,6 +48,7 @@ class WebSocketService {
       'hasPendingRequest': _pendingRequest != null,
       'hasChannel': _channel != null,
       'hasSubscription': _subscription != null,
+      'hasFocusQueryTimer': _focusQueryTimer != null,
       'websocketUrl': AppConfig.webSocketUrl,
     };
   }
@@ -104,7 +105,7 @@ class WebSocketService {
       _isConnecting = false;
       _reconnectAttempts = 0;
 
-      _startHeartbeat();
+      _startPeriodicFocusQuery();
       _updateConnectionStatus(true);
 
       _log.info('WebSocket connected successfully');
@@ -149,6 +150,18 @@ class WebSocketService {
           messageType == 'focusing_status' ||
           (messageType == null && data.containsKey('focusing'))) {
         _focusUpdatesController.add(data);
+        
+        EnhancedLogger.debug(
+          LogSource.webSocket,
+          LogCategory.connection,
+          'Focus update emitted to stream',
+          {
+            'focusing': data['focusing'],
+            'focus_time_left': data['focus_time_left'],
+            'num_focuses': data['num_focuses'],
+            'since_last_change': data['since_last_change'],
+          },
+        );
       }
 
       // Broadcast message to interested parties via event bus
@@ -208,8 +221,8 @@ class WebSocketService {
     _channel?.sink.close();
     _channel = null;
 
-    _heartbeatTimer?.cancel();
-    _heartbeatTimer = null;
+    _focusQueryTimer?.cancel();
+    _focusQueryTimer = null;
 
     _updateConnectionStatus(false);
 
@@ -266,12 +279,18 @@ class WebSocketService {
     });
   }
 
-  /// Start heartbeat timer to keep connection alive
-  void _startHeartbeat() {
-    _heartbeatTimer?.cancel();
-    _heartbeatTimer = Timer.periodic(_heartbeatInterval, (_) {
+  /// Start periodic focus query timer to get updated focus data
+  void _startPeriodicFocusQuery() {
+    _focusQueryTimer?.cancel();
+    _focusQueryTimer = Timer.periodic(_focusQueryInterval, (_) async {
       if (_isConnected) {
-        _sendMessage({'type': 'ping'});
+        try {
+          _log.fine('Sending periodic focus query');
+          await requestFocusStatus();
+        } catch (e) {
+          _log.warning('Periodic focus query failed: $e');
+          // Continue running, don't cancel the timer for temporary failures
+        }
       }
     });
   }
@@ -313,6 +332,37 @@ class WebSocketService {
     } catch (e) {
       _log.severe('Failed to send WebSocket message: $e');
       throw Exception('Failed to send WebSocket message: $e');
+    }
+  }
+
+  /// Send focus command to WebSocket server
+  Future<void> sendFocusCommand() async {
+    _log.info('Sending focus command to WebSocket server');
+    
+    if (!_isConnected) {
+      throw Exception('WebSocket not connected');
+    }
+    
+    try {
+      await _sendMessage({'type': 'focus'});
+      _log.info('Focus command sent successfully');
+      
+      EnhancedLogger.info(
+        LogSource.webSocket,
+        LogCategory.connection,
+        'Focus command sent to WebSocket server',
+      );
+    } catch (e) {
+      _log.severe('Failed to send focus command: $e');
+      
+      EnhancedLogger.error(
+        LogSource.webSocket,
+        LogCategory.connection,
+        'Failed to send focus command',
+        {'error': e.toString()},
+      );
+      
+      rethrow;
     }
   }
 
@@ -374,6 +424,11 @@ class WebSocketService {
         _log.info(
           'WebSocket connection established successfully for focus status request',
         );
+        
+        // Start periodic focus queries if not already running
+        if (_focusQueryTimer == null || !_focusQueryTimer!.isActive) {
+          _startPeriodicFocusQuery();
+        }
       } catch (e) {
         _log.severe('Failed to establish WebSocket connection: $e');
 
