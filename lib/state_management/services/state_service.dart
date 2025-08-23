@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:logging/logging.dart';
 import '../../constants/storage_keys.dart';
@@ -9,9 +10,15 @@ class StateService {
   Future<Set<String>> loadSelectedAppPackages() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final packages = prefs.getStringList(StorageKeys.selectedAppPackages) ?? [];
-      _log.info('Loaded ${packages.length} selected app packages');
-      return packages.toSet();
+      final packagesJson = prefs.getString(StorageKeys.selectedAppPackages);
+      if (packagesJson != null) {
+        final List<dynamic> packagesList = jsonDecode(packagesJson);
+        final packages = packagesList.cast<String>().toSet();
+        _log.info('Loaded ${packages.length} selected app packages');
+        return packages;
+      }
+      _log.info('No selected app packages found, returning empty set');
+      return {};
     } catch (e) {
       _log.severe('Error loading selected app packages: $e');
       return {};
@@ -21,7 +28,7 @@ class StateService {
   Future<void> saveSelectedApps(Set<String> selectedApps) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(StorageKeys.selectedAppPackages, selectedApps.toList());
+      await prefs.setString(StorageKeys.selectedAppPackages, jsonEncode(selectedApps.toList()));
       _log.info('Saved ${selectedApps.length} selected app packages');
     } catch (e) {
       _log.severe('Error saving selected app packages: $e');
