@@ -1,78 +1,12 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:logging/logging.dart';
+import '../constants/channel_names.dart';
 
-final _log = Logger('ForegroundAppMonitor');
+final _log = Logger('FocusService');
 
-class ForegroundAppMonitor {
-  static const EventChannel _eventChannel = EventChannel(
-    'com.example.foreground_app_monitor/foregroundApp',
-  );
-  static const MethodChannel _methodChannel = MethodChannel(
-    'com.example.foreground_app_monitor/methods',
-  );
-
-  static StreamSubscription<dynamic>? _platformSubscription;
-  static final StreamController<String> _foregroundAppController =
-      StreamController<String>.broadcast();
-
-  static bool _isInitialized = false;
-
-  static void initialize() {
-    if (_isInitialized) {
-      _log.fine('Already initialized.');
-      return;
-    }
-    _log.info('Initializing app monitor plugin...');
-    
-    // Initialize foreground app monitoring stream
-    _platformSubscription = _eventChannel.receiveBroadcastStream().listen(
-      (dynamic event) {
-        if (event is String) {
-          _foregroundAppController.add(event);
-        } else {
-          _log.warning('Received non-String event: $event');
-          _foregroundAppController.addError(
-            FormatException('Received non-String event', event),
-          );
-        }
-      },
-      onError: (dynamic error) {
-        _log.severe('Error from platform stream: $error');
-        if (error is PlatformException) {
-          _foregroundAppController.addError(error);
-          if (error.code == 'PERMISSION_DENIED') {
-            _log.warning('Usage stats permission required.');
-          }
-        } else {
-          _foregroundAppController.addError(
-            Exception('Unknown error from platform stream: $error'),
-          );
-        }
-      },
-      onDone: () {
-        _log.info('Platform stream closed.');
-        _isInitialized = false; // Allow re-initialization
-      },
-      cancelOnError: false, // Continue listening after errors
-    );
-    
-    _isInitialized = true;
-    _log.info('Initialization complete. Listening to platform stream.');
-  }
-
-  static Stream<String> get foregroundAppStream =>
-      _foregroundAppController.stream;
-
-  static void dispose() {
-    _log.info('Disposing...');
-    _platformSubscription?.cancel();
-    _platformSubscription = null;
-    // Don't close the broadcast controller if it might be used again
-    // _foregroundAppController.close();
-    _isInitialized = false;
-    _log.info('Disposed.');
-  }
+class FocusService {
+  static const MethodChannel _methodChannel = MethodChannel(ChannelNames.mainMethods);
 
   /// Opens the Android Usage Access Settings screen for the user to grant permission.
   ///
@@ -88,7 +22,6 @@ class ForegroundAppMonitor {
       return result ?? false;
     } on PlatformException catch (e) {
       _log.severe('Failed to request Usage Stats permission: ${e.message}', e);
-      // Rethrow or handle as needed
       rethrow;
     } catch (e) {
       _log.severe('Unknown error requesting Usage Stats permission: $e');
@@ -185,7 +118,7 @@ class ForegroundAppMonitor {
     }
   }
 
-  /// Starts the simple focus monitor background service.
+  /// Starts the focus monitor background service.
   static Future<bool> startFocusMonitorService() async {
     try {
       _log.info('Starting focus monitor service...');
@@ -218,6 +151,35 @@ class ForegroundAppMonitor {
     } catch (e) {
       _log.severe('Unknown error stopping focus monitor service: $e');
       return false;
+    }
+  }
+
+  /// Checks if the focus monitor service is running.
+  static Future<bool> isServiceRunning() async {
+    try {
+      final result = await _methodChannel.invokeMethod<bool>('isServiceRunning');
+      return result ?? false;
+    } on PlatformException catch (e) {
+      _log.severe('Failed to check if service is running: ${e.message}', e);
+      return false;
+    } catch (e) {
+      _log.severe('Unknown error checking service status: $e');
+      return false;
+    }
+  }
+
+  /// Requests focus state refresh from background service.
+  static Future<void> requestFocusStateRefresh() async {
+    try {
+      _log.info('Requesting focus state refresh...');
+      await _methodChannel.invokeMethod('requestFocusStateRefresh');
+      _log.info('Focus state refresh request sent.');
+    } on PlatformException catch (e) {
+      _log.severe('Failed to request focus state refresh: ${e.message}', e);
+      rethrow;
+    } catch (e) {
+      _log.severe('Unknown error requesting focus state refresh: $e');
+      rethrow;
     }
   }
 }

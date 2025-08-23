@@ -1,6 +1,5 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:foreground_app_monitor/foreground_app_monitor.dart';
+import 'package:coach_android/services/focus_service.dart';
 import 'app_monitor.dart';
 import 'package:logging/logging.dart';
 
@@ -47,8 +46,8 @@ class _DebugViewState extends State<DebugView> with WidgetsBindingObserver {
     });
 
     try {
-      final usageStatsPermission = await ForegroundAppMonitor.checkUsageStatsPermission();
-      final overlayPermission = await ForegroundAppMonitor.checkOverlayPermission();
+      final usageStatsPermission = await FocusService.checkUsageStatsPermission();
+      final overlayPermission = await FocusService.checkOverlayPermission();
       
       setState(() {
         _hasUsageStatsPermission = usageStatsPermission;
@@ -101,7 +100,7 @@ class _DebugViewState extends State<DebugView> with WidgetsBindingObserver {
                   _hasOverlayPermission,
                   onTap: () async {
                     try {
-                      await ForegroundAppMonitor.requestOverlayPermission();
+                      await FocusService.requestOverlayPermission();
                       await _checkPermissions();
                     } catch (e) {
                       _log.warning('Error requesting overlay permission: $e');
@@ -133,7 +132,7 @@ class _DebugViewState extends State<DebugView> with WidgetsBindingObserver {
                   Icons.layers_outlined,
                   () async {
                     try {
-                      await ForegroundAppMonitor.requestOverlayPermission();
+                      await FocusService.requestOverlayPermission();
                       await _checkPermissions();
                     } catch (e) {
                       _log.warning('Error requesting overlay permission: $e');
@@ -150,57 +149,33 @@ class _DebugViewState extends State<DebugView> with WidgetsBindingObserver {
                 ),
                 _buildActionButton(
                   context,
-                  'Test Foreground App Detection',
+                  'Check Service Status',
                   Icons.phone_android,
                   () async {
-                    _log.info('Testing foreground app detection...');
+                    _log.info('Checking service status...');
                     final messenger = ScaffoldMessenger.of(context);
                     try {
-                      // Try to check current foreground app
-                      ForegroundAppMonitor.initialize();
-                      
-                      // Listen to stream for a few seconds to test
-                      late StreamSubscription<String> testSubscription;
-                      testSubscription = ForegroundAppMonitor.foregroundAppStream.listen(
-                        (String appPackage) {
-                          _log.info('Test detected foreground app: $appPackage');
-                          if (mounted) {
-                            messenger.showSnackBar(
-                              SnackBar(
-                                content: Text('Detected app: $appPackage'),
-                                duration: const Duration(seconds: 3),
-                              ),
-                            );
-                          }
-                        },
-                        onError: (error) {
-                          _log.severe('Test stream error: $error');
-                          if (mounted) {
-                            messenger.showSnackBar(
-                              SnackBar(
-                                content: Text('Stream error: $error'),
-                                backgroundColor: Colors.red,
-                                duration: const Duration(seconds: 3),
-                              ),
-                            );
-                          }
-                        },
-                      );
-                      
-                      // Cancel test after 10 seconds
-                      Timer(const Duration(seconds: 10), () {
-                        testSubscription.cancel();
-                        _log.info('Test completed');
-                      });
-                      
-                      messenger.showSnackBar(
-                        const SnackBar(
-                          content: Text('Testing foreground app detection for 10 seconds...'),
-                          duration: Duration(seconds: 3),
-                        ),
-                      );
+                      final isRunning = await FocusService.isServiceRunning();
+                      if (mounted) {
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text('Service is ${isRunning ? "running" : "not running"}'),
+                            backgroundColor: isRunning ? Colors.green : Colors.orange,
+                            duration: const Duration(seconds: 3),
+                          ),
+                        );
+                      }
                     } catch (e) {
-                      _log.severe('Error testing foreground app detection: $e');
+                      _log.severe('Error checking service status: $e');
+                      if (mounted) {
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text('Error: $e'),
+                            backgroundColor: Colors.red,
+                            duration: const Duration(seconds: 3),
+                          ),
+                        );
+                      }
                     }
                   },
                 ),

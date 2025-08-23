@@ -5,6 +5,7 @@ import 'package:logging/logging.dart';
 import 'package:flutter/services.dart';
 import 'app.dart';
 import 'background_monitor_handler.dart';
+import 'services/focus_service.dart';
 
 final _log = Logger('Main');
 
@@ -32,8 +33,7 @@ void main() async {
 Future<void> _startBackgroundService() async {
   try {
     _log.info('Starting background service...');
-    const platform = MethodChannel('com.example.foreground_app_monitor/methods');
-    await platform.invokeMethod('startService');
+    await FocusService.startFocusMonitorService();
     _log.info('Background service start command sent');
   } catch (e) {
     _log.severe('Failed to start background service: $e');

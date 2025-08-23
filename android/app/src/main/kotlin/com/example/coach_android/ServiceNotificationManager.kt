@@ -1,4 +1,4 @@
-package com.example.foreground_app_monitor
+package com.example.coach_android
 
 import android.app.Notification
 import android.app.NotificationChannel

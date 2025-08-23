@@ -264,13 +264,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  foreground_app_monitor:
-    dependency: "direct main"
-    description:
-      path: foreground_app_monitor
-      relative: true
-    source: path
-    version: "0.0.1"
   freezed:
     dependency: "direct dev"
     description:

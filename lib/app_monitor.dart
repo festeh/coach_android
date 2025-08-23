@@ -1,17 +1,16 @@
-import 'dart:async';
 import 'package:coach_android/services/enhanced_logger.dart';
 import 'package:coach_android/models/log_entry.dart';
 import 'package:coach_android/state_management/services/state_service.dart';
 import 'package:coach_android/constants/storage_keys.dart';
 import 'package:coach_android/background_monitor_handler.dart';
-import 'package:foreground_app_monitor/foreground_app_monitor.dart';
+import 'package:coach_android/services/focus_service.dart';
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 final _log = Logger('AppMonitor');
 
-StreamSubscription<String>? _foregroundAppSubscription;
+// Removed stream subscription - now handled by background service
 
 // Set to hold the package names of apps we are monitoring
 Set<String> _monitoredPackages = {};
@@ -27,13 +26,12 @@ Future<void> startAppMonitoring([BuildContext? context]) async {
   _monitoredPackages = await stateService.loadSelectedAppPackages();
   _log.info('Monitoring for apps: ${_monitoredPackages.join(', ')}');
 
-  await _foregroundAppSubscription?.cancel(); // Cancel previous subscription if any
+  // No longer need to cancel subscription - handled by background service
 
-  _log.info('Initializing ForegroundAppMonitor...');
-  ForegroundAppMonitor.initialize();
+  // App monitoring is now handled by the background service
 
   // Check for overlay permission before starting
-  bool hasOverlayPerm = await ForegroundAppMonitor.checkOverlayPermission();
+  bool hasOverlayPerm = await FocusService.checkOverlayPermission();
   if (!hasOverlayPerm) {
     _log.warning('Overlay permission not granted. Overlay will not be shown.');
     EnhancedLogger.warning(LogSource.system, LogCategory.system, 'Overlay permission not granted.');
@@ -42,7 +40,7 @@ Future<void> startAppMonitoring([BuildContext? context]) async {
   }
 
   // Verify usage stats permission
-  bool hasUsageStatsPerm = await ForegroundAppMonitor.checkUsageStatsPermission();
+  bool hasUsageStatsPerm = await FocusService.checkUsageStatsPermission();
   if (!hasUsageStatsPerm) {
     _log.severe('Usage Stats permission not granted. Monitoring will not work.');
     EnhancedLogger.error(LogSource.system, LogCategory.system, 'Usage Stats permission not granted. Monitoring will not work.');
@@ -52,26 +50,13 @@ Future<void> startAppMonitoring([BuildContext? context]) async {
   }
 
   try {
-    // Start the native background service
-    final serviceStarted = await ForegroundAppMonitor.startFocusMonitorService();
+    // Start the native background service - app change detection is now handled by the service
+    final serviceStarted = await FocusService.startFocusMonitorService();
     if (!serviceStarted) {
       throw Exception('Failed to start native service');
     }
 
-    // Listen to the stream provided by the native service
-    _log.info('Setting up foreground app stream listener...');
-    _foregroundAppSubscription = ForegroundAppMonitor.foregroundAppStream.listen((packageName) {
-      _log.fine('Foreground app: $packageName');
-      
-      // This is where Flutter makes the decision about overlay
-      if (_shouldShowOverlay(packageName)) {
-        _log.info('Should show overlay for app: $packageName');
-        EnhancedLogger.info(LogSource.monitor, LogCategory.monitoring, 'Blocked app opened during focus: $packageName');
-        ForegroundAppMonitor.showOverlay(packageName); // Show overlay
-      } else {
-        ForegroundAppMonitor.hideOverlay(); // Hide overlay for non-blocked apps
-      }
-    });
+    _log.info('Background service started - app detection and overlay decisions now handled by background isolate');
 
     _log.info('App monitoring started successfully.');
     EnhancedLogger.info(LogSource.system, LogCategory.monitoring, 'App monitoring started.');
@@ -117,11 +102,8 @@ Future<void> stopAppMonitoring() async {
   _log.info('Stopping app monitoring...');
   
   try {
-    _foregroundAppSubscription?.cancel();
-    _foregroundAppSubscription = null;
-    
-    await ForegroundAppMonitor.stopFocusMonitorService();
-    ForegroundAppMonitor.hideOverlay(); // Ensure overlay is hidden
+    await FocusService.stopFocusMonitorService();
+    await FocusService.hideOverlay(); // Ensure overlay is hidden
     
     _log.info('App monitoring stopped.');
     EnhancedLogger.info(LogSource.system, LogCategory.monitoring, 'App monitoring stopped.');
@@ -146,7 +128,7 @@ Future<void> updateMonitoredApps(Set<String> packages) async {
 // Note: Removed _syncMonitoredAppsToBackground() - now using BackgroundMonitorHandler.updateMonitoredPackages() directly
 
 Future<bool> checkAndRequestUsageStatsPermission(BuildContext context) async {
-  bool hasPermission = await ForegroundAppMonitor.checkUsageStatsPermission();
+  bool hasPermission = await FocusService.checkUsageStatsPermission();
   
   if (!hasPermission && context.mounted) {
     // Show dialog to request permission
@@ -175,9 +157,9 @@ Future<bool> checkAndRequestUsageStatsPermission(BuildContext context) async {
     );
     
     if (shouldRequest == true) {
-      await ForegroundAppMonitor.requestUsageStatsPermission();
+      await FocusService.requestUsageStatsPermission();
       // Check again after user returns from settings
-      hasPermission = await ForegroundAppMonitor.checkUsageStatsPermission();
+      hasPermission = await FocusService.checkUsageStatsPermission();
     }
   }
   

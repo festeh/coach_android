@@ -17,8 +17,7 @@ dependencies:
   shared_preferences: ^2.5.3
   web_socket_channel: ^3.0.3
   logging: ^1.3.0 
-  foreground_app_monitor:
-    path: ./foreground_app_monitor 
+ 
   flutter_riverpod: ^2.6.1
   freezed_annotation: ^2.4.4
   json_annotation: ^4.9.0

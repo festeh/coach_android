@@ -8,6 +8,7 @@ import '../../services/enhanced_logger.dart';
 import '../../services/service_event_bus.dart';
 import '../services/state_service.dart';
 import '../../app_monitor.dart' as app_monitor;
+import '../../constants/channel_names.dart';
 
 final _log = Logger('FocusProvider');
 
@@ -43,17 +44,27 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
     });
   }
 
+  static const MethodChannel _methodChannel = MethodChannel(ChannelNames.mainMethods);
+
   void _setupMethodChannelHandler() {
-    const MethodChannel('foreground_app_monitor')
-        .setMethodCallHandler(_handleMethodCall);
+    _log.info('Setting up method channel handler on: ${ChannelNames.mainMethods}');
+    _log.info('Method channel instance: $_methodChannel');
+    _methodChannel.setMethodCallHandler(_handleMethodCall);
+    _log.info('Method channel handler set up complete on: $_methodChannel');
   }
 
   Future<dynamic> _handleMethodCall(MethodCall call) async {
+    _log.info('=== METHOD CALL RECEIVED ===');
+    _log.info('Method: ${call.method}');
+    _log.info('Arguments: ${call.arguments}');
+    _log.info('=== END METHOD CALL INFO ===');
+    
     try {
       switch (call.method) {
         case 'focusStateChanged':
-          final data = call.arguments as Map<String, dynamic>;
-          _log.info('Received focus state change from background: $data');
+          _log.info('=== PROCESSING FOCUS STATE CHANGED ===');
+          final data = Map<String, dynamic>.from(call.arguments as Map);
+          _log.info('Focus state data: $data');
           
           // Update state from background notification
           await updateFocusState(
@@ -136,11 +147,19 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
         'Requesting focus state refresh from background isolate',
       );
       
-      // Send refresh request to background isolate via method channel
-      const MethodChannel('com.example.coach_android/background')
-          .invokeMethod('refreshFocusState');
+      // Send refresh request via the plugin method channel
+      _methodChannel.invokeMethod('requestFocusStateRefresh');
       
       _log.info('Refresh request sent to background isolate');
+      
+      // Test if method channel works in reverse - call a test method
+      _log.info('Testing reverse method call...');
+      try {
+        final result = await _methodChannel.invokeMethod('testMethodCall');
+        _log.info('Test method call result: $result');
+      } catch (e) {
+        _log.severe('Test method call failed: $e');
+      }
       // The background isolate will respond via focusStateChanged method call
       
     } catch (e) {

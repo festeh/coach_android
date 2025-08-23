@@ -1,4 +1,4 @@
-package com.example.foreground_app_monitor
+package com.example.coach_android
 
 import android.app.*
 import android.content.Context
@@ -106,7 +106,7 @@ class FocusMonitorService : Service() {
         // Start monitoring
         startAppMonitoring()
         
-        // Notify plugin about service start
+        // Notify main activity about service start
         notifyServiceStatus("started")
     }
     
@@ -127,7 +127,7 @@ class FocusMonitorService : Service() {
         stopForeground(true)
         stopSelf()
         
-        // Notify plugin about service stop
+        // Notify main activity about service stop
         notifyServiceStatus("stopped")
     }
     
@@ -143,7 +143,8 @@ class FocusMonitorService : Service() {
     
     private fun notifyServiceStatus(status: String) {
         handler.post {
-            ForegroundAppMonitorPlugin.getInstance()?.onServiceStatusChanged(status)
+            // We'll handle this directly in MainActivity instead of plugin
+            Log.d(TAG, "Service status changed: $status")
         }
     }
     
@@ -212,7 +213,7 @@ class FocusMonitorService : Service() {
         // Method channel for communication with background Dart
         backgroundMethodChannel = MethodChannel(
             engine.dartExecutor.binaryMessenger,
-            "com.example.coach_android/background"
+            ChannelNames.BACKGROUND_METHODS
         )
         
         backgroundMethodChannel?.setMethodCallHandler { call, result ->
@@ -225,25 +226,27 @@ class FocusMonitorService : Service() {
                     val packageName = call.argument<String>("packageName")
                     Log.d(TAG, "Background isolate requests overlay for: $packageName")
                     packageName?.let { 
-                        ForegroundAppMonitorPlugin.getInstance()?.showOverlayFromService(it)
+                        // Show overlay directly via MainActivity
+                        MainActivity.getInstance()?.showOverlayFromService(it)
                     }
                     result.success(null)
                 }
                 "hideOverlay" -> {
                     Log.d(TAG, "Background isolate requests hide overlay")
-                    ForegroundAppMonitorPlugin.getInstance()?.hideOverlayFromService()
+                    // Hide overlay directly via MainActivity
+                    MainActivity.getInstance()?.hideOverlayFromService()
                     result.success(null)
                 }
                 "focusStateChanged" -> {
                     Log.d(TAG, "Background isolate notifies focus state changed: ${call.arguments}")
                     val arguments = call.arguments as? Map<String, Any>
-                    ForegroundAppMonitorPlugin.getInstance()?.notifyFocusStateChanged(arguments ?: emptyMap())
+                    // Notify UI directly via MainActivity
+                    MainActivity.getInstance()?.notifyFocusStateChanged(arguments ?: emptyMap())
                     result.success(null)
                 }
                 "refreshFocusState" -> {
-                    Log.d(TAG, "Main UI requests focus state refresh")
-                    // Forward to background isolate
-                    backgroundMethodChannel?.invokeMethod("refreshFocusState", null)
+                    Log.d(TAG, "Background isolate requests focus state refresh")
+                    // This is called by the background isolate to refresh its own state
                     result.success(null)
                 }
                 else -> result.notImplemented()
@@ -253,7 +256,7 @@ class FocusMonitorService : Service() {
         // Event channel for sending app changes to background Dart
         backgroundEventChannel = EventChannel(
             engine.dartExecutor.binaryMessenger,
-            "com.example.coach_android/background_events"
+            ChannelNames.BACKGROUND_EVENTS
         )
         
         backgroundEventChannel?.setStreamHandler(object : EventChannel.StreamHandler {
@@ -278,6 +281,15 @@ class FocusMonitorService : Service() {
           }
     }
     
+    
+    fun requestFocusStateRefresh() {
+        Log.d(TAG, "Main UI requests focus state refresh - forwarding to background isolate")
+        try {
+            backgroundMethodChannel?.invokeMethod("refreshFocusState", null)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error forwarding refresh request to background isolate", e)
+        }
+    }
     
     private fun cleanupBackgroundEngine() {
         try {

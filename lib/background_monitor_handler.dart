@@ -5,12 +5,11 @@ import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/websocket_service.dart';
 import 'constants/storage_keys.dart';
+import 'constants/channel_names.dart';
 
 final _log = Logger('BackgroundMonitorHandler');
 
 class BackgroundMonitorHandler {
-  static const String _methodChannelName = 'com.example.coach_android/background';
-  static const String _eventChannelName = 'com.example.coach_android/background_events';
   
   // Use shared storage keys for consistency between UI and background engines
   
@@ -35,8 +34,8 @@ class BackgroundMonitorHandler {
     
     try {
       // Set up method channel for communication with native service
-      _methodChannel = const MethodChannel(_methodChannelName);
-      _eventChannel = const EventChannel(_eventChannelName);
+      _methodChannel = const MethodChannel(ChannelNames.backgroundMethods);
+      _eventChannel = const EventChannel(ChannelNames.backgroundEvents);
       
       // Set up method call handler for WebSocket operations from native service
       _methodChannel?.setMethodCallHandler(_handleMethodCall);
@@ -265,7 +264,7 @@ class BackgroundMonitorHandler {
         'focusTimeLeft': data['focus_time_left'],
         'numFocuses': data['num_focuses'],
       });
-      _log.info('Notified UI of focus state change: $_isFocusing');
+      _log.info('Notified UI of focus state: $_isFocusing');
     } catch (e) {
       _log.severe('Failed to notify UI of focus state change: $e');
     }
@@ -328,59 +327,14 @@ class BackgroundMonitorHandler {
       throw Exception(error);
     }
     
-    // Log detailed connection status for debugging
-    if (_webSocketService != null) {
-      final connectionStatus = _webSocketService!.getConnectionStatus();
-      _log.info('Background isolate: WebSocket connection status: $connectionStatus');
-    }
+    // Just notify UI with current focus state - WebSocket updates will come through the listener
+    await _notifyUIFocusChanged({
+      'focusing': _isFocusing,
+      'focus_time_left': 0,
+      'num_focuses': 0,
+    });
     
-    try {
-      // Add a timeout wrapper around the WebSocket request
-      final response = await _webSocketService!.requestFocusStatus().timeout(
-        const Duration(seconds: 12), // Slightly longer than the internal timeout
-        onTimeout: () {
-          _log.severe('Background isolate: Focus state refresh timed out after 12 seconds');
-          throw TimeoutException('Background WebSocket refresh timed out', const Duration(seconds: 12));
-        },
-      );
-      
-      _log.info('Background isolate: Focus state refresh response received: $response');
-      
-      // Notify UI directly with the fresh data
-      await _notifyUIFocusChanged(response);
-      
-      return {'success': true, 'data': response};
-    } on TimeoutException catch (e) {
-      final errorMsg = 'Background isolate: WebSocket focus state refresh timed out: $e';
-      _log.severe(errorMsg);
-      
-      // Try to reinitialize WebSocket service for next request
-      try {
-        _log.info('Background isolate: Attempting to reinitialize WebSocket service after timeout');
-        await _webSocketService?.dispose();
-        await _initializeWebSocketService();
-      } catch (reinitError) {
-        _log.severe('Background isolate: Failed to reinitialize WebSocket service: $reinitError');
-      }
-      
-      throw Exception(errorMsg);
-    } catch (e) {
-      final errorMsg = 'Background isolate: Failed to refresh focus state: $e';
-      _log.severe(errorMsg);
-      
-      // Check if it's a connection issue and try to reinitialize
-      if (e.toString().contains('WebSocket') || e.toString().contains('connection')) {
-        try {
-          _log.info('Background isolate: Connection error detected, attempting to reinitialize WebSocket service');
-          await _webSocketService?.dispose();
-          await _initializeWebSocketService();
-        } catch (reinitError) {
-          _log.severe('Background isolate: Failed to reinitialize WebSocket service: $reinitError');
-        }
-      }
-      
-      throw Exception(errorMsg);
-    }
+    return {'success': true};
   }
 
   /// Dispose resources
