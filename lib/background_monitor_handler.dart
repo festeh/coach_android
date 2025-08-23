@@ -18,6 +18,9 @@ class BackgroundMonitorHandler {
   static StreamSubscription<dynamic>? _appStreamSubscription;
   
   static bool _isFocusing = false;
+  static int _sinceLastChange = 0;
+  static int _focusTimeLeft = 0;
+  static int _numFocuses = 0;
   static Set<String> _monitoredPackages = {};
   static bool _isInitialized = false;
   static WebSocketService? _webSocketService;
@@ -72,8 +75,11 @@ class BackgroundMonitorHandler {
     try {
       final prefs = await SharedPreferences.getInstance();
       
-      // Load focus state
+      // Load focus state and related fields
       _isFocusing = prefs.getBool(StorageKeys.focusingState) ?? false;
+      _sinceLastChange = prefs.getInt('sinceLastChange') ?? 0;
+      _focusTimeLeft = prefs.getInt('focusTimeLeft') ?? 0;
+      _numFocuses = prefs.getInt('numFocuses') ?? 0;
       
       // Load monitored packages - now reading from same key as UI engine
       final monitoredAppsJson = prefs.getString(StorageKeys.selectedAppPackages);
@@ -87,6 +93,9 @@ class BackgroundMonitorHandler {
       _log.severe('Failed to load persisted state: $e');
       // Continue with default values
       _isFocusing = false;
+      _sinceLastChange = 0;
+      _focusTimeLeft = 0;
+      _numFocuses = 0;
       _monitoredPackages = {};
     }
   }
@@ -231,19 +240,28 @@ class BackgroundMonitorHandler {
     try {
       _focusUpdatesSubscription = _webSocketService!.focusUpdates.listen(
         (data) {
-          final focusing = data['focusing'] as bool?;
-          if (focusing != null && focusing != _isFocusing) {
-            _isFocusing = focusing;
-            _log.info('Focus state updated from WebSocket: $_isFocusing');
-            
-            // Save to SharedPreferences for persistence
-            SharedPreferences.getInstance().then((prefs) {
-              prefs.setBool(StorageKeys.focusingState, _isFocusing);
-            });
-            
-            // Push update to UI via method channel
-            _notifyUIFocusChanged(data);
-          }
+          final focusing = data['focusing'] as bool? ?? _isFocusing;
+          final sinceLastChange = data['since_last_change'] as int? ?? 0;
+          final focusTimeLeft = data['focus_time_left'] as int? ?? 0;
+          final numFocuses = data['num_focuses'] as int? ?? 0;
+          
+          _isFocusing = focusing;
+          _sinceLastChange = sinceLastChange;
+          _focusTimeLeft = focusTimeLeft;
+          _numFocuses = numFocuses;
+          
+          _log.info('Focus data updated from WebSocket: focusing=$_isFocusing, sinceLastChange=$_sinceLastChange, focusTimeLeft=$_focusTimeLeft, numFocuses=$_numFocuses');
+          
+          // Save all fields to SharedPreferences for persistence
+          SharedPreferences.getInstance().then((prefs) {
+            prefs.setBool(StorageKeys.focusingState, _isFocusing);
+            prefs.setInt('sinceLastChange', _sinceLastChange);
+            prefs.setInt('focusTimeLeft', _focusTimeLeft);
+            prefs.setInt('numFocuses', _numFocuses);
+          });
+          
+          // Push update to UI via method channel
+          _notifyUIFocusChanged(data);
         },
         onError: (error) {
           _log.severe('Error in focus updates stream: $error');
@@ -261,10 +279,11 @@ class BackgroundMonitorHandler {
     try {
       await _methodChannel?.invokeMethod('focusStateChanged', {
         'focusing': _isFocusing,
-        'focusTimeLeft': data['focus_time_left'],
-        'numFocuses': data['num_focuses'],
+        'sinceLastChange': _sinceLastChange,
+        'focusTimeLeft': _focusTimeLeft,
+        'numFocuses': _numFocuses,
       });
-      _log.info('Notified UI of focus state: $_isFocusing');
+      _log.info('Notified UI of focus data: focusing=$_isFocusing, sinceLastChange=$_sinceLastChange, focusTimeLeft=$_focusTimeLeft, numFocuses=$_numFocuses');
     } catch (e) {
       _log.severe('Failed to notify UI of focus state change: $e');
     }

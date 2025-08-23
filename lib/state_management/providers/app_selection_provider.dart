@@ -3,7 +3,7 @@ import 'package:logging/logging.dart';
 import '../models/app_selection_state.dart';
 import '../services/state_service.dart';
 import 'focus_provider.dart';
-import '../../app_monitor.dart';
+import '../../background_monitor_handler.dart';
 
 final _log = Logger('AppSelectionProvider');
 
@@ -48,7 +48,7 @@ class AppSelectionNotifier extends StateNotifier<AppSelectionState> {
     await _stateService.saveSelectedApps(currentPackages);
     
     // Immediately sync to background isolate
-    await updateMonitoredApps(currentPackages);
+    await BackgroundMonitorHandler.updateMonitoredPackages(currentPackages);
   }
 
   Future<void> setSelectedApps(Set<String> packages) async {
@@ -56,7 +56,7 @@ class AppSelectionNotifier extends StateNotifier<AppSelectionState> {
     await _stateService.saveSelectedApps(packages);
     
     // Immediately sync to background isolate
-    await updateMonitoredApps(packages);
+    await BackgroundMonitorHandler.updateMonitoredPackages(packages);
   }
 
   Future<void> clearSelection() async {
@@ -64,7 +64,7 @@ class AppSelectionNotifier extends StateNotifier<AppSelectionState> {
     await _stateService.saveSelectedApps({});
     
     // Immediately sync to background isolate
-    await updateMonitoredApps({});
+    await BackgroundMonitorHandler.updateMonitoredPackages({});
   }
 }
 

@@ -1,21 +1,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
-import 'dart:async';
 import 'package:flutter/services.dart';
 import '../models/focus_state.dart';
 import '../../models/log_entry.dart';
 import '../../services/enhanced_logger.dart';
-import '../../services/service_event_bus.dart';
 import '../services/state_service.dart';
-import '../../app_monitor.dart' as app_monitor;
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../constants/storage_keys.dart';
 import '../../constants/channel_names.dart';
 
 final _log = Logger('FocusProvider');
 
 class FocusStateNotifier extends StateNotifier<FocusState> {
   final StateService _stateService;
-  final ServiceEventBus _eventBus = ServiceEventBus();
-  StreamSubscription<ServiceEvent>? _eventSubscription;
 
   FocusStateNotifier(this._stateService) : super(const FocusState()) {
     _loadInitialState();
@@ -23,26 +20,8 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
     _setupMethodChannelHandler();
   }
 
-  @override
-  void dispose() {
-    _eventSubscription?.cancel();
-    super.dispose();
-  }
 
 
-  void _setupWebSocketMessageListener() {
-    _eventSubscription = _eventBus.events.listen((event) {
-      if (event.type == ServiceEventType.webSocketMessage) {
-        final data = event.data;
-        if (data != null) {
-          // Check if this is a focus status message
-          if (data.containsKey('focusing') || data['type'] == 'focusing_status') {
-            updateFromWebSocket(data);
-          }
-        }
-      }
-    });
-  }
 
   static const MethodChannel _methodChannel = MethodChannel(ChannelNames.mainMethods);
 
@@ -100,8 +79,8 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
       status: FocusStatus.ready,
     );
     
-    // Update app monitor with initial focus state
-    app_monitor.updateFocusState(cachedFocusing);
+    // Sync initial focus state to background
+    await _syncFocusStateToBackground(cachedFocusing);
     
     EnhancedLogger.info(
       LogSource.ui,
@@ -128,8 +107,8 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
       status: FocusStatus.ready,
     );
 
-    // Update app monitor with new focus state
-    app_monitor.updateFocusState(isFocusing);
+    // Sync focus state to background isolate
+    await _syncFocusStateToBackground(isFocusing);
 
     // Persist for caching
     await _stateService.saveFocusingState(isFocusing);
@@ -181,8 +160,19 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
         errorMessage: 'Failed to refresh focus state: ${e.toString()}',
       );
       
-      // Update app monitor with cached state
-      app_monitor.updateFocusState(cachedFocusing);
+      // Sync cached state to background
+      await _syncFocusStateToBackground(cachedFocusing);
+    }
+  }
+
+  // Sync focus state to SharedPreferences for background isolate
+  Future<void> _syncFocusStateToBackground(bool focusing) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(StorageKeys.focusingState, focusing);
+      _log.info('Synced focus state to background: $focusing');
+    } catch (e) {
+      _log.severe('Failed to sync focus state to background: $e');
     }
   }
 
@@ -212,8 +202,8 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
       errorMessage: null,
     );
     
-    // Update app monitor with new focus state
-    app_monitor.updateFocusState(focusing);
+    // Sync focus state to background isolate
+    _syncFocusStateToBackground(focusing);
     
     // Persist to cache
     _stateService.saveFocusingState(focusing);

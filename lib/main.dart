@@ -1,8 +1,6 @@
-import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
-import 'package:flutter/services.dart';
 import 'app.dart';
 import 'background_monitor_handler.dart';
 import 'services/focus_service.dart';

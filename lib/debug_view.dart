@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:coach_android/services/focus_service.dart';
-import 'app_monitor.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'state_management/providers/permissions_provider.dart';
 import 'package:logging/logging.dart';
 
 final _log = Logger('DebugView');
 
-class DebugView extends StatefulWidget {
+class DebugView extends ConsumerStatefulWidget {
   const DebugView({super.key});
 
   @override
-  State<DebugView> createState() => _DebugViewState();
+  ConsumerState<DebugView> createState() => _DebugViewState();
 }
 
-class _DebugViewState extends State<DebugView> with WidgetsBindingObserver {
+class _DebugViewState extends ConsumerState<DebugView> with WidgetsBindingObserver {
   bool? _hasUsageStatsPermission;
   bool? _hasOverlayPermission;
   bool _isLoading = false;
@@ -90,7 +91,7 @@ class _DebugViewState extends State<DebugView> with WidgetsBindingObserver {
                   'Usage Stats Permission',
                   _hasUsageStatsPermission,
                   onTap: () async {
-                    await checkAndRequestUsageStatsPermission(context);
+                    await ref.read(permissionsProvider.notifier).checkAndRequestUsageStatsPermission(context);
                     await _checkPermissions();
                   },
                 ),
@@ -123,7 +124,7 @@ class _DebugViewState extends State<DebugView> with WidgetsBindingObserver {
                   'Check Usage Stats Permission',
                   Icons.security_outlined,
                   () async {
-                    await checkAndRequestUsageStatsPermission(context);
+                    await ref.read(permissionsProvider.notifier).checkAndRequestUsageStatsPermission(context);
                   },
                 ),
                 _buildActionButton(
