@@ -98,6 +98,9 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
       'Initial focus state loaded from cache',
       {'focusing': cachedFocusing},
     );
+    
+    // Request current state from background isolate to ensure sync
+    await forceFetch();
   }
 
   Future<void> updateFocusState({
