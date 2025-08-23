@@ -3,7 +3,6 @@ import 'package:logging/logging.dart';
 import '../models/focus_state.dart';
 import '../../models/log_entry.dart';
 import '../../services/enhanced_logger.dart';
-import '../../config.dart';
 import '../services/state_service.dart';
 import '../../app_monitor.dart' as app_monitor;
 

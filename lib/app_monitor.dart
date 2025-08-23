@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:coach_android/persistent_log.dart';
 import 'package:coach_android/state_management/services/state_service.dart';
 import 'package:foreground_app_monitor/foreground_app_monitor.dart';
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 final _log = Logger('AppMonitor');
 
@@ -71,6 +73,10 @@ Future<void> startAppMonitoring([BuildContext? context]) async {
 
     _log.info('App monitoring started successfully.');
     await PersistentLog.addLog('App monitoring started.');
+    
+    // Sync current state to background isolate
+    await _syncFocusStateToBackground(_isFocusing);
+    await _syncMonitoredAppsToBackground(_monitoredPackages);
   } catch (e) {
     _log.severe('Failed to start monitoring service: $e');
     await PersistentLog.addLog('Failed to start monitoring service: $e');
@@ -85,9 +91,23 @@ bool _shouldShowOverlay(String packageName) {
 }
 
 // Function to update focus state (called from focus provider)
-void updateFocusState(bool focusing) {
+void updateFocusState(bool focusing) async {
   _isFocusing = focusing;
   _log.info('Focus state updated: $_isFocusing');
+  
+  // Sync to SharedPreferences for background isolate
+  await _syncFocusStateToBackground(focusing);
+}
+
+// Sync focus state to SharedPreferences for background isolate
+Future<void> _syncFocusStateToBackground(bool focusing) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('background_focus_state', focusing);
+    _log.info('Synced focus state to background: $focusing');
+  } catch (e) {
+    _log.severe('Failed to sync focus state to background: $e');
+  }
 }
 
 Future<void> stopAppMonitoring() async {
@@ -115,6 +135,20 @@ Future<void> updateMonitoredApps(Set<String> packages) async {
   // Save to persistence
   final stateService = StateService();
   await stateService.saveSelectedApps(packages);
+  
+  // Sync to SharedPreferences for background isolate
+  await _syncMonitoredAppsToBackground(packages);
+}
+
+// Sync monitored apps to SharedPreferences for background isolate
+Future<void> _syncMonitoredAppsToBackground(Set<String> packages) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('background_monitored_apps', jsonEncode(packages.toList()));
+    _log.info('Synced monitored apps to background: ${packages.length} apps');
+  } catch (e) {
+    _log.severe('Failed to sync monitored apps to background: $e');
+  }
 }
 
 Future<bool> checkAndRequestUsageStatsPermission(BuildContext context) async {

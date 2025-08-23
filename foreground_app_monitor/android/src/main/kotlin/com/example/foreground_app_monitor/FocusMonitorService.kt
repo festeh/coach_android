@@ -8,12 +8,22 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.engine.dart.DartExecutor
+import io.flutter.plugin.common.EventChannel
+import io.flutter.plugin.common.MethodChannel
 import java.util.concurrent.atomic.AtomicBoolean
 
 class FocusMonitorService : Service() {
     private val binder = FocusMonitorBinder()
     private lateinit var notificationManager: ServiceNotificationManager
     private lateinit var appMonitor: AppMonitorHandler
+    
+    // Background Flutter engine for running Dart code
+    private var backgroundEngine: FlutterEngine? = null
+    private var backgroundMethodChannel: MethodChannel? = null
+    private var backgroundEventChannel: EventChannel? = null
+    private var eventSink: EventChannel.EventSink? = null
     
     private val isRunning = AtomicBoolean(false)
     private val handler = Handler(Looper.getMainLooper())
@@ -43,6 +53,9 @@ class FocusMonitorService : Service() {
         
         // Create notification channel
         notificationManager.createNotificationChannel()
+        
+        // Initialize background Flutter engine
+        initializeBackgroundEngine()
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -67,6 +80,10 @@ class FocusMonitorService : Service() {
         Log.d(TAG, "Service onDestroy")
         
         stopForegroundService()
+        
+        // Cleanup background engine
+        cleanupBackgroundEngine()
+        
         serviceInstance = null
     }
     
@@ -129,8 +146,109 @@ class FocusMonitorService : Service() {
     }
     
     fun notifyAppDetected(packageName: String) {
-        handler.post {
-            ForegroundAppMonitorPlugin.getInstance()?.onAppDetected(packageName)
+        // Send to background Dart isolate instead of main plugin
+        sendAppToBackgroundIsolate(packageName)
+    }
+    
+    private fun initializeBackgroundEngine() {
+        try {
+            Log.d(TAG, "Initializing background Flutter engine...")
+            
+            // Create a new Flutter engine instance
+            backgroundEngine = FlutterEngine(this.applicationContext)
+            
+            // Set up method channels for communication with background Dart
+            setupBackgroundChannels()
+            
+            // Execute the background Dart isolate
+            val dartEntrypoint = DartExecutor.DartEntrypoint(
+                "lib/background_isolate.dart",
+                "backgroundMain"
+            )
+            
+            backgroundEngine?.dartExecutor?.executeDartEntrypoint(dartEntrypoint)
+            
+            Log.d(TAG, "Background Flutter engine initialized successfully")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to initialize background Flutter engine", e)
+        }
+    }
+    
+    private fun setupBackgroundChannels() {
+        val engine = backgroundEngine ?: return
+        
+        // Method channel for communication with background Dart
+        backgroundMethodChannel = MethodChannel(
+            engine.dartExecutor.binaryMessenger,
+            "com.example.coach_android/background"
+        )
+        
+        backgroundMethodChannel?.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "backgroundReady" -> {
+                    Log.d(TAG, "Background isolate is ready")
+                    result.success(true)
+                }
+                "showOverlay" -> {
+                    val packageName = call.argument<String>("packageName")
+                    Log.d(TAG, "Background isolate requests overlay for: $packageName")
+                    packageName?.let { 
+                        ForegroundAppMonitorPlugin.getInstance()?.showOverlayFromService(it)
+                    }
+                    result.success(null)
+                }
+                "hideOverlay" -> {
+                    Log.d(TAG, "Background isolate requests hide overlay")
+                    ForegroundAppMonitorPlugin.getInstance()?.hideOverlayFromService()
+                    result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
+        
+        // Event channel for sending app changes to background Dart
+        backgroundEventChannel = EventChannel(
+            engine.dartExecutor.binaryMessenger,
+            "com.example.coach_android/background_events"
+        )
+        
+        backgroundEventChannel?.setStreamHandler(object : EventChannel.StreamHandler {
+            override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                eventSink = events
+                Log.d(TAG, "Background event channel listener attached")
+            }
+            
+            override fun onCancel(arguments: Any?) {
+                eventSink = null
+                Log.d(TAG, "Background event channel listener cancelled")
+            }
+        })
+    }
+    
+    private fun sendAppToBackgroundIsolate(packageName: String) {
+        try {
+            eventSink?.success(packageName)
+            Log.d(TAG, "Sent app '$packageName' to background isolate")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to send app to background isolate", e)
+        }
+    }
+    
+    private fun cleanupBackgroundEngine() {
+        try {
+            Log.d(TAG, "Cleaning up background Flutter engine...")
+            
+            eventSink = null
+            backgroundEventChannel?.setStreamHandler(null)
+            backgroundMethodChannel?.setMethodCallHandler(null)
+            
+            backgroundEngine?.destroy()
+            backgroundEngine = null
+            
+            Log.d(TAG, "Background Flutter engine cleanup complete")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error cleaning up background Flutter engine", e)
         }
     }
 }

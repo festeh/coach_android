@@ -3,6 +3,7 @@ import 'dart:io';
 import '../models/log_entry.dart';
 import 'enhanced_logger.dart';
 import 'service_event_bus.dart';
+import '../app_monitor.dart' as app_monitor;
 
 class ServiceHealthMonitor {
   static final _instance = ServiceHealthMonitor._internal();
@@ -213,21 +214,22 @@ class ServiceHealthMonitor {
       // Reset failed checks counter
       _failedHealthChecks = 0;
       
-      // Try to restart the background service
-      // Recovery is now handled by the FocusMonitorServiceManager
       EnhancedLogger.info(
         LogSource.service,
         LogCategory.health,
-        'Service recovery needed - this should be handled by FocusMonitorServiceManager',
+        'Attempting service recovery...',
       );
       
-      // Wait a bit for recovery
-      await Future.delayed(const Duration(seconds: 5));
+      // Attempt to restart the monitoring service
+      await _attemptServiceRestart();
       
-      // Check if recovery successful - simplified for now
-      final isRunning = true; // Assume recovery handled elsewhere
+      // Wait a moment for service to initialize
+      await Future.delayed(const Duration(seconds: 3));
       
-      if (isRunning) {
+      // Verify the service is actually running
+      final isRecovered = await _verifyServiceHealth();
+      
+      if (isRecovered) {
         EnhancedLogger.info(
           LogSource.system,
           LogCategory.health,
@@ -239,16 +241,7 @@ class ServiceHealthMonitor {
           message: 'Service recovered successfully',
         ));
       } else {
-        EnhancedLogger.critical(
-          LogSource.system,
-          LogCategory.health,
-          'Service recovery failed - manual intervention required',
-        );
-        
-        _eventBus.emit(ServiceEvent(
-          type: ServiceEventType.errorOccurred,
-          message: 'Service recovery failed',
-        ));
+        throw Exception('Service recovery verification failed');
       }
     } catch (e, stack) {
       EnhancedLogger.critical(
@@ -272,8 +265,24 @@ class ServiceHealthMonitor {
   
   Future<bool> _checkServiceRunning() async {
     try {
-      // This is a workaround - the actual implementation would depend on the service
-      return true; // Placeholder
+      // Check various health indicators
+      final now = DateTime.now();
+      
+      // Check if we have recent heartbeat (service is responding)
+      if (_lastHeartbeat != null) {
+        final timeSinceHeartbeat = now.difference(_lastHeartbeat!);
+        if (timeSinceHeartbeat.inMinutes < 5) { // Service responded within 5 minutes
+          return true;
+        }
+      }
+      
+      // Check component health
+      if (_isWebSocketHealthy && _isMonitoringHealthy && _isServiceResponding) {
+        return true;
+      }
+      
+      // If no recent heartbeat and components aren't healthy, consider it down
+      return false;
     } catch (e) {
       return false;
     }
@@ -309,5 +318,74 @@ class ServiceHealthMonitor {
         'serviceResponding': _isServiceResponding,
       },
     };
+  }
+  
+  /// Attempts to restart the monitoring service
+  Future<void> _attemptServiceRestart() async {
+    try {
+      // Stop current monitoring if running
+      await app_monitor.stopAppMonitoring();
+      
+      // Wait a moment before restarting
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // Restart the app monitoring service
+      await app_monitor.startAppMonitoring();
+      
+      EnhancedLogger.info(
+        LogSource.service,
+        LogCategory.health,
+        'Service restart attempt completed',
+      );
+    } catch (e) {
+      EnhancedLogger.warning(
+        LogSource.service,
+        LogCategory.health,
+        'Service restart attempt failed: $e',
+      );
+      rethrow;
+    }
+  }
+  
+  /// Verifies that the service is healthy after recovery attempt
+  Future<bool> _verifyServiceHealth() async {
+    try {
+      // Perform multiple health checks to verify recovery
+      var healthyChecks = 0;
+      const checksNeeded = 3;
+      
+      for (int i = 0; i < checksNeeded; i++) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        // Check if the service is responding
+        final isResponding = await _checkServiceRunning();
+        if (isResponding) {
+          healthyChecks++;
+        }
+        
+        // Check WebSocket health if applicable
+        if (_isWebSocketHealthy) {
+          healthyChecks++;
+        }
+      }
+      
+      // Consider recovery successful if most checks pass
+      final isHealthy = healthyChecks >= (checksNeeded * 0.6);
+      
+      EnhancedLogger.info(
+        LogSource.system,
+        LogCategory.health,
+        'Service health verification: $healthyChecks/$checksNeeded checks passed, healthy: $isHealthy',
+      );
+      
+      return isHealthy;
+    } catch (e) {
+      EnhancedLogger.error(
+        LogSource.system,
+        LogCategory.health,
+        'Service health verification failed: $e',
+      );
+      return false;
+    }
   }
 }

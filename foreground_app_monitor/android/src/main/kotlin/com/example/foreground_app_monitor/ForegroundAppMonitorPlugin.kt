@@ -317,6 +317,17 @@ class ForegroundAppMonitorPlugin : FlutterPlugin, MethodCallHandler {
         // Send the app to the Flutter side via the stream handler
         streamHandler?.sendAppDetected(packageName)
     }
+    
+    // Methods called by the background service to show/hide overlay
+    fun showOverlayFromService(packageName: String) {
+        Log.d(TAG, "Background service requests show overlay for: $packageName")
+        showOverlay(packageName)
+    }
+    
+    fun hideOverlayFromService() {
+        Log.d(TAG, "Background service requests hide overlay")
+        hideOverlay()
+    }
 }
 
 
