@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:coach_android/services/focus_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'state_management/providers/permissions_provider.dart';
+import '../state_management/providers/permissions_provider.dart';
 import 'package:logging/logging.dart';
 
 final _log = Logger('DebugView');

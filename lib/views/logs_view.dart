@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
-import 'models/log_entry.dart';
-import 'services/enhanced_logger.dart';
-import 'services/service_event_bus.dart';
+import '../models/log_entry.dart';
+import '../services/enhanced_logger.dart';
+import '../services/service_event_bus.dart';
 import 'package:intl/intl.dart';
 
 class LogsView extends ConsumerStatefulWidget {

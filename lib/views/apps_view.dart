@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
-import 'models/app_info.dart';
-import 'state_management/providers/app_selection_provider.dart';
-import 'state_management/providers/permissions_provider.dart';
-import 'state_management/models/app_selection_state.dart';
-import 'widgets/focus_status_widget.dart';
+import '../models/app_info.dart';
+import '../state_management/providers/app_selection_provider.dart';
+import '../state_management/providers/permissions_provider.dart';
+import '../state_management/models/app_selection_state.dart';
+import '../widgets/focus_status_widget.dart';
 
 
 class AppsView extends ConsumerStatefulWidget {

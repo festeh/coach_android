@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'apps_view.dart';
-import 'logs_view.dart';
-import 'debug_view.dart';
+import 'views/apps_view.dart';
+import 'views/logs_view.dart';
+import 'views/debug_view.dart';
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
