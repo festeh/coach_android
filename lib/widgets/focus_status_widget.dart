@@ -30,53 +30,83 @@ class FocusStatusWidget extends ConsumerWidget {
           // Show Focus button when not focusing, otherwise show status
           if (!focusState.focusData.isFocusing && focusState.status != FocusStatus.loading)
             Expanded(
-              child: ElevatedButton(
-                onPressed: () => _sendFocusCommand(context, ref),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ElevatedButton(
+                    onPressed: () => _sendFocusCommand(context, ref),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'Focus',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                ),
-                child: const Text(
-                  'Focus',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                  if (_getFocusCountText(focusState).isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        _getFocusCountText(focusState),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             )
           else
             // Show status when focusing or loading (centered, no "Status:" label)
             Expanded(
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(context, focusState),
-                    borderRadius: BorderRadius.circular(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(context, focusState),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: focusState.status == FocusStatus.loading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Text(
+                            _getFocusStatusText(focusState),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: _getStatusTextColor(context, focusState),
+                            ),
+                          ),
                   ),
-                  child: focusState.status == FocusStatus.loading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : Text(
-                          _getFocusStatusText(focusState),
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: _getStatusTextColor(context, focusState),
-                          ),
+                  if (_getFocusCountText(focusState).isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        _getFocusCountText(focusState),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                         ),
-                ),
+                      ),
+                    ),
+                ],
               ),
             ),
           const SizedBox(width: 8),
@@ -129,6 +159,16 @@ class FocusStatusWidget extends ConsumerWidget {
     return Theme.of(context).colorScheme.onTertiary;
   }
 
+  String _getFocusCountText(FocusState state) {
+    final count = state.focusData.numFocuses;
+    if (state.focusData.isFocusing && count > 0) {
+      return 'Focus #$count today';
+    } else if (count > 0) {
+      return '$count completed today';
+    }
+    return '';
+  }
+
   String _getFocusStatusText(FocusState state) {
     if (state.status == FocusStatus.loading) {
       return 'Loading...';
@@ -141,11 +181,11 @@ class FocusStatusWidget extends ConsumerWidget {
         // focusTimeLeft is in seconds, convert to minutes and round to natural number
         final minutes = (state.focusData.focusTimeLeft / 60).round();
         if (minutes > 0) {
-          return 'Focusing ($minutes min)';
+          return '$minutes min remaining';
         } else {
           // Less than 30 seconds left, show seconds
           final seconds = state.focusData.focusTimeLeft;
-          return 'Focusing (${seconds}s)';
+          return '${seconds}s remaining';
         }
       }
       return 'Focusing';
