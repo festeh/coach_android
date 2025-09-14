@@ -166,6 +166,23 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
                 Log.d(TAG, "Received test method call from UI")
                 result.success("Test method call successful")
             }
+            "forceShowFocusReminder" -> {
+                Log.d(TAG, "Received force show focus reminder from UI (debug)")
+                val service = FocusMonitorService.getInstance()
+                if (service != null) {
+                    // Call the service method directly to force show reminder
+                    try {
+                        service.forceShowFocusReminder()
+                        result.success(true)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error forcing focus reminder", e)
+                        result.error("ERROR_FORCE_REMINDER", "Failed to force show reminder", e.localizedMessage)
+                    }
+                } else {
+                    Log.w(TAG, "Service not running, cannot force show reminder")
+                    result.error("SERVICE_NOT_RUNNING", "FocusMonitorService is not running", null)
+                }
+            }
             else -> {
                 Log.w(TAG, "Method not implemented: ${call.method}")
                 result.notImplemented()

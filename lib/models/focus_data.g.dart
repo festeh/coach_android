@@ -12,6 +12,10 @@ _$FocusDataImpl _$$FocusDataImplFromJson(Map<String, dynamic> json) =>
       sinceLastChange: (json['sinceLastChange'] as num?)?.toInt() ?? 0,
       focusTimeLeft: (json['focusTimeLeft'] as num?)?.toInt() ?? 0,
       numFocuses: (json['numFocuses'] as num?)?.toInt() ?? 0,
+      lastNotificationTime:
+          (json['lastNotificationTime'] as num?)?.toInt() ?? 0,
+      lastActivityTime: (json['lastActivityTime'] as num?)?.toInt() ?? 0,
+      lastFocusEndTime: (json['lastFocusEndTime'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$$FocusDataImplToJson(_$FocusDataImpl instance) =>
@@ -20,4 +24,7 @@ Map<String, dynamic> _$$FocusDataImplToJson(_$FocusDataImpl instance) =>
       'sinceLastChange': instance.sinceLastChange,
       'focusTimeLeft': instance.focusTimeLeft,
       'numFocuses': instance.numFocuses,
+      'lastNotificationTime': instance.lastNotificationTime,
+      'lastActivityTime': instance.lastActivityTime,
+      'lastFocusEndTime': instance.lastFocusEndTime,
     };

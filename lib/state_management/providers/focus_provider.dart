@@ -57,6 +57,9 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
             numFocuses: data['numFocuses'] as int? ?? 0,
             focusTimeLeft: data['focusTimeLeft'] as int? ?? 0, // Already in seconds
             sinceLastChange: data['sinceLastChange'] as int? ?? 0,
+            lastNotificationTime: data['lastNotificationTime'] as int? ?? 0,
+            lastActivityTime: data['lastActivityTime'] as int? ?? 0,
+            lastFocusEndTime: data['lastFocusEndTime'] as int? ?? 0,
           );
           await updateFocusState(focusData);
 

@@ -79,6 +79,9 @@ class BackgroundMonitorHandler {
         sinceLastChange: prefs.getInt('sinceLastChange') ?? 0,
         focusTimeLeft: prefs.getInt('focusTimeLeft') ?? 0,
         numFocuses: prefs.getInt('numFocuses') ?? 0,
+        lastNotificationTime: prefs.getInt('lastNotificationTime') ?? 0,
+        lastActivityTime: prefs.getInt('lastActivityTime') ?? 0,
+        lastFocusEndTime: prefs.getInt('lastFocusEndTime') ?? 0,
       );
       
       // Load monitored packages - now reading from same key as UI engine
@@ -131,14 +134,14 @@ class BackgroundMonitorHandler {
   /// Handle when a new app becomes foreground
   static void _handleAppChanged(String packageName) {
     _log.fine('App changed to: $packageName');
-    
+
     try {
       // Log current state for debugging
       _log.info('Overlay decision for $packageName - focusing: ${_focusData.isFocusing}, monitored packages: ${_monitoredPackages.join(", ")}');
-      
+
       // This is the core decision logic (same as in app_monitor.dart)
       final shouldShow = _shouldShowOverlay(packageName);
-      
+
       if (shouldShow) {
         _log.info('SHOWING overlay for app: $packageName (app is monitored AND currently focusing)');
         _showOverlay(packageName);
@@ -153,6 +156,12 @@ class BackgroundMonitorHandler {
         }
         _hideOverlay();
       }
+
+      // Update activity time when user switches apps
+      _updateActivityTime();
+
+      // Check focus reminder after handling app change (user activity detected)
+      _checkFocusReminder();
     } catch (e) {
       _log.severe('Error handling app change: $e');
     }
@@ -240,14 +249,18 @@ class BackgroundMonitorHandler {
     try {
       _focusUpdatesSubscription = _webSocketService!.focusUpdates.listen(
         (data) {
-          final newFocusData = FocusData.fromWebSocketResponse(data);
-          
+          // Use updateFromWebSocket to preserve existing timing data and calculate focus end time
+          final newFocusData = _focusData.updateFromWebSocket(data);
+
+          // Check if focus session ended (was focusing, now not focusing)
+          final focusSessionEnded = _focusData.isFocusing && !newFocusData.isFocusing;
+
           // Only update if there's a significant change
           if (_focusData.hasSignificantDifference(newFocusData)) {
             _focusData = newFocusData;
-            
-            _log.info('Focus data updated from WebSocket: focusing=${_focusData.isFocusing}, sinceLastChange=${_focusData.sinceLastChange}, focusTimeLeft=${_focusData.focusTimeLeft}, numFocuses=${_focusData.numFocuses}');
-            
+
+            _log.info('Focus data updated from WebSocket: focusing=${_focusData.isFocusing}, sinceLastChange=${_focusData.sinceLastChange}, focusTimeLeft=${_focusData.focusTimeLeft}, numFocuses=${_focusData.numFocuses}, focusEnded=$focusSessionEnded');
+
             // Save to SharedPreferences for persistence
             SharedPreferences.getInstance().then((prefs) {
               final dataMap = _focusData.toSharedPreferencesMap();
@@ -255,10 +268,16 @@ class BackgroundMonitorHandler {
               prefs.setInt('sinceLastChange', dataMap['sinceLastChange'] as int);
               prefs.setInt('focusTimeLeft', dataMap['focusTimeLeft'] as int);
               prefs.setInt('numFocuses', dataMap['numFocuses'] as int);
+              prefs.setInt('lastNotificationTime', dataMap['lastNotificationTime'] as int);
+              prefs.setInt('lastActivityTime', dataMap['lastActivityTime'] as int);
+              prefs.setInt('lastFocusEndTime', dataMap['lastFocusEndTime'] as int);
             });
-            
+
             // Push update to UI via method channel
             _notifyUIFocusChanged(_focusData.toMethodChannelMap());
+
+            // Check focus reminder after focus data update
+            _checkFocusReminder();
           }
         },
         onError: (error) {
@@ -279,6 +298,55 @@ class BackgroundMonitorHandler {
       _log.info('Notified UI of focus data: focusing=${_focusData.isFocusing}, sinceLastChange=${_focusData.sinceLastChange}, focusTimeLeft=${_focusData.focusTimeLeft}, numFocuses=${_focusData.numFocuses}');
     } catch (e) {
       _log.severe('Failed to notify UI of focus state change: $e');
+    }
+  }
+
+  /// Update activity time when user is active
+  static Future<void> _updateActivityTime() async {
+    try {
+      final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _focusData = _focusData.copyWith(lastActivityTime: currentTime);
+
+      // Save to SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('lastActivityTime', currentTime);
+
+      _log.info('Activity time updated: $currentTime - immediately pushing to UI');
+
+      // Immediately push updated data to UI
+      await _notifyUIFocusChanged(_focusData.toMethodChannelMap());
+    } catch (e) {
+      _log.severe('Failed to update activity time: $e');
+    }
+  }
+
+  /// Update notification time when reminder is shown
+  static Future<void> updateNotificationTime() async {
+    try {
+      final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      _focusData = _focusData.copyWith(lastNotificationTime: currentTime);
+
+      // Save to SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('lastNotificationTime', currentTime);
+
+      _log.info('Notification time updated: $currentTime - immediately pushing to UI');
+
+      // Immediately push updated data to UI
+      await _notifyUIFocusChanged(_focusData.toMethodChannelMap());
+    } catch (e) {
+      _log.severe('Failed to update notification time: $e');
+    }
+  }
+
+  /// Check if focus reminder should be shown
+  static Future<void> _checkFocusReminder() async {
+    try {
+      final data = _focusData.toMethodChannelMap();
+      await _methodChannel?.invokeMethod('checkFocusReminder', data);
+      _log.fine('Requested focus reminder check: focusing=${_focusData.isFocusing}, sinceLastChange=${_focusData.sinceLastChange}');
+    } catch (e) {
+      _log.severe('Failed to check focus reminder: $e');
     }
   }
 
@@ -316,6 +384,11 @@ class BackgroundMonitorHandler {
           return await _refreshFocusState();
         case 'startFocus':
           return await _startFocus();
+        case 'updateNotificationTime':
+          await updateNotificationTime();
+          return {'success': true};
+        case 'forceShowFocusReminder':
+          return await _forceShowFocusReminder();
         default:
           throw PlatformException(
             code: 'UNKNOWN_METHOD',
@@ -346,9 +419,10 @@ class BackgroundMonitorHandler {
       _log.info('Background isolate: Requesting focus status from WebSocket');
       final response = await _webSocketService!.requestFocusStatus();
       
-      // Update focus data from response
-      _focusData = FocusData.fromWebSocketResponse(response);
-      
+      // Update focus data from response, preserving existing timing data
+      final oldFocusData = _focusData;
+      _focusData = _focusData.updateFromWebSocket(response);
+
       _log.info('Background isolate: Updated focus state from WebSocket - focusing=${_focusData.isFocusing}, sinceLastChange=${_focusData.sinceLastChange}, focusTimeLeft=${_focusData.focusTimeLeft}, numFocuses=${_focusData.numFocuses}');
       
       // Save to SharedPreferences for persistence
@@ -358,6 +432,9 @@ class BackgroundMonitorHandler {
       await prefs.setInt('sinceLastChange', dataMap['sinceLastChange'] as int);
       await prefs.setInt('focusTimeLeft', dataMap['focusTimeLeft'] as int);
       await prefs.setInt('numFocuses', dataMap['numFocuses'] as int);
+      await prefs.setInt('lastNotificationTime', dataMap['lastNotificationTime'] as int);
+      await prefs.setInt('lastActivityTime', dataMap['lastActivityTime'] as int);
+      await prefs.setInt('lastFocusEndTime', dataMap['lastFocusEndTime'] as int);
       
       // Notify UI with fresh data
       await _notifyUIFocusChanged(_focusData.toMethodChannelMap());
@@ -376,13 +453,13 @@ class BackgroundMonitorHandler {
   /// Start focus session by sending message to WebSocket server
   static Future<Map<String, dynamic>> _startFocus() async {
     _log.info('Background isolate: Handling start focus request');
-    
+
     if (_webSocketService == null) {
       const error = 'WebSocket service not initialized in background isolate';
       _log.severe(error);
       throw Exception(error);
     }
-    
+
     try {
       // Send focus command to WebSocket server
       await _webSocketService!.sendFocusCommand();
@@ -391,6 +468,25 @@ class BackgroundMonitorHandler {
     } catch (e) {
       _log.severe('Failed to send focus command: $e');
       throw Exception('Failed to send focus command: $e');
+    }
+  }
+
+  /// Force show focus reminder (debug mode)
+  static Future<Map<String, dynamic>> _forceShowFocusReminder() async {
+    _log.info('Background isolate: Force showing focus reminder (debug mode)');
+
+    try {
+      // Call the Android PopNotificationManager directly
+      await _methodChannel?.invokeMethod('forceShowReminderDirect');
+
+      // Update notification time tracking
+      await updateNotificationTime();
+
+      _log.info('Background isolate: Force focus reminder completed successfully');
+      return {'success': true};
+    } catch (e) {
+      _log.severe('Background isolate: Failed to force show focus reminder: $e');
+      throw Exception('Failed to force show focus reminder: $e');
     }
   }
 

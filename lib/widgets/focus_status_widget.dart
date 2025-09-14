@@ -7,6 +7,7 @@ import '../state_management/providers/focus_provider.dart';
 import '../models/log_entry.dart';
 import '../services/enhanced_logger.dart';
 import '../constants/channel_names.dart';
+import '../utils/time_formatter.dart';
 
 final _log = Logger('FocusStatusWidget');
 
@@ -51,17 +52,8 @@ class FocusStatusWidget extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  if (_getFocusCountText(focusState).isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        _getFocusCountText(focusState),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                        ),
-                      ),
-                    ),
+                  const SizedBox(height: 8),
+                  _buildTimingInfo(context, focusState),
                 ],
               ),
             )
@@ -95,17 +87,8 @@ class FocusStatusWidget extends ConsumerWidget {
                             ),
                           ),
                   ),
-                  if (_getFocusCountText(focusState).isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        _getFocusCountText(focusState),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                        ),
-                      ),
-                    ),
+                  const SizedBox(height: 8),
+                  _buildTimingInfo(context, focusState),
                 ],
               ),
             ),
@@ -157,6 +140,32 @@ class FocusStatusWidget extends ConsumerWidget {
       return Theme.of(context).colorScheme.onSecondary;
     }
     return Theme.of(context).colorScheme.onTertiary;
+  }
+
+  Widget _buildTimingInfo(BuildContext context, FocusState state) {
+    final timingInfo = TimeFormatter.formatTimingInfo(
+      lastNotificationTime: state.focusData.lastNotificationTime,
+      lastActivityTime: state.focusData.lastActivityTime,
+      lastFocusEndTime: state.focusData.lastFocusEndTime,
+      numFocuses: state.focusData.numFocuses,
+    );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: timingInfo.map((info) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: Text(
+            info,
+            style: TextStyle(
+              fontSize: 11,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        );
+      }).toList(),
+    );
   }
 
   String _getFocusCountText(FocusState state) {

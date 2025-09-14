@@ -10,17 +10,27 @@ class FocusData with _$FocusData {
     @Default(0) int sinceLastChange,
     @Default(0) int focusTimeLeft,
     @Default(0) int numFocuses,
+    @Default(0) int lastNotificationTime, // Unix timestamp in seconds
+    @Default(0) int lastActivityTime, // Unix timestamp in seconds
+    @Default(0) int lastFocusEndTime, // Unix timestamp in seconds
   }) = _FocusData;
 
   factory FocusData.fromJson(Map<String, dynamic> json) =>
       _$FocusDataFromJson(json);
 
-  factory FocusData.fromWebSocketResponse(Map<String, dynamic> data) {
+  factory FocusData.fromWebSocketResponse(Map<String, dynamic> data, {
+    int lastNotificationTime = 0,
+    int lastActivityTime = 0,
+    int lastFocusEndTime = 0,
+  }) {
     return FocusData(
       isFocusing: data['focusing'] as bool? ?? false,
       sinceLastChange: data['since_last_change'] as int? ?? 0,
       focusTimeLeft: data['focus_time_left'] as int? ?? 0,
       numFocuses: data['num_focuses'] as int? ?? 0,
+      lastNotificationTime: lastNotificationTime,
+      lastActivityTime: lastActivityTime,
+      lastFocusEndTime: lastFocusEndTime,
     );
   }
 
@@ -29,12 +39,18 @@ class FocusData with _$FocusData {
     required int sinceLastChange,
     required int focusTimeLeft,
     required int numFocuses,
+    int lastNotificationTime = 0,
+    int lastActivityTime = 0,
+    int lastFocusEndTime = 0,
   }) {
     return FocusData(
       isFocusing: isFocusing,
       sinceLastChange: sinceLastChange,
       focusTimeLeft: focusTimeLeft,
       numFocuses: numFocuses,
+      lastNotificationTime: lastNotificationTime,
+      lastActivityTime: lastActivityTime,
+      lastFocusEndTime: lastFocusEndTime,
     );
   }
 }
@@ -47,6 +63,9 @@ extension FocusDataMethods on FocusData {
       'sinceLastChange': sinceLastChange,
       'focusTimeLeft': focusTimeLeft,
       'numFocuses': numFocuses,
+      'lastNotificationTime': lastNotificationTime,
+      'lastActivityTime': lastActivityTime,
+      'lastFocusEndTime': lastFocusEndTime,
     };
   }
 
@@ -57,6 +76,9 @@ extension FocusDataMethods on FocusData {
       'sinceLastChange': sinceLastChange,
       'focusTimeLeft': focusTimeLeft,
       'numFocuses': numFocuses,
+      'lastNotificationTime': lastNotificationTime,
+      'lastActivityTime': lastActivityTime,
+      'lastFocusEndTime': lastFocusEndTime,
     };
   }
 
@@ -72,11 +94,19 @@ extension FocusDataMethods on FocusData {
 
   /// Create a copy with updated values from WebSocket data
   FocusData updateFromWebSocket(Map<String, dynamic> data) {
+    final wasNotFocusing = !isFocusing;
+    final nowFocusing = data['focusing'] as bool? ?? isFocusing;
+    final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+    // If we were focusing and now we're not, update lastFocusEndTime
+    final newLastFocusEndTime = (isFocusing && !nowFocusing) ? currentTime : lastFocusEndTime;
+
     return copyWith(
-      isFocusing: data['focusing'] as bool? ?? isFocusing,
+      isFocusing: nowFocusing,
       sinceLastChange: data['since_last_change'] as int? ?? sinceLastChange,
       focusTimeLeft: data['focus_time_left'] as int? ?? focusTimeLeft,
       numFocuses: data['num_focuses'] as int? ?? numFocuses,
+      lastFocusEndTime: newLastFocusEndTime,
     );
   }
 }

@@ -3,6 +3,8 @@ import 'package:coach_android/services/focus_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state_management/providers/permissions_provider.dart';
 import 'package:logging/logging.dart';
+import 'package:flutter/services.dart';
+import '../constants/channel_names.dart';
 
 final _log = Logger('DebugView');
 
@@ -49,7 +51,7 @@ class _DebugViewState extends ConsumerState<DebugView> with WidgetsBindingObserv
     try {
       final usageStatsPermission = await FocusService.checkUsageStatsPermission();
       final overlayPermission = await FocusService.checkOverlayPermission();
-      
+
       setState(() {
         _hasUsageStatsPermission = usageStatsPermission;
         _hasOverlayPermission = overlayPermission;
@@ -63,10 +65,53 @@ class _DebugViewState extends ConsumerState<DebugView> with WidgetsBindingObserv
     }
   }
 
+  Future<void> _forceShowFocusReminder(BuildContext context) async {
+    _log.info('Debug: Forcing focus reminder notification...');
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      const methodChannel = MethodChannel(ChannelNames.mainMethods);
+      final result = await methodChannel.invokeMethod('forceShowFocusReminder');
+
+      if (mounted) {
+        if (result == true) {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('Focus reminder notification triggered successfully!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
+            ),
+          );
+          _log.info('Debug: Focus reminder notification triggered successfully');
+        } else {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('Unexpected result: $result'),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+          _log.warning('Debug: Unexpected result: $result');
+        }
+      }
+    } catch (e) {
+      _log.severe('Debug: Error forcing focus reminder notification: $e');
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,7 +157,26 @@ class _DebugViewState extends ConsumerState<DebugView> with WidgetsBindingObserv
             ),
             
             const SizedBox(height: 24),
-            
+
+            // Notifications Section
+            _buildSection(
+              context,
+              'Notifications',
+              Icons.notifications,
+              [
+                _buildActionButton(
+                  context,
+                  'Force Focus Reminder',
+                  Icons.notification_add,
+                  () async {
+                    await _forceShowFocusReminder(context);
+                  },
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+
             // Actions Section
             _buildSection(
               context,

@@ -25,6 +25,11 @@ mixin _$FocusData {
   int get sinceLastChange => throw _privateConstructorUsedError;
   int get focusTimeLeft => throw _privateConstructorUsedError;
   int get numFocuses => throw _privateConstructorUsedError;
+  int get lastNotificationTime =>
+      throw _privateConstructorUsedError; // Unix timestamp in seconds
+  int get lastActivityTime =>
+      throw _privateConstructorUsedError; // Unix timestamp in seconds
+  int get lastFocusEndTime => throw _privateConstructorUsedError;
 
   /// Serializes this FocusData to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -46,6 +51,9 @@ abstract class $FocusDataCopyWith<$Res> {
     int sinceLastChange,
     int focusTimeLeft,
     int numFocuses,
+    int lastNotificationTime,
+    int lastActivityTime,
+    int lastFocusEndTime,
   });
 }
 
@@ -68,6 +76,9 @@ class _$FocusDataCopyWithImpl<$Res, $Val extends FocusData>
     Object? sinceLastChange = null,
     Object? focusTimeLeft = null,
     Object? numFocuses = null,
+    Object? lastNotificationTime = null,
+    Object? lastActivityTime = null,
+    Object? lastFocusEndTime = null,
   }) {
     return _then(
       _value.copyWith(
@@ -86,6 +97,18 @@ class _$FocusDataCopyWithImpl<$Res, $Val extends FocusData>
             numFocuses: null == numFocuses
                 ? _value.numFocuses
                 : numFocuses // ignore: cast_nullable_to_non_nullable
+                      as int,
+            lastNotificationTime: null == lastNotificationTime
+                ? _value.lastNotificationTime
+                : lastNotificationTime // ignore: cast_nullable_to_non_nullable
+                      as int,
+            lastActivityTime: null == lastActivityTime
+                ? _value.lastActivityTime
+                : lastActivityTime // ignore: cast_nullable_to_non_nullable
+                      as int,
+            lastFocusEndTime: null == lastFocusEndTime
+                ? _value.lastFocusEndTime
+                : lastFocusEndTime // ignore: cast_nullable_to_non_nullable
                       as int,
           )
           as $Val,
@@ -107,6 +130,9 @@ abstract class _$$FocusDataImplCopyWith<$Res>
     int sinceLastChange,
     int focusTimeLeft,
     int numFocuses,
+    int lastNotificationTime,
+    int lastActivityTime,
+    int lastFocusEndTime,
   });
 }
 
@@ -128,6 +154,9 @@ class __$$FocusDataImplCopyWithImpl<$Res>
     Object? sinceLastChange = null,
     Object? focusTimeLeft = null,
     Object? numFocuses = null,
+    Object? lastNotificationTime = null,
+    Object? lastActivityTime = null,
+    Object? lastFocusEndTime = null,
   }) {
     return _then(
       _$FocusDataImpl(
@@ -147,6 +176,18 @@ class __$$FocusDataImplCopyWithImpl<$Res>
             ? _value.numFocuses
             : numFocuses // ignore: cast_nullable_to_non_nullable
                   as int,
+        lastNotificationTime: null == lastNotificationTime
+            ? _value.lastNotificationTime
+            : lastNotificationTime // ignore: cast_nullable_to_non_nullable
+                  as int,
+        lastActivityTime: null == lastActivityTime
+            ? _value.lastActivityTime
+            : lastActivityTime // ignore: cast_nullable_to_non_nullable
+                  as int,
+        lastFocusEndTime: null == lastFocusEndTime
+            ? _value.lastFocusEndTime
+            : lastFocusEndTime // ignore: cast_nullable_to_non_nullable
+                  as int,
       ),
     );
   }
@@ -160,6 +201,9 @@ class _$FocusDataImpl implements _FocusData {
     this.sinceLastChange = 0,
     this.focusTimeLeft = 0,
     this.numFocuses = 0,
+    this.lastNotificationTime = 0,
+    this.lastActivityTime = 0,
+    this.lastFocusEndTime = 0,
   });
 
   factory _$FocusDataImpl.fromJson(Map<String, dynamic> json) =>
@@ -177,10 +221,21 @@ class _$FocusDataImpl implements _FocusData {
   @override
   @JsonKey()
   final int numFocuses;
+  @override
+  @JsonKey()
+  final int lastNotificationTime;
+  // Unix timestamp in seconds
+  @override
+  @JsonKey()
+  final int lastActivityTime;
+  // Unix timestamp in seconds
+  @override
+  @JsonKey()
+  final int lastFocusEndTime;
 
   @override
   String toString() {
-    return 'FocusData(isFocusing: $isFocusing, sinceLastChange: $sinceLastChange, focusTimeLeft: $focusTimeLeft, numFocuses: $numFocuses)';
+    return 'FocusData(isFocusing: $isFocusing, sinceLastChange: $sinceLastChange, focusTimeLeft: $focusTimeLeft, numFocuses: $numFocuses, lastNotificationTime: $lastNotificationTime, lastActivityTime: $lastActivityTime, lastFocusEndTime: $lastFocusEndTime)';
   }
 
   @override
@@ -195,7 +250,13 @@ class _$FocusDataImpl implements _FocusData {
             (identical(other.focusTimeLeft, focusTimeLeft) ||
                 other.focusTimeLeft == focusTimeLeft) &&
             (identical(other.numFocuses, numFocuses) ||
-                other.numFocuses == numFocuses));
+                other.numFocuses == numFocuses) &&
+            (identical(other.lastNotificationTime, lastNotificationTime) ||
+                other.lastNotificationTime == lastNotificationTime) &&
+            (identical(other.lastActivityTime, lastActivityTime) ||
+                other.lastActivityTime == lastActivityTime) &&
+            (identical(other.lastFocusEndTime, lastFocusEndTime) ||
+                other.lastFocusEndTime == lastFocusEndTime));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -206,6 +267,9 @@ class _$FocusDataImpl implements _FocusData {
     sinceLastChange,
     focusTimeLeft,
     numFocuses,
+    lastNotificationTime,
+    lastActivityTime,
+    lastFocusEndTime,
   );
 
   /// Create a copy of FocusData
@@ -228,6 +292,9 @@ abstract class _FocusData implements FocusData {
     final int sinceLastChange,
     final int focusTimeLeft,
     final int numFocuses,
+    final int lastNotificationTime,
+    final int lastActivityTime,
+    final int lastFocusEndTime,
   }) = _$FocusDataImpl;
 
   factory _FocusData.fromJson(Map<String, dynamic> json) =
@@ -241,6 +308,12 @@ abstract class _FocusData implements FocusData {
   int get focusTimeLeft;
   @override
   int get numFocuses;
+  @override
+  int get lastNotificationTime; // Unix timestamp in seconds
+  @override
+  int get lastActivityTime; // Unix timestamp in seconds
+  @override
+  int get lastFocusEndTime;
 
   /// Create a copy of FocusData
   /// with the given fields replaced by the non-null parameter values.

@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class FocusMonitorService : Service() {
     private val binder = FocusMonitorBinder()
     private lateinit var notificationManager: ServiceNotificationManager
+    private lateinit var popNotificationManager: PopNotificationManager
     private lateinit var appMonitor: AppMonitorHandler
 
     // Background Flutter engine for running Dart code
@@ -35,6 +36,7 @@ class FocusMonitorService : Service() {
         const val TAG = "FocusMonitorService"
         const val ACTION_START_SERVICE = "START_FOCUS_MONITOR"
         const val ACTION_STOP_SERVICE = "STOP_FOCUS_MONITOR"
+        const val ACTION_FOCUS_NOW = "FOCUS_NOW"
         
         private var serviceInstance: FocusMonitorService? = null
         
@@ -53,6 +55,7 @@ class FocusMonitorService : Service() {
         System.out.println("KOTLIN LOG: FocusMonitorService onCreate() called")
         
         notificationManager = ServiceNotificationManager(this)
+        popNotificationManager = PopNotificationManager(this)
         appMonitor = AppMonitorHandler(this)
         
         // Create notification channel
@@ -72,6 +75,9 @@ class FocusMonitorService : Service() {
             }
             ACTION_STOP_SERVICE -> {
                 stopForegroundService()
+            }
+            ACTION_FOCUS_NOW -> {
+                handleFocusNowAction()
             }
         }
         
@@ -159,6 +165,9 @@ class FocusMonitorService : Service() {
     }
     
     fun notifyAppDetected(packageName: String) {
+        // Update activity for reminder system
+        popNotificationManager.updateActivity()
+
         // Send to background Dart isolate instead of main plugin
         sendAppToBackgroundIsolate(packageName)
     }
@@ -255,6 +264,9 @@ class FocusMonitorService : Service() {
                     // Update notification with new focus data
                     updateNotificationWithFocusData(arguments)
 
+                    // Check if we should show focus reminder
+                    checkFocusReminder(arguments)
+
                     // Notify UI directly via MainActivity
                     MainActivity.getInstance()?.notifyFocusStateChanged(arguments ?: emptyMap())
                     result.success(null)
@@ -262,6 +274,22 @@ class FocusMonitorService : Service() {
                 "refreshFocusState" -> {
                     Log.d(TAG, "Background isolate requests focus state refresh")
                     // This is called by the background isolate to refresh its own state
+                    result.success(null)
+                }
+                "checkFocusReminder" -> {
+                    Log.d(TAG, "Background isolate requests focus reminder check")
+                    val arguments = call.arguments as? Map<String, Any>
+                    checkFocusReminder(arguments)
+                    result.success(null)
+                }
+                "forceShowFocusReminder" -> {
+                    Log.d(TAG, "Force showing focus reminder (debug mode)")
+                    popNotificationManager.forceShowFocusReminder()
+                    result.success(null)
+                }
+                "forceShowReminderDirect" -> {
+                    Log.d(TAG, "Force showing focus reminder directly from background isolate")
+                    popNotificationManager.forceShowFocusReminder()
                     result.success(null)
                 }
                 else -> result.notImplemented()
@@ -314,7 +342,61 @@ class FocusMonitorService : Service() {
             Log.e(TAG, "Error forwarding focus command to background isolate", e)
         }
     }
+
+    fun updateNotificationTimeInBackground() {
+        Log.d(TAG, "Updating notification time in background isolate")
+        try {
+            backgroundMethodChannel?.invokeMethod("updateNotificationTime", null)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating notification time in background isolate", e)
+        }
+    }
+
+    fun forceShowFocusReminder() {
+        Log.d(TAG, "Force showing focus reminder via background isolate")
+        try {
+            backgroundMethodChannel?.invokeMethod("forceShowFocusReminder", null)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error forcing focus reminder via background isolate", e)
+        }
+    }
     
+    private fun handleFocusNowAction() {
+        Log.d(TAG, "Handling Focus Now action from reminder notification")
+
+        // Dismiss the reminder notification
+        popNotificationManager.dismissReminder()
+
+        // Send focus command to background isolate
+        sendFocusCommand()
+
+        // Open main activity to show focus UI
+        val openAppIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+
+        if (openAppIntent != null) {
+            startActivity(openAppIntent)
+        }
+    }
+
+    private fun checkFocusReminder(focusData: Map<String, Any>?) {
+        if (!isRunning.get() || focusData == null) {
+            return
+        }
+
+        try {
+            val isFocusing = focusData["focusing"] as? Boolean ?: false
+            val sinceLastChange = focusData["sinceLastChange"] as? Int ?: 0
+
+            Log.d(TAG, "Checking focus reminder: focusing=$isFocusing, sinceLastChange=$sinceLastChange")
+
+            popNotificationManager.checkAndShowFocusReminder(sinceLastChange, isFocusing)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking focus reminder", e)
+        }
+    }
+
     private fun updateNotificationWithFocusData(focusData: Map<String, Any>?) {
         if (!isRunning.get() || focusData == null) {
             return
