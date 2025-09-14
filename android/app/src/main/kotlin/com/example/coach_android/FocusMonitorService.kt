@@ -18,15 +18,18 @@ class FocusMonitorService : Service() {
     private val binder = FocusMonitorBinder()
     private lateinit var notificationManager: ServiceNotificationManager
     private lateinit var appMonitor: AppMonitorHandler
-    
+
     // Background Flutter engine for running Dart code
     private var backgroundEngine: FlutterEngine? = null
     private var backgroundMethodChannel: MethodChannel? = null
     private var backgroundEventChannel: EventChannel? = null
     private var eventSink: EventChannel.EventSink? = null
-    
+
     private val isRunning = AtomicBoolean(false)
     private val handler = Handler(Looper.getMainLooper())
+
+    // Store current focus data for notification updates
+    private var currentFocusData: Map<String, Any>? = null
     
     companion object {
         const val TAG = "FocusMonitorService"
@@ -98,7 +101,14 @@ class FocusMonitorService : Service() {
         Log.d(TAG, "Starting foreground service")
         
         // Start foreground with notification
-        val notification = notificationManager.createServiceNotification()
+        val notification = if (currentFocusData != null) {
+            val isFocusing = currentFocusData?.get("focusing") as? Boolean
+            val numFocuses = currentFocusData?.get("numFocuses") as? Int
+            val focusTimeLeft = currentFocusData?.get("focusTimeLeft") as? Int
+            notificationManager.createServiceNotification(isFocusing, numFocuses, focusTimeLeft)
+        } else {
+            notificationManager.createServiceNotification()
+        }
         startForeground(ServiceNotificationManager.NOTIFICATION_ID, notification)
         
         isRunning.set(true)
@@ -240,6 +250,11 @@ class FocusMonitorService : Service() {
                 "focusStateChanged" -> {
                     Log.d(TAG, "Background isolate notifies focus state changed: ${call.arguments}")
                     val arguments = call.arguments as? Map<String, Any>
+                    currentFocusData = arguments
+
+                    // Update notification with new focus data
+                    updateNotificationWithFocusData(arguments)
+
                     // Notify UI directly via MainActivity
                     MainActivity.getInstance()?.notifyFocusStateChanged(arguments ?: emptyMap())
                     result.success(null)
@@ -300,17 +315,35 @@ class FocusMonitorService : Service() {
         }
     }
     
+    private fun updateNotificationWithFocusData(focusData: Map<String, Any>?) {
+        if (!isRunning.get() || focusData == null) {
+            return
+        }
+
+        try {
+            val isFocusing = focusData["focusing"] as? Boolean
+            val numFocuses = focusData["numFocuses"] as? Int
+            val focusTimeLeft = focusData["focusTimeLeft"] as? Int
+
+            Log.d(TAG, "Updating notification: focusing=$isFocusing, numFocuses=$numFocuses, focusTimeLeft=$focusTimeLeft")
+
+            notificationManager.updateNotification(isFocusing, numFocuses, focusTimeLeft)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating notification with focus data", e)
+        }
+    }
+
     private fun cleanupBackgroundEngine() {
         try {
             Log.d(TAG, "Cleaning up background Flutter engine...")
-            
+
             eventSink = null
             backgroundEventChannel?.setStreamHandler(null)
             backgroundMethodChannel?.setMethodCallHandler(null)
-            
+
             backgroundEngine?.destroy()
             backgroundEngine = null
-            
+
             Log.d(TAG, "Background Flutter engine cleanup complete")
         } catch (e: Exception) {
             Log.e(TAG, "Error cleaning up background Flutter engine", e)
