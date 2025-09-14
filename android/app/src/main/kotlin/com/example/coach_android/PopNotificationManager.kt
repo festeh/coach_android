@@ -131,7 +131,7 @@ class PopNotificationManager(private val context: Context) {
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle("Time to focus?")
             .setContentText("You haven't focused in a while. Ready for a focus session?")
-            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setSmallIcon(R.drawable.ic_notification_c)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setAutoCancel(true)

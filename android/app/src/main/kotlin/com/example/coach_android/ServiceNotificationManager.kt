@@ -43,14 +43,14 @@ class ServiceNotificationManager(private val context: Context) {
     }
 
     fun createServiceNotification(isFocusing: Boolean?, numFocuses: Int?, focusTimeLeft: Int?): Notification {
-        val stopIntent = Intent(context, FocusMonitorService::class.java).apply {
-            action = FocusMonitorService.ACTION_STOP_SERVICE
+        val focusIntent = Intent(context, FocusMonitorService::class.java).apply {
+            action = FocusMonitorService.ACTION_FOCUS_NOW
         }
 
-        val stopPendingIntent = PendingIntent.getService(
+        val focusPendingIntent = PendingIntent.getService(
             context,
             0,
-            stopIntent,
+            focusIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -59,43 +59,43 @@ class ServiceNotificationManager(private val context: Context) {
         return NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(content)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.ic_notification_c)
             .setOngoing(true)
             .setShowWhen(false)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .addAction(
-                android.R.drawable.ic_menu_close_clear_cancel,
-                "Stop",
-                stopPendingIntent
+                android.R.drawable.ic_media_play,
+                "Focus",
+                focusPendingIntent
             )
             .build()
     }
     
     fun updateNotification(title: String, content: String) {
-        val stopIntent = Intent(context, FocusMonitorService::class.java).apply {
-            action = FocusMonitorService.ACTION_STOP_SERVICE
+        val focusIntent = Intent(context, FocusMonitorService::class.java).apply {
+            action = FocusMonitorService.ACTION_FOCUS_NOW
         }
 
-        val stopPendingIntent = PendingIntent.getService(
+        val focusPendingIntent = PendingIntent.getService(
             context,
             0,
-            stopIntent,
+            focusIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(content)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.ic_notification_c)
             .setOngoing(true)
             .setShowWhen(false)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .addAction(
-                android.R.drawable.ic_menu_close_clear_cancel,
-                "Stop",
-                stopPendingIntent
+                android.R.drawable.ic_media_play,
+                "Focus",
+                focusPendingIntent
             )
             .build()
 
