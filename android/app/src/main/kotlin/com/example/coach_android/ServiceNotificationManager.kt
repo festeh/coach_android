@@ -56,10 +56,16 @@ class ServiceNotificationManager(private val context: Context) {
 
         val (title, content) = formatNotificationContent(isFocusing, numFocuses, focusTimeLeft)
 
+        val iconRes = if (isFocusing == true) {
+            R.drawable.ic_notification_c
+        } else {
+            R.drawable.ic_notification_c_crossed
+        }
+
         return NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(content)
-            .setSmallIcon(R.drawable.ic_notification_c)
+            .setSmallIcon(iconRes)
             .setOngoing(true)
             .setShowWhen(false)
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -73,6 +79,15 @@ class ServiceNotificationManager(private val context: Context) {
     }
     
     fun updateNotification(title: String, content: String) {
+        updateNotification(title, content, null)
+    }
+
+    fun updateNotification(isFocusing: Boolean?, numFocuses: Int?, focusTimeLeft: Int?) {
+        val (title, content) = formatNotificationContent(isFocusing, numFocuses, focusTimeLeft)
+        updateNotification(title, content, isFocusing)
+    }
+
+    private fun updateNotification(title: String, content: String, isFocusing: Boolean?) {
         val focusIntent = Intent(context, FocusMonitorService::class.java).apply {
             action = FocusMonitorService.ACTION_FOCUS_NOW
         }
@@ -84,10 +99,16 @@ class ServiceNotificationManager(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val iconRes = if (isFocusing == true) {
+            R.drawable.ic_notification_c
+        } else {
+            R.drawable.ic_notification_c_crossed
+        }
+
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(content)
-            .setSmallIcon(R.drawable.ic_notification_c)
+            .setSmallIcon(iconRes)
             .setOngoing(true)
             .setShowWhen(false)
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -100,11 +121,6 @@ class ServiceNotificationManager(private val context: Context) {
             .build()
 
         notificationManager.notify(NOTIFICATION_ID, notification)
-    }
-
-    fun updateNotification(isFocusing: Boolean?, numFocuses: Int?, focusTimeLeft: Int?) {
-        val (title, content) = formatNotificationContent(isFocusing, numFocuses, focusTimeLeft)
-        updateNotification(title, content)
     }
 
     private fun formatNotificationContent(isFocusing: Boolean?, numFocuses: Int?, focusTimeLeft: Int?): Pair<String, String> {
