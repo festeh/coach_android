@@ -182,4 +182,62 @@ class FocusService {
       rethrow;
     }
   }
+
+  /// Gets app usage stats for a given day from Android's UsageStatsManager.
+  static Future<List<AppUsageEntry>> getAppUsageStats(DateTime date) async {
+    try {
+      final startOfDay = DateTime(date.year, date.month, date.day);
+      final endOfDay = startOfDay.add(const Duration(days: 1));
+
+      final result = await _methodChannel.invokeMethod<List<dynamic>>(
+        'getAppUsageStats',
+        {
+          'startTime': startOfDay.millisecondsSinceEpoch,
+          'endTime': endOfDay.millisecondsSinceEpoch,
+        },
+      );
+
+      if (result == null) return [];
+
+      return result.map((item) {
+        final map = item as Map<dynamic, dynamic>;
+        return AppUsageEntry(
+          packageName: map['packageName'] as String,
+          totalTimeMs: map['totalTimeMs'] as int,
+        );
+      }).toList();
+    } on PlatformException catch (e) {
+      _log.severe('Failed to get app usage stats: ${e.message}', e);
+      return [];
+    } catch (e) {
+      _log.severe('Unknown error getting app usage stats: $e');
+      return [];
+    }
+  }
+}
+
+class AppUsageEntry {
+  final String packageName;
+  final int totalTimeMs;
+
+  AppUsageEntry({
+    required this.packageName,
+    required this.totalTimeMs,
+  });
+
+  int get totalTimeSeconds => totalTimeMs ~/ 1000;
+
+  String get formattedTime {
+    final totalSeconds = totalTimeMs ~/ 1000;
+    final hours = totalSeconds ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+
+    if (hours > 0) {
+      return '${hours}h ${minutes}m';
+    } else if (minutes > 0) {
+      return '${minutes}m';
+    } else {
+      return '<1m';
+    }
+  }
 }

@@ -68,3 +68,7 @@ build-release:
     fi
     
     echo "Release APK built successfully at: build/app/outputs/flutter-apk/app-release.apk"
+
+# Copy release APK to pCloud (builds first if needed)
+deploy: build-release
+    cp build/app/outputs/flutter-apk/app-release.apk ~/pCloudDrive/android-apps/coach/

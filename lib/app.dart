@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'views/apps_view.dart';
+import 'views/stats_view.dart';
 import 'views/logs_view.dart';
 import 'views/debug_view.dart';
 
@@ -88,6 +89,7 @@ class _MainScreenState extends State<MainScreen> {
   
   static const List<Widget> _screens = [
     AppsView(),
+    StatsView(),
     LogsView(),
     DebugView(),
   ];
@@ -121,6 +123,10 @@ class _MainScreenState extends State<MainScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.apps),
             label: 'Apps',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart),
+            label: 'Stats',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.list),

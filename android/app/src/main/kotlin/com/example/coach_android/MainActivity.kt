@@ -1,6 +1,7 @@
 package com.example.coach_android
 
 import android.app.AppOpsManager
+import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
@@ -181,6 +182,22 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
                 } else {
                     Log.w(TAG, "Service not running, cannot force show reminder")
                     result.error("SERVICE_NOT_RUNNING", "FocusMonitorService is not running", null)
+                }
+            }
+            "getAppUsageStats" -> {
+                Log.d(TAG, "Received getAppUsageStats request")
+                val startTime = call.argument<Long>("startTime")
+                val endTime = call.argument<Long>("endTime")
+                if (startTime != null && endTime != null) {
+                    try {
+                        val stats = getAppUsageStats(startTime, endTime)
+                        result.success(stats)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error getting app usage stats", e)
+                        result.error("ERROR_USAGE_STATS", "Failed to get usage stats", e.localizedMessage)
+                    }
+                } else {
+                    result.error("INVALID_ARGS", "startTime and endTime are required", null)
                 }
             }
             else -> {
@@ -409,5 +426,28 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
                 }
             }
             .sortedBy { it["name"] as String } // Sort by app name
+    }
+
+    // --- App Usage Stats ---
+
+    private fun getAppUsageStats(startTime: Long, endTime: Long): List<Map<String, Any>> {
+        val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager?
+            ?: return emptyList()
+
+        val stats = usageStatsManager.queryUsageStats(
+            UsageStatsManager.INTERVAL_DAILY,
+            startTime,
+            endTime
+        )
+
+        return stats
+            .filter { it.totalTimeInForeground > 0 }
+            .map { stat ->
+                mapOf(
+                    "packageName" to stat.packageName,
+                    "totalTimeMs" to stat.totalTimeInForeground
+                )
+            }
+            .sortedByDescending { it["totalTimeMs"] as Long }
     }
 }

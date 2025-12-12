@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/websocket_service.dart';
+import 'services/usage_database.dart';
 import 'constants/storage_keys.dart';
 import 'constants/channel_names.dart';
 import 'models/focus_data.dart';
@@ -43,7 +44,10 @@ class BackgroundMonitorHandler {
       
       // Load persisted state
       await _loadPersistedState();
-      
+
+      // Initialize usage database
+      await UsageDatabase.instance.init();
+
       // Set up listener for app changes from native service
       _setupAppListener();
       
@@ -136,6 +140,9 @@ class BackgroundMonitorHandler {
     _log.fine('App changed to: $packageName');
 
     try {
+      // Log app open to usage database
+      UsageDatabase.instance.logAppOpened(packageName, _focusData.isFocusing);
+
       // Log current state for debugging
       _log.info('Overlay decision for $packageName - focusing: ${_focusData.isFocusing}, monitored packages: ${_monitoredPackages.join(", ")}');
 
@@ -252,8 +259,20 @@ class BackgroundMonitorHandler {
           // Use updateFromWebSocket to preserve existing timing data and calculate focus end time
           final newFocusData = _focusData.updateFromWebSocket(data);
 
+          // Check if focus session started (was not focusing, now focusing)
+          final focusSessionStarted = !_focusData.isFocusing && newFocusData.isFocusing;
+
           // Check if focus session ended (was focusing, now not focusing)
           final focusSessionEnded = _focusData.isFocusing && !newFocusData.isFocusing;
+
+          // Log focus events to database
+          if (focusSessionStarted) {
+            UsageDatabase.instance.logFocusStarted();
+          }
+          if (focusSessionEnded) {
+            // sinceLastChange represents how long the focus session lasted
+            UsageDatabase.instance.logFocusEnded(_focusData.sinceLastChange);
+          }
 
           // Only update if there's a significant change
           if (_focusData.hasSignificantDifference(newFocusData)) {
