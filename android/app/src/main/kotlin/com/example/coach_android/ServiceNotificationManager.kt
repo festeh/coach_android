@@ -105,7 +105,7 @@ class ServiceNotificationManager(private val context: Context) {
         }
 
         val title = if (isFocusing == null) {
-            "$TITLE_PREFIX$connectionStatus"
+            TITLE_DEFAULT
         } else {
             val focusStatus = if (isFocusing) STATUS_FOCUSING else STATUS_NOT_FOCUSING
             "$focusStatus • $focusText"
@@ -136,7 +136,7 @@ class ServiceNotificationManager(private val context: Context) {
         private const val STATUS_INACTIVE = "Inactive"
         private const val STATUS_FOCUSING = "Focusing"
         private const val STATUS_NOT_FOCUSING = "Not focusing"
-        private const val TITLE_PREFIX = "Focus Monitor • "
+        private const val TITLE_DEFAULT = "Focus Monitor"
         private const val CONTENT_MONITORING = "Monitoring"
         private const val TIME_REMAINING = "remaining"
         private const val FOCUS_COUNT_ZERO = "No focuses today"
