@@ -7,6 +7,7 @@ import android.os.Binder
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.dart.DartExecutor
@@ -98,20 +99,26 @@ class FocusMonitorService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        Log.d(TAG, "Task removed - ensuring service continues running")
+        Log.d(TAG, "Task removed - scheduling service restart")
 
-        // Re-ensure we're in foreground state if we were running
-        if (isRunning.get()) {
-            val notification = if (currentFocusData != null) {
-                val isFocusing = currentFocusData?.get("focusing") as? Boolean
-                val numFocuses = currentFocusData?.get("numFocuses") as? Int
-                val focusTimeLeft = currentFocusData?.get("focusTimeLeft") as? Int
-                notificationManager.createServiceNotification(isFocusing, numFocuses, focusTimeLeft)
-            } else {
-                notificationManager.createServiceNotification()
-            }
-            startForeground(ServiceNotificationManager.NOTIFICATION_ID, notification)
+        // Schedule service restart to ensure it keeps running
+        val restartIntent = Intent(applicationContext, FocusMonitorService::class.java).apply {
+            action = ACTION_START_SERVICE
         }
+
+        val pendingIntent = PendingIntent.getService(
+            applicationContext,
+            1,
+            restartIntent,
+            PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        alarmManager.set(
+            AlarmManager.ELAPSED_REALTIME_WAKEUP,
+            SystemClock.elapsedRealtime() + 1000,
+            pendingIntent
+        )
     }
     
     private fun startForegroundService() {
