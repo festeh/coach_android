@@ -18,6 +18,7 @@ class DebugView extends ConsumerStatefulWidget {
 class _DebugViewState extends ConsumerState<DebugView> with WidgetsBindingObserver {
   bool? _hasUsageStatsPermission;
   bool? _hasOverlayPermission;
+  bool? _hasBatteryOptExclusion;
   bool _isLoading = false;
 
   @override
@@ -51,10 +52,12 @@ class _DebugViewState extends ConsumerState<DebugView> with WidgetsBindingObserv
     try {
       final usageStatsPermission = await FocusService.checkUsageStatsPermission();
       final overlayPermission = await FocusService.checkOverlayPermission();
+      final batteryOptExclusion = await FocusService.checkBatteryOptimizationExclusion();
 
       setState(() {
         _hasUsageStatsPermission = usageStatsPermission;
         _hasOverlayPermission = overlayPermission;
+        _hasBatteryOptExclusion = batteryOptExclusion;
         _isLoading = false;
       });
     } catch (e) {
@@ -150,6 +153,19 @@ class _DebugViewState extends ConsumerState<DebugView> with WidgetsBindingObserv
                       await _checkPermissions();
                     } catch (e) {
                       _log.warning('Error requesting overlay permission: $e');
+                    }
+                  },
+                ),
+                _buildPermissionTile(
+                  context,
+                  'Battery Optimization Excluded',
+                  _hasBatteryOptExclusion,
+                  onTap: () async {
+                    try {
+                      await FocusService.requestBatteryOptimizationExclusion();
+                      await _checkPermissions();
+                    } catch (e) {
+                      _log.warning('Error requesting battery optimization exclusion: $e');
                     }
                   },
                 ),

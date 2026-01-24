@@ -183,6 +183,41 @@ class FocusService {
     }
   }
 
+  /// Checks if the app is excluded from battery optimization.
+  static Future<bool> checkBatteryOptimizationExclusion() async {
+    try {
+      final result = await _methodChannel.invokeMethod<bool>(
+        'checkBatteryOptimizationExclusion',
+      );
+      _log.info('Battery optimization exclusion status: $result');
+      return result ?? false;
+    } on PlatformException catch (e) {
+      _log.severe('Failed to check battery optimization: ${e.message}', e);
+      return false;
+    } catch (e) {
+      _log.severe('Unknown error checking battery optimization: $e');
+      return false;
+    }
+  }
+
+  /// Opens settings to request battery optimization exclusion.
+  static Future<bool> requestBatteryOptimizationExclusion() async {
+    try {
+      _log.info('Requesting battery optimization exclusion...');
+      final result = await _methodChannel.invokeMethod<bool>(
+        'requestBatteryOptimizationExclusion',
+      );
+      _log.info('Battery optimization exclusion request result: $result');
+      return result ?? false;
+    } on PlatformException catch (e) {
+      _log.severe('Failed to request battery optimization exclusion: ${e.message}', e);
+      return false;
+    } catch (e) {
+      _log.severe('Unknown error requesting battery optimization exclusion: $e');
+      return false;
+    }
+  }
+
   /// Gets app usage stats for a given day from Android's UsageStatsManager.
   static Future<List<AppUsageEntry>> getAppUsageStats(DateTime date) async {
     try {
