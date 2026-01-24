@@ -10,14 +10,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 
 class ServiceNotificationManager(private val context: Context) {
-    
-    companion object {
-        const val NOTIFICATION_ID = 1001
-        const val CHANNEL_ID = "focus_monitor_service"
-        const val CHANNEL_NAME = "Focus Monitor Service"
-        const val CHANNEL_DESCRIPTION = "Monitors apps and shows focus reminders"
-    }
-    
+
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     
     fun createNotificationChannel() {
@@ -41,24 +34,27 @@ class ServiceNotificationManager(private val context: Context) {
     fun createServiceNotification(
         isFocusing: Boolean? = null,
         numFocuses: Int? = null,
-        focusTimeLeft: Int? = null
+        focusTimeLeft: Int? = null,
+        isConnected: Boolean = false
     ): Notification {
-        return buildNotification(isFocusing, numFocuses, focusTimeLeft)
+        return buildNotification(isFocusing, numFocuses, focusTimeLeft, isConnected)
     }
 
     fun updateNotification(
         isFocusing: Boolean? = null,
         numFocuses: Int? = null,
-        focusTimeLeft: Int? = null
+        focusTimeLeft: Int? = null,
+        isConnected: Boolean = false
     ) {
-        val notification = buildNotification(isFocusing, numFocuses, focusTimeLeft)
+        val notification = buildNotification(isFocusing, numFocuses, focusTimeLeft, isConnected)
         notificationManager.notify(NOTIFICATION_ID, notification)
     }
 
     private fun buildNotification(
         isFocusing: Boolean?,
         numFocuses: Int?,
-        focusTimeLeft: Int?
+        focusTimeLeft: Int?,
+        isConnected: Boolean
     ): Notification {
         val focusPendingIntent = PendingIntent.getService(
             context,
@@ -69,7 +65,7 @@ class ServiceNotificationManager(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val (title, content) = formatNotificationContent(isFocusing, numFocuses, focusTimeLeft)
+        val (title, content) = formatNotificationContent(isFocusing, numFocuses, focusTimeLeft, isConnected)
 
         val iconRes = if (isFocusing == true) {
             R.drawable.ic_notification_c
@@ -93,38 +89,58 @@ class ServiceNotificationManager(private val context: Context) {
             .build()
     }
 
-    private fun formatNotificationContent(isFocusing: Boolean?, numFocuses: Int?, focusTimeLeft: Int?): Pair<String, String> {
-        val status = when (isFocusing) {
-            true -> "Focusing"
-            false -> "Not focusing"
-            null -> "Focus Monitor"
-        }
+    private fun formatNotificationContent(
+        isFocusing: Boolean?,
+        numFocuses: Int?,
+        focusTimeLeft: Int?,
+        isConnected: Boolean
+    ): Pair<String, String> {
+        val connectionStatus = if (isConnected) STATUS_ACTIVE else STATUS_INACTIVE
 
         val focusCount = numFocuses ?: 0
         val focusText = when (focusCount) {
-            0 -> "No focuses today"
-            1 -> "1 focus today"
-            else -> "$focusCount focuses today"
+            0 -> FOCUS_COUNT_ZERO
+            1 -> FOCUS_COUNT_ONE
+            else -> "$focusCount $FOCUS_COUNT_SUFFIX"
         }
 
         val title = if (isFocusing == null) {
-            "Focus Monitor Active"
+            "$TITLE_PREFIX$connectionStatus"
         } else {
-            "$status • $focusText"
+            val focusStatus = if (isFocusing) STATUS_FOCUSING else STATUS_NOT_FOCUSING
+            "$focusStatus • $focusText"
         }
 
         val content = if (isFocusing == true && focusTimeLeft != null && focusTimeLeft > 0) {
             val minutes = focusTimeLeft / 60
             val seconds = focusTimeLeft % 60
             if (minutes > 0) {
-                "${minutes}m ${seconds}s remaining"
+                "${minutes}m ${seconds}s $TIME_REMAINING"
             } else {
-                "${seconds}s remaining"
+                "${seconds}s $TIME_REMAINING"
             }
         } else {
-            "Monitoring apps and focus mode"
+            "$CONTENT_MONITORING • $connectionStatus"
         }
 
         return Pair(title, content)
+    }
+
+    companion object {
+        const val NOTIFICATION_ID = 1001
+        const val CHANNEL_ID = "focus_monitor_service"
+        const val CHANNEL_NAME = "Focus Monitor Service"
+        const val CHANNEL_DESCRIPTION = "Monitors apps and shows focus reminders"
+
+        private const val STATUS_ACTIVE = "Active"
+        private const val STATUS_INACTIVE = "Inactive"
+        private const val STATUS_FOCUSING = "Focusing"
+        private const val STATUS_NOT_FOCUSING = "Not focusing"
+        private const val TITLE_PREFIX = "Focus Monitor • "
+        private const val CONTENT_MONITORING = "Monitoring"
+        private const val TIME_REMAINING = "remaining"
+        private const val FOCUS_COUNT_ZERO = "No focuses today"
+        private const val FOCUS_COUNT_ONE = "1 focus today"
+        private const val FOCUS_COUNT_SUFFIX = "focuses today"
     }
 }

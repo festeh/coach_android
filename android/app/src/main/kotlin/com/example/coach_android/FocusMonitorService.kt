@@ -409,8 +409,8 @@ class FocusMonitorService : Service() {
         }
 
         try {
-            val isFocusing = focusData["focusing"] as? Boolean ?: false
-            val sinceLastChange = focusData["sinceLastChange"] as? Int ?: 0
+            val isFocusing = focusData[FocusDataKeys.FOCUSING] as? Boolean ?: false
+            val sinceLastChange = focusData[FocusDataKeys.SINCE_LAST_CHANGE] as? Int ?: 0
 
             Log.d(TAG, "Checking focus reminder: focusing=$isFocusing, sinceLastChange=$sinceLastChange")
 
@@ -426,13 +426,14 @@ class FocusMonitorService : Service() {
         }
 
         try {
-            val isFocusing = focusData["focusing"] as? Boolean
-            val numFocuses = focusData["numFocuses"] as? Int
-            val focusTimeLeft = focusData["focusTimeLeft"] as? Int
+            val isFocusing = focusData[FocusDataKeys.FOCUSING] as? Boolean
+            val numFocuses = focusData[FocusDataKeys.NUM_FOCUSES] as? Int
+            val focusTimeLeft = focusData[FocusDataKeys.FOCUS_TIME_LEFT] as? Int
+            val isConnected = focusData[FocusDataKeys.IS_CONNECTED] as? Boolean ?: false
 
-            Log.d(TAG, "Updating notification: focusing=$isFocusing, numFocuses=$numFocuses, focusTimeLeft=$focusTimeLeft")
+            Log.d(TAG, "Updating notification: focusing=$isFocusing, numFocuses=$numFocuses, focusTimeLeft=$focusTimeLeft, isConnected=$isConnected")
 
-            notificationManager.updateNotification(isFocusing, numFocuses, focusTimeLeft)
+            notificationManager.updateNotification(isFocusing, numFocuses, focusTimeLeft, isConnected)
         } catch (e: Exception) {
             Log.e(TAG, "Error updating notification with focus data", e)
         }

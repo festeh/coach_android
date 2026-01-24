@@ -7,6 +7,7 @@ import 'services/websocket_service.dart';
 import 'services/usage_database.dart';
 import 'constants/storage_keys.dart';
 import 'constants/channel_names.dart';
+import 'constants/focus_data_keys.dart';
 import 'models/focus_data.dart';
 
 final _log = Logger('BackgroundMonitorHandler');
@@ -313,8 +314,12 @@ class BackgroundMonitorHandler {
   /// Notify UI of focus state change
   static Future<void> _notifyUIFocusChanged(Map<String, dynamic> data) async {
     try {
-      await _methodChannel?.invokeMethod('focusStateChanged', data);
-      _log.info('Notified UI of focus data: focusing=${_focusData.isFocusing}, sinceLastChange=${_focusData.sinceLastChange}, focusTimeLeft=${_focusData.focusTimeLeft}, numFocuses=${_focusData.numFocuses}');
+      // Add connection status to the data
+      final dataWithStatus = Map<String, dynamic>.from(data);
+      dataWithStatus[FocusDataKeys.isConnected] = _webSocketService?.isConnected ?? false;
+
+      await _methodChannel?.invokeMethod('focusStateChanged', dataWithStatus);
+      _log.info('Notified UI of focus data: focusing=${_focusData.isFocusing}, connected=${dataWithStatus[FocusDataKeys.isConnected]}');
     } catch (e) {
       _log.severe('Failed to notify UI of focus state change: $e');
     }
@@ -439,7 +444,6 @@ class BackgroundMonitorHandler {
       final response = await _webSocketService!.requestFocusStatus();
       
       // Update focus data from response, preserving existing timing data
-      final oldFocusData = _focusData;
       _focusData = _focusData.updateFromWebSocket(response);
 
       _log.info('Background isolate: Updated focus state from WebSocket - focusing=${_focusData.isFocusing}, sinceLastChange=${_focusData.sinceLastChange}, focusTimeLeft=${_focusData.focusTimeLeft}, numFocuses=${_focusData.numFocuses}');
