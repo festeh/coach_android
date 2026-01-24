@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.os.Process
 import android.provider.Settings
 import android.util.Log
@@ -167,6 +168,18 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
                 Log.d(TAG, "Received test method call from UI")
                 result.success("Test method call successful")
             }
+            "checkBatteryOptimizationExclusion" -> {
+                result.success(isBatteryOptimizationExcluded())
+            }
+            "requestBatteryOptimizationExclusion" -> {
+                try {
+                    requestBatteryOptimizationExclusion()
+                    result.success(true)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error requesting battery optimization exclusion", e)
+                    result.error("ERROR_BATTERY_OPT", "Could not request battery optimization exclusion", e.localizedMessage)
+                }
+            }
             "forceShowFocusReminder" -> {
                 Log.d(TAG, "Received force show focus reminder from UI (debug)")
                 val service = FocusMonitorService.getInstance()
@@ -237,6 +250,19 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
             Uri.parse("package:$packageName")
         )
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
+    }
+
+    private fun isBatteryOptimizationExcluded(): Boolean {
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager?
+        return powerManager?.isIgnoringBatteryOptimizations(packageName) ?: false
+    }
+
+    @android.annotation.SuppressLint("BatteryLife")
+    private fun requestBatteryOptimizationExclusion() {
+        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+            data = Uri.parse("package:$packageName")
+        }
         startActivity(intent)
     }
 

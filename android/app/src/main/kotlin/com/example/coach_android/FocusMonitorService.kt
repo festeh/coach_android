@@ -89,13 +89,31 @@ class FocusMonitorService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         Log.d(TAG, "Service onDestroy")
-        
+
         stopForegroundService()
-        
+
         // Cleanup background engine
         cleanupBackgroundEngine()
-        
+
         serviceInstance = null
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        Log.d(TAG, "Task removed - ensuring service continues running")
+
+        // Re-ensure we're in foreground state if we were running
+        if (isRunning.get()) {
+            val notification = if (currentFocusData != null) {
+                val isFocusing = currentFocusData?.get("focusing") as? Boolean
+                val numFocuses = currentFocusData?.get("numFocuses") as? Int
+                val focusTimeLeft = currentFocusData?.get("focusTimeLeft") as? Int
+                notificationManager.createServiceNotification(isFocusing, numFocuses, focusTimeLeft)
+            } else {
+                notificationManager.createServiceNotification()
+            }
+            startForeground(ServiceNotificationManager.NOTIFICATION_ID, notification)
+        }
     }
     
     private fun startForegroundService() {
