@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import '../models/app_info.dart';
+import '../services/installed_apps_service.dart';
 import '../state_management/providers/app_selection_provider.dart';
 import '../state_management/providers/permissions_provider.dart';
 import '../state_management/models/app_selection_state.dart';
@@ -17,8 +17,6 @@ class AppsView extends ConsumerStatefulWidget {
 }
 
 class _AppsViewState extends ConsumerState<AppsView> {
-  static const platform = MethodChannel('com.example.coach_android/appCount');
-  List<AppInfo> _installedApps = [];
   bool _isLoading = true;
   StreamSubscription<Map<String, dynamic>?>? _focusingStateSubscription;
 
@@ -45,26 +43,26 @@ class _AppsViewState extends ConsumerState<AppsView> {
 
   Future<void> _loadInstalledApps() async {
     try {
-      final List<dynamic> result = await platform.invokeMethod('getInstalledApps');
+      // Use shared service - it may already be initialized
+      if (!InstalledAppsService.instance.isInitialized) {
+        await InstalledAppsService.instance.init();
+      }
       if (mounted) {
         setState(() {
-          _installedApps = result
-              .cast<Map<dynamic, dynamic>>()
-              .map((map) => AppInfo.fromMap(map))
-              .toList();
           _isLoading = false;
         });
       }
-    } on PlatformException catch (e) {
+    } catch (e) {
       if (mounted) {
         setState(() {
-          _installedApps = [];
           _isLoading = false;
         });
       }
-      debugPrint("Failed to get installed apps: '${e.message}'.");
+      debugPrint("Failed to get installed apps: '$e'.");
     }
   }
+
+  List<AppInfo> get _installedApps => InstalledAppsService.instance.installedApps;
 
   @override
   Widget build(BuildContext context) {
@@ -105,13 +103,23 @@ class _AppsViewState extends ConsumerState<AppsView> {
   }
 
   Widget _buildAppList(AppSelectionState appSelection) {
+    // Sort apps: selected (blocked) first, then alphabetically
+    final sortedApps = List<AppInfo>.from(_installedApps)
+      ..sort((a, b) {
+        final aSelected = appSelection.selectedPackages.contains(a.packageName);
+        final bSelected = appSelection.selectedPackages.contains(b.packageName);
+        if (aSelected && !bSelected) return -1;
+        if (!aSelected && bSelected) return 1;
+        return a.name.compareTo(b.name);
+      });
+
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
-      itemCount: _installedApps.length,
+      itemCount: sortedApps.length,
       itemBuilder: (context, index) {
-        final app = _installedApps[index];
+        final app = sortedApps[index];
         final isSelected = appSelection.selectedPackages.contains(app.packageName);
-        
+
         return Container(
           margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
           decoration: BoxDecoration(

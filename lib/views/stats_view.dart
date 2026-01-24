@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/usage_database.dart';
 import '../services/focus_service.dart';
+import '../services/installed_apps_service.dart';
 import '../constants/storage_keys.dart';
 
 class StatsView extends ConsumerStatefulWidget {
@@ -290,8 +291,7 @@ class _StatsViewState extends ConsumerState<StatsView> {
   }
 
   Widget _buildAppUsageRow(BuildContext context, AppUsageEntry app) {
-    // Extract app name from package name (last part after the dot)
-    final displayName = app.packageName.split('.').last;
+    final displayName = InstalledAppsService.instance.getAppName(app.packageName);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
@@ -351,8 +351,7 @@ class _StatsViewState extends ConsumerState<StatsView> {
   }
 
   Widget _buildBlockedAppRow(BuildContext context, BlockedAppEntry app) {
-    // Extract app name from package name (last part after the dot)
-    final displayName = app.packageName.split('.').last;
+    final displayName = InstalledAppsService.instance.getAppName(app.packageName);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),

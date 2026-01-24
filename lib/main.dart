@@ -4,6 +4,7 @@ import 'package:logging/logging.dart';
 import 'app.dart';
 import 'background_monitor_handler.dart';
 import 'services/focus_service.dart';
+import 'services/installed_apps_service.dart';
 
 final _log = Logger('Main');
 
@@ -19,7 +20,15 @@ void main() async {
   
   // Start background service early
   await _startBackgroundService();
-  
+
+  // Initialize installed apps service for app name lookup
+  try {
+    await InstalledAppsService.instance.init();
+    _log.info('InstalledAppsService initialized');
+  } catch (e) {
+    _log.warning('Failed to initialize InstalledAppsService: $e');
+  }
+
   runApp(
     const ProviderScope(
       child: MyApp(),
@@ -43,8 +52,8 @@ Future<void> _startBackgroundService() async {
 /// It runs independently of the main UI and handles all monitoring logic
 @pragma('vm:entry-point')
 void backgroundMain() {
-  final _backgroundLog = Logger('BackgroundIsolate');
-  
+  final log = Logger('BackgroundIsolate');
+
   try {
     // Configure logging for background isolate to output to Android logcat
     Logger.root.level = Level.ALL;
@@ -53,19 +62,19 @@ void backgroundMain() {
       // ignore: avoid_print
       print('${record.level.name}: ${record.time}: ${record.loggerName}: ${record.message}');
     });
-    
-    _backgroundLog.info('Background isolate entry point called');
-    
+
+    log.info('Background isolate entry point called');
+
     WidgetsFlutterBinding.ensureInitialized();
-    _backgroundLog.info('Flutter binding initialized');
-    
-    _backgroundLog.info('Background isolate started');
+    log.info('Flutter binding initialized');
+
+    log.info('Background isolate started');
 
     // Initialize the background monitor handler (which will initialize WebSocket)
     BackgroundMonitorHandler.initialize();
-    _backgroundLog.info('BackgroundMonitorHandler.initialize() called');
+    log.info('BackgroundMonitorHandler.initialize() called');
   } catch (e, stackTrace) {
-    _backgroundLog.severe('Failed to start background isolate: $e', e, stackTrace);
+    log.severe('Failed to start background isolate: $e', e, stackTrace);
     // Re-throw so the native side can handle the error
     rethrow;
   }
@@ -74,7 +83,7 @@ void backgroundMain() {
 /// Callback for when the background isolate is initialized
 @pragma('vm:entry-point')
 void backgroundCallback() {
-  final _backgroundLog = Logger('BackgroundIsolate');
-  _backgroundLog.info('Background callback invoked');
+  final log = Logger('BackgroundIsolate');
+  log.info('Background callback invoked');
   backgroundMain();
 }
