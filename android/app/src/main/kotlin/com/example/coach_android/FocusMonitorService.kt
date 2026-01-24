@@ -52,7 +52,6 @@ class FocusMonitorService : Service() {
         serviceInstance = this
         
         Log.d(TAG, "Service onCreate")
-        System.out.println("KOTLIN LOG: FocusMonitorService onCreate() called")
         
         notificationManager = ServiceNotificationManager(this)
         popNotificationManager = PopNotificationManager(this)
@@ -62,7 +61,6 @@ class FocusMonitorService : Service() {
         notificationManager.createNotificationChannel()
         
         // Initialize background Flutter engine
-        System.out.println("KOTLIN LOG: About to initialize background Flutter engine")
         initializeBackgroundEngine()
     }
     

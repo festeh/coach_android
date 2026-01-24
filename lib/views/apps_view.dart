@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:async';
+import 'package:logging/logging.dart';
 import '../models/app_info.dart';
 import '../services/installed_apps_service.dart';
 import '../state_management/providers/app_selection_provider.dart';
@@ -17,20 +17,14 @@ class AppsView extends ConsumerStatefulWidget {
 }
 
 class _AppsViewState extends ConsumerState<AppsView> {
+  static final _log = Logger('AppsView');
   bool _isLoading = true;
-  StreamSubscription<Map<String, dynamic>?>? _focusingStateSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadInstalledApps();
     _checkPermissions();
-  }
-
-  @override
-  void dispose() {
-    _focusingStateSubscription?.cancel();
-    super.dispose();
   }
 
   Future<void> _checkPermissions() async {
@@ -58,7 +52,7 @@ class _AppsViewState extends ConsumerState<AppsView> {
           _isLoading = false;
         });
       }
-      debugPrint("Failed to get installed apps: '$e'.");
+      _log.warning("Failed to get installed apps: '$e'");
     }
   }
 
