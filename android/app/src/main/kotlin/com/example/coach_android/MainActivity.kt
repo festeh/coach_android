@@ -169,6 +169,17 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
                     result.error("SERVICE_NOT_RUNNING", "FocusMonitorService is not running", null)
                 }
             }
+            "reloadMonitoredPackages" -> {
+                Log.d(TAG, "Received reload monitored packages request from main UI")
+                val service = FocusMonitorService.getInstance()
+                if (service != null) {
+                    service.reloadMonitoredPackages()
+                    result.success(true)
+                } else {
+                    Log.w(TAG, "Service not running, cannot reload monitored packages")
+                    result.error("SERVICE_NOT_RUNNING", "FocusMonitorService is not running", null)
+                }
+            }
             "sendFocusCommand" -> {
                 Log.d(TAG, "Received focus command from main UI")
                 val service = FocusMonitorService.getInstance()

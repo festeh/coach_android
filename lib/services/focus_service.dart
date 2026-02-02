@@ -183,6 +183,19 @@ class FocusService {
     }
   }
 
+  /// Notifies the background isolate to reload monitored packages from SharedPreferences.
+  static Future<void> reloadMonitoredPackages() async {
+    try {
+      _log.info('Requesting background isolate to reload monitored packages...');
+      await _methodChannel.invokeMethod('reloadMonitoredPackages');
+      _log.info('Reload monitored packages request sent.');
+    } on PlatformException catch (e) {
+      _log.severe('Failed to reload monitored packages: ${e.message}', e);
+    } catch (e) {
+      _log.severe('Unknown error reloading monitored packages: $e');
+    }
+  }
+
   /// Checks if the app is excluded from battery optimization.
   static Future<bool> checkBatteryOptimizationExclusion() async {
     try {

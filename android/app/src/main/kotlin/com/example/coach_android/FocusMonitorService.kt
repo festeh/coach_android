@@ -395,6 +395,15 @@ class FocusMonitorService : Service() {
             Log.e(TAG, "Error forcing focus reminder via background isolate", e)
         }
     }
+
+    fun reloadMonitoredPackages() {
+        Log.d(TAG, "Reloading monitored packages in background isolate")
+        try {
+            backgroundMethodChannel?.invokeMethod("reloadMonitoredPackages", null)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reloading monitored packages in background isolate", e)
+        }
+    }
     
     private fun handleFocusNowAction() {
         Log.d(TAG, "Handling Focus Now action from reminder notification")

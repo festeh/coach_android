@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
 import '../models/app_selection_state.dart';
 import '../services/state_service.dart';
+import '../../services/focus_service.dart';
 import 'focus_provider.dart';
 import '../../background_monitor_handler.dart';
 
@@ -41,6 +42,8 @@ class AppSelectionNotifier extends AsyncNotifier<AppSelectionState> {
 
     // Immediately sync to background isolate
     await BackgroundMonitorHandler.updateMonitoredPackages(currentPackages);
+    // Notify the actual background engine via native service
+    await FocusService.reloadMonitoredPackages();
     _log.info('Synced selection to background isolate');
   }
 
@@ -51,6 +54,7 @@ class AppSelectionNotifier extends AsyncNotifier<AppSelectionState> {
 
     // Immediately sync to background isolate
     await BackgroundMonitorHandler.updateMonitoredPackages(packages);
+    await FocusService.reloadMonitoredPackages();
   }
 
   Future<void> clearSelection() async {
@@ -60,6 +64,7 @@ class AppSelectionNotifier extends AsyncNotifier<AppSelectionState> {
 
     // Immediately sync to background isolate
     await BackgroundMonitorHandler.updateMonitoredPackages({});
+    await FocusService.reloadMonitoredPackages();
   }
 }
 

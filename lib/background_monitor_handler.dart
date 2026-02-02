@@ -375,6 +375,26 @@ class BackgroundMonitorHandler {
     }
   }
 
+  /// Reload monitored packages from SharedPreferences (called via method channel from native service)
+  static Future<Map<String, dynamic>> _reloadMonitoredPackages() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      final monitoredAppsJson = prefs.getString(StorageKeys.selectedAppPackages);
+      if (monitoredAppsJson != null) {
+        final List<dynamic> packagesList = jsonDecode(monitoredAppsJson);
+        _monitoredPackages = packagesList.cast<String>().toSet();
+      } else {
+        _monitoredPackages = {};
+      }
+      _log.info('Reloaded monitored packages from SharedPreferences: ${_monitoredPackages.length} apps');
+      return {'success': true, 'count': _monitoredPackages.length};
+    } catch (e) {
+      _log.severe('Failed to reload monitored packages: $e');
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
   /// Get current focus state
   static bool get isFocusing => _focusData.isFocusing;
   
@@ -550,6 +570,8 @@ class BackgroundMonitorHandler {
           return {'success': true};
         case 'forceShowFocusReminder':
           return await _forceShowFocusReminder();
+        case 'reloadMonitoredPackages':
+          return await _reloadMonitoredPackages();
         case 'challengeCompleted':
           final args = call.arguments as Map<dynamic, dynamic>?;
           final ruleId = args?['ruleId'] as String?;
