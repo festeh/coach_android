@@ -21,6 +21,24 @@ class AppSettings {
   /// Overlay button color as hex string (e.g., "FFFF5252").
   final String overlayButtonColor;
 
+  /// Rules overlay message. Empty string means use the default.
+  final String rulesOverlayMessage;
+
+  /// Rules overlay background color as hex string.
+  final String rulesOverlayColor;
+
+  /// Rules overlay button text. Empty string means use the default.
+  final String rulesOverlayButtonText;
+
+  /// Rules overlay button color as hex string.
+  final String rulesOverlayButtonColor;
+
+  /// Long press challenge duration in seconds.
+  final int longPressDurationSeconds;
+
+  /// Phrase the user must type for typing challenge.
+  final String typingPhrase;
+
   const AppSettings({
     this.focusGapThresholdMinutes = defaultFocusGapThresholdMinutes,
     this.reminderCooldownMinutes = defaultReminderCooldownMinutes,
@@ -29,6 +47,12 @@ class AppSettings {
     this.overlayColor = defaultOverlayColor,
     this.overlayButtonText = defaultOverlayButtonText,
     this.overlayButtonColor = defaultOverlayButtonColor,
+    this.rulesOverlayMessage = defaultRulesOverlayMessage,
+    this.rulesOverlayColor = defaultRulesOverlayColor,
+    this.rulesOverlayButtonText = defaultRulesOverlayButtonText,
+    this.rulesOverlayButtonColor = defaultRulesOverlayButtonColor,
+    this.longPressDurationSeconds = defaultLongPressDurationSeconds,
+    this.typingPhrase = defaultTypingPhrase,
   });
 
   static const int defaultFocusGapThresholdMinutes = 120;
@@ -38,6 +62,12 @@ class AppSettings {
   static const String defaultOverlayColor = 'FF000000';
   static const String defaultOverlayButtonText = '';
   static const String defaultOverlayButtonColor = 'FFFF5252';
+  static const String defaultRulesOverlayMessage = '';
+  static const String defaultRulesOverlayColor = 'FF000000';
+  static const String defaultRulesOverlayButtonText = '';
+  static const String defaultRulesOverlayButtonColor = 'FFFF5252';
+  static const int defaultLongPressDurationSeconds = 5;
+  static const String defaultTypingPhrase = 'I will focus';
 
   int get focusGapThresholdSeconds => focusGapThresholdMinutes * 60;
   int get reminderCooldownSeconds => reminderCooldownMinutes * 60;
@@ -51,6 +81,12 @@ class AppSettings {
     String? overlayColor,
     String? overlayButtonText,
     String? overlayButtonColor,
+    String? rulesOverlayMessage,
+    String? rulesOverlayColor,
+    String? rulesOverlayButtonText,
+    String? rulesOverlayButtonColor,
+    int? longPressDurationSeconds,
+    String? typingPhrase,
   }) {
     return AppSettings(
       focusGapThresholdMinutes:
@@ -63,6 +99,12 @@ class AppSettings {
       overlayColor: overlayColor ?? this.overlayColor,
       overlayButtonText: overlayButtonText ?? this.overlayButtonText,
       overlayButtonColor: overlayButtonColor ?? this.overlayButtonColor,
+      rulesOverlayMessage: rulesOverlayMessage ?? this.rulesOverlayMessage,
+      rulesOverlayColor: rulesOverlayColor ?? this.rulesOverlayColor,
+      rulesOverlayButtonText: rulesOverlayButtonText ?? this.rulesOverlayButtonText,
+      rulesOverlayButtonColor: rulesOverlayButtonColor ?? this.rulesOverlayButtonColor,
+      longPressDurationSeconds: longPressDurationSeconds ?? this.longPressDurationSeconds,
+      typingPhrase: typingPhrase ?? this.typingPhrase,
     );
   }
 }

@@ -94,7 +94,6 @@ extension FocusDataMethods on FocusData {
 
   /// Create a copy with updated values from WebSocket data
   FocusData updateFromWebSocket(Map<String, dynamic> data) {
-    final wasNotFocusing = !isFocusing;
     final nowFocusing = data['focusing'] as bool? ?? isFocusing;
     final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 

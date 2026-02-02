@@ -9,6 +9,7 @@ import 'constants/storage_keys.dart';
 import 'constants/channel_names.dart';
 import 'constants/focus_data_keys.dart';
 import 'models/focus_data.dart';
+import 'models/app_rule.dart';
 
 final _log = Logger('BackgroundMonitorHandler');
 
@@ -22,6 +23,8 @@ class BackgroundMonitorHandler {
   
   static FocusData _focusData = const FocusData();
   static Set<String> _monitoredPackages = {};
+  static Map<String, AppRule> _rules = {};
+  static Map<String, String> _pendingChallenges = {}; // ruleId → packageName
   static bool _isInitialized = false;
   static WebSocketService? _webSocketService;
   static StreamSubscription<Map<String, dynamic>>? _focusUpdatesSubscription;
@@ -96,7 +99,18 @@ class BackgroundMonitorHandler {
         _monitoredPackages = packagesList.cast<String>().toSet();
       }
       
-      _log.info('Loaded persisted state - focusing: ${_focusData.isFocusing}, monitored packages: ${_monitoredPackages.join(", ")}');
+      // Load rules
+      final rulesJson = prefs.getString(StorageKeys.appRules);
+      if (rulesJson != null) {
+        final Map<String, dynamic> rulesMap = jsonDecode(rulesJson);
+        _rules = rulesMap.map((key, value) =>
+            MapEntry(key, AppRule.fromJson(value as Map<String, dynamic>)));
+      }
+
+      // Cleanup old rule counters
+      await UsageDatabase.instance.cleanupOldCounters();
+
+      _log.info('Loaded persisted state - focusing: ${_focusData.isFocusing}, monitored packages: ${_monitoredPackages.join(", ")}, rules: ${_rules.length}');
     } catch (e) {
       _log.severe('Failed to load persisted state: $e');
       // Continue with default values
@@ -137,7 +151,7 @@ class BackgroundMonitorHandler {
   }
 
   /// Handle when a new app becomes foreground
-  static void _handleAppChanged(String packageName) {
+  static Future<void> _handleAppChanged(String packageName) async {
     _log.fine('App changed to: $packageName');
 
     try {
@@ -164,6 +178,9 @@ class BackgroundMonitorHandler {
         }
         _hideOverlay();
       }
+
+      // Check rules independently of focus state
+      await _checkRules(packageName);
 
       // Update activity time when user switches apps
       _updateActivityTime();
@@ -202,6 +219,98 @@ class BackgroundMonitorHandler {
       _log.fine('Overlay hidden');
     } catch (e) {
       _log.severe('Failed to hide overlay: $e');
+    }
+  }
+
+  /// Check rules for the given package and show overlay if triggered
+  static Future<void> _checkRules(String packageName) async {
+    // Check for pending challenges first
+    final pendingRuleId = _pendingChallenges.entries
+        .where((e) => e.value == packageName)
+        .map((e) => e.key)
+        .cast<String?>()
+        .firstOrNull;
+
+    if (pendingRuleId != null) {
+      final rule = _rules[pendingRuleId];
+      if (rule == null) {
+        // Rule was deleted while pending — clean up
+        _pendingChallenges.remove(pendingRuleId);
+        _log.info('Cleaned up pending challenge for deleted rule $pendingRuleId');
+      } else {
+        _log.info('Re-showing pending challenge for rule ${rule.id} on $packageName');
+        await _showRuleOverlay(packageName, rule);
+        return;
+      }
+    }
+
+    final rulesForApp = _rules.values
+        .where((r) => r.packageName == packageName)
+        .toList();
+
+    if (rulesForApp.isEmpty) return;
+
+    for (final rule in rulesForApp) {
+      try {
+        final openCount = await UsageDatabase.instance.incrementOpenCount(rule.id);
+        _log.info('Rule ${rule.id}: open_count=$openCount for $packageName (everyN=${rule.everyN})');
+
+        if (openCount % rule.everyN == 0) {
+          final counters = await UsageDatabase.instance.getCounters(rule.id);
+          if (counters.triggerCount < rule.maxTriggers) {
+            if (rule.challengeType == 'none') {
+              await UsageDatabase.instance.incrementTriggerCount(rule.id);
+              _log.info('Rule ${rule.id} triggered! (${counters.triggerCount + 1}/${rule.maxTriggers})');
+            } else {
+              _pendingChallenges[rule.id] = packageName;
+              _log.info('Rule ${rule.id} triggered with challenge ${rule.challengeType}, pending completion');
+            }
+            await _showRuleOverlay(packageName, rule);
+            break; // Only one rule popup per app open
+          } else {
+            _log.info('Rule ${rule.id}: max triggers reached (${counters.triggerCount}/${rule.maxTriggers})');
+          }
+        }
+      } catch (e) {
+        _log.severe('Error checking rule ${rule.id}: $e');
+      }
+    }
+  }
+
+  /// Complete a challenge — called from native side
+  static Future<void> _completeChallenge(String ruleId) async {
+    _pendingChallenges.remove(ruleId);
+    await UsageDatabase.instance.incrementTriggerCount(ruleId);
+    _log.info('Challenge completed for rule $ruleId, trigger count incremented');
+    await _hideOverlay();
+  }
+
+  /// Show rule overlay via native method channel
+  static Future<void> _showRuleOverlay(String packageName, AppRule rule) async {
+    try {
+      await _methodChannel?.invokeMethod('showOverlay', {
+        'packageName': packageName,
+        'overlayType': 'rule',
+        'challengeType': rule.challengeType,
+        'ruleId': rule.id,
+      });
+      _log.info('Rule overlay shown for package: $packageName (challenge: ${rule.challengeType})');
+    } catch (e) {
+      _log.severe('Failed to show rule overlay: $e');
+    }
+  }
+
+  /// Update rules (called when main app changes rules)
+  static Future<void> updateRules(Map<String, AppRule> rules) async {
+    _rules = rules;
+    _log.info('Rules updated: ${rules.length} rules');
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final rulesJson = rules.map((key, value) => MapEntry(key, value.toJson()));
+      await prefs.setString(StorageKeys.appRules, jsonEncode(rulesJson));
+    } catch (e) {
+      _log.severe('Failed to persist rules: $e');
     }
   }
 
@@ -413,6 +522,17 @@ class BackgroundMonitorHandler {
           return {'success': true};
         case 'forceShowFocusReminder':
           return await _forceShowFocusReminder();
+        case 'challengeCompleted':
+          final args = call.arguments as Map<dynamic, dynamic>?;
+          final ruleId = args?['ruleId'] as String?;
+          if (ruleId != null) {
+            await _completeChallenge(ruleId);
+            return {'success': true};
+          }
+          throw PlatformException(
+            code: 'INVALID_ARGS',
+            message: 'ruleId is required for challengeCompleted',
+          );
         default:
           throw PlatformException(
             code: 'UNKNOWN_METHOD',

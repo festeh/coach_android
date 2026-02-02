@@ -42,6 +42,15 @@ class UsageDatabase {
             'CREATE INDEX idx_events_timestamp ON events(timestamp)');
         await db.execute(
             'CREATE INDEX idx_events_type ON events(event_type)');
+        await db.execute('''
+          CREATE TABLE rule_counters (
+            rule_id TEXT NOT NULL,
+            date TEXT NOT NULL,
+            open_count INTEGER DEFAULT 0,
+            trigger_count INTEGER DEFAULT 0,
+            PRIMARY KEY (rule_id, date)
+          )
+        ''');
         _log.info('Database tables created');
       },
     );
@@ -170,6 +179,84 @@ class UsageDatabase {
       count: row['count'] as int,
     )).toList();
   }
+
+  static String _todayString() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
+  Future<int> incrementOpenCount(String ruleId) async {
+    final db = await database;
+    final date = _todayString();
+
+    await db.rawInsert('''
+      INSERT INTO rule_counters (rule_id, date, open_count, trigger_count)
+      VALUES (?, ?, 1, 0)
+      ON CONFLICT(rule_id, date) DO UPDATE SET open_count = open_count + 1
+    ''', [ruleId, date]);
+
+    final result = await db.rawQuery(
+      'SELECT open_count FROM rule_counters WHERE rule_id = ? AND date = ?',
+      [ruleId, date],
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  Future<int> incrementTriggerCount(String ruleId) async {
+    final db = await database;
+    final date = _todayString();
+
+    await db.rawUpdate(
+      'UPDATE rule_counters SET trigger_count = trigger_count + 1 WHERE rule_id = ? AND date = ?',
+      [ruleId, date],
+    );
+
+    final result = await db.rawQuery(
+      'SELECT trigger_count FROM rule_counters WHERE rule_id = ? AND date = ?',
+      [ruleId, date],
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  Future<RuleCounters> getCounters(String ruleId) async {
+    final db = await database;
+    final date = _todayString();
+
+    final result = await db.rawQuery(
+      'SELECT open_count, trigger_count FROM rule_counters WHERE rule_id = ? AND date = ?',
+      [ruleId, date],
+    );
+
+    if (result.isEmpty) {
+      return RuleCounters(openCount: 0, triggerCount: 0);
+    }
+
+    return RuleCounters(
+      openCount: result.first['open_count'] as int,
+      triggerCount: result.first['trigger_count'] as int,
+    );
+  }
+
+  Future<void> cleanupOldCounters() async {
+    final db = await database;
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+    final cutoff = '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}';
+
+    final deleted = await db.rawDelete(
+      'DELETE FROM rule_counters WHERE date < ?',
+      [cutoff],
+    );
+    if (deleted > 0) {
+      _log.info('Cleaned up $deleted old rule counter rows');
+    }
+  }
+}
+
+class RuleCounters {
+  final int openCount;
+  final int triggerCount;
+
+  RuleCounters({required this.openCount, required this.triggerCount});
 }
 
 class DailyStats {

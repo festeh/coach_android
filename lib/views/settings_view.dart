@@ -18,12 +18,18 @@ class _SettingsViewState extends State<SettingsView> {
   bool _loading = true;
   late final TextEditingController _overlayMessageController;
   late final TextEditingController _overlayButtonTextController;
+  late final TextEditingController _rulesOverlayMessageController;
+  late final TextEditingController _rulesOverlayButtonTextController;
+  late final TextEditingController _typingPhraseController;
 
   @override
   void initState() {
     super.initState();
     _overlayMessageController = TextEditingController();
     _overlayButtonTextController = TextEditingController();
+    _rulesOverlayMessageController = TextEditingController();
+    _rulesOverlayButtonTextController = TextEditingController();
+    _typingPhraseController = TextEditingController();
     _load();
   }
 
@@ -31,6 +37,9 @@ class _SettingsViewState extends State<SettingsView> {
   void dispose() {
     _overlayMessageController.dispose();
     _overlayButtonTextController.dispose();
+    _rulesOverlayMessageController.dispose();
+    _rulesOverlayButtonTextController.dispose();
+    _typingPhraseController.dispose();
     super.dispose();
   }
 
@@ -38,6 +47,9 @@ class _SettingsViewState extends State<SettingsView> {
     final settings = await SettingsService.loadSettings();
     _overlayMessageController.text = settings.overlayMessage;
     _overlayButtonTextController.text = settings.overlayButtonText;
+    _rulesOverlayMessageController.text = settings.rulesOverlayMessage;
+    _rulesOverlayButtonTextController.text = settings.rulesOverlayButtonText;
+    _typingPhraseController.text = settings.typingPhrase;
     setState(() {
       _settings = settings;
       _loading = false;
@@ -49,10 +61,26 @@ class _SettingsViewState extends State<SettingsView> {
     await SettingsService.saveSettings(settings);
   }
 
-  Future<void> _resetDefaults() async {
+  Future<void> _resetCoachOverlayDefaults() async {
     _overlayMessageController.text = '';
     _overlayButtonTextController.text = '';
-    await _save(const AppSettings());
+    await _save(_settings.copyWith(
+      overlayMessage: AppSettings.defaultOverlayMessage,
+      overlayColor: AppSettings.defaultOverlayColor,
+      overlayButtonText: AppSettings.defaultOverlayButtonText,
+      overlayButtonColor: AppSettings.defaultOverlayButtonColor,
+    ));
+  }
+
+  Future<void> _resetRulesOverlayDefaults() async {
+    _rulesOverlayMessageController.text = '';
+    _rulesOverlayButtonTextController.text = '';
+    await _save(_settings.copyWith(
+      rulesOverlayMessage: AppSettings.defaultRulesOverlayMessage,
+      rulesOverlayColor: AppSettings.defaultRulesOverlayColor,
+      rulesOverlayButtonText: AppSettings.defaultRulesOverlayButtonText,
+      rulesOverlayButtonColor: AppSettings.defaultRulesOverlayButtonColor,
+    ));
   }
 
   static Color _hexToColor(String hex) {
@@ -262,8 +290,131 @@ class _SettingsViewState extends State<SettingsView> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: OutlinedButton(
-                    onPressed: _resetDefaults,
+                    onPressed: _resetCoachOverlayDefaults,
                     child: const Text('Reset to defaults'),
+                  ),
+                ),
+                const Divider(),
+                _SectionHeader('Rules Overlay'),
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Message',
+                          style: Theme.of(context).textTheme.bodyLarge),
+                      const SizedBox(height: 4),
+                      TextField(
+                        controller: _rulesOverlayMessageController,
+                        decoration: const InputDecoration(
+                          hintText:
+                              'I detected {app}.\nIt\'s time to focus!',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                        ),
+                        maxLines: 2,
+                        onChanged: (v) => _save(
+                            _settings.copyWith(rulesOverlayMessage: v)),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Use {app} for the app name',
+                        style:
+                            Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.6),
+                                ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Button text',
+                          style: Theme.of(context).textTheme.bodyLarge),
+                      const SizedBox(height: 4),
+                      TextField(
+                        controller: _rulesOverlayButtonTextController,
+                        decoration: const InputDecoration(
+                          hintText: 'Got it!',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                        ),
+                        onChanged: (v) => _save(
+                            _settings.copyWith(rulesOverlayButtonText: v)),
+                      ),
+                    ],
+                  ),
+                ),
+                _colorTile(
+                  'Background color',
+                  _settings.rulesOverlayColor,
+                  (v) => _save(_settings.copyWith(rulesOverlayColor: v)),
+                ),
+                _colorTile(
+                  'Button color',
+                  _settings.rulesOverlayButtonColor,
+                  (v) => _save(_settings.copyWith(rulesOverlayButtonColor: v)),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: OutlinedButton(
+                    onPressed: () => FocusService.showOverlay('Preview', overlayType: 'rule'),
+                    child: const Text('Preview overlay'),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: OutlinedButton(
+                    onPressed: _resetRulesOverlayDefaults,
+                    child: const Text('Reset to defaults'),
+                  ),
+                ),
+                const Divider(),
+                _SectionHeader('Challenge Settings'),
+                _SliderTile(
+                  title: 'Long press duration',
+                  subtitle: 'How long the user must hold to dismiss',
+                  value: _settings.longPressDurationSeconds,
+                  min: 1,
+                  max: 15,
+                  divisions: 14,
+                  formatLabel: (v) => '${v}s',
+                  onChanged: (v) => _save(
+                      _settings.copyWith(longPressDurationSeconds: v)),
+                ),
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Typing phrase',
+                          style: Theme.of(context).textTheme.bodyLarge),
+                      const SizedBox(height: 4),
+                      TextField(
+                        controller: _typingPhraseController,
+                        decoration: const InputDecoration(
+                          hintText: 'I will focus',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                        ),
+                        onChanged: (v) => _save(
+                            _settings.copyWith(typingPhrase: v)),
+                      ),
+                    ],
                   ),
                 ),
               ],

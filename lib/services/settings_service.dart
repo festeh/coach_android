@@ -17,6 +17,18 @@ class SettingsService {
         prefs.getString(StorageKeys.settingsOverlayButtonText);
     final overlayButtonColor =
         prefs.getString(StorageKeys.settingsOverlayButtonColor);
+    final rulesOverlayMessage =
+        prefs.getString(StorageKeys.settingsRulesOverlayMessage);
+    final rulesOverlayColor =
+        prefs.getString(StorageKeys.settingsRulesOverlayColor);
+    final rulesOverlayButtonText =
+        prefs.getString(StorageKeys.settingsRulesOverlayButtonText);
+    final rulesOverlayButtonColor =
+        prefs.getString(StorageKeys.settingsRulesOverlayButtonColor);
+    final longPressDuration =
+        prefs.getInt(StorageKeys.settingsLongPressDuration);
+    final typingPhrase =
+        prefs.getString(StorageKeys.settingsTypingPhrase);
 
     return AppSettings(
       focusGapThresholdMinutes: gapSeconds != null
@@ -32,6 +44,12 @@ class SettingsService {
       overlayColor: overlayColor ?? AppSettings.defaultOverlayColor,
       overlayButtonText: overlayButtonText ?? AppSettings.defaultOverlayButtonText,
       overlayButtonColor: overlayButtonColor ?? AppSettings.defaultOverlayButtonColor,
+      rulesOverlayMessage: rulesOverlayMessage ?? AppSettings.defaultRulesOverlayMessage,
+      rulesOverlayColor: rulesOverlayColor ?? AppSettings.defaultRulesOverlayColor,
+      rulesOverlayButtonText: rulesOverlayButtonText ?? AppSettings.defaultRulesOverlayButtonText,
+      rulesOverlayButtonColor: rulesOverlayButtonColor ?? AppSettings.defaultRulesOverlayButtonColor,
+      longPressDurationSeconds: longPressDuration ?? AppSettings.defaultLongPressDurationSeconds,
+      typingPhrase: typingPhrase ?? AppSettings.defaultTypingPhrase,
     );
   }
 
@@ -51,5 +69,17 @@ class SettingsService {
         StorageKeys.settingsOverlayButtonText, settings.overlayButtonText);
     await prefs.setString(
         StorageKeys.settingsOverlayButtonColor, settings.overlayButtonColor);
+    await prefs.setString(
+        StorageKeys.settingsRulesOverlayMessage, settings.rulesOverlayMessage);
+    await prefs.setString(
+        StorageKeys.settingsRulesOverlayColor, settings.rulesOverlayColor);
+    await prefs.setString(
+        StorageKeys.settingsRulesOverlayButtonText, settings.rulesOverlayButtonText);
+    await prefs.setString(
+        StorageKeys.settingsRulesOverlayButtonColor, settings.rulesOverlayButtonColor);
+    await prefs.setInt(
+        StorageKeys.settingsLongPressDuration, settings.longPressDurationSeconds);
+    await prefs.setString(
+        StorageKeys.settingsTypingPhrase, settings.typingPhrase);
   }
 }

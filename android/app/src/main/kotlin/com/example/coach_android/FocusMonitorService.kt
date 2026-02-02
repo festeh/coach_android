@@ -266,10 +266,13 @@ class FocusMonitorService : Service() {
                 }
                 "showOverlay" -> {
                     val packageName = call.argument<String>("packageName")
-                    Log.d(TAG, "Background isolate requests overlay for: $packageName")
-                    packageName?.let { 
+                    val overlayType = call.argument<String>("overlayType")
+                    val challengeType = call.argument<String>("challengeType")
+                    val ruleId = call.argument<String>("ruleId")
+                    Log.d(TAG, "Background isolate requests overlay for: $packageName (type: ${overlayType ?: "coach"}, challenge: ${challengeType ?: "none"})")
+                    packageName?.let {
                         // Show overlay directly via MainActivity
-                        MainActivity.getInstance()?.showOverlayFromService(it)
+                        MainActivity.getInstance()?.showOverlayFromService(it, overlayType, challengeType, ruleId)
                     }
                     result.success(null)
                 }
@@ -372,6 +375,15 @@ class FocusMonitorService : Service() {
             backgroundMethodChannel?.invokeMethod("updateNotificationTime", null)
         } catch (e: Exception) {
             Log.e(TAG, "Error updating notification time in background isolate", e)
+        }
+    }
+
+    fun notifyChallengeCompleted(ruleId: String) {
+        Log.d(TAG, "Challenge completed for rule: $ruleId - forwarding to background isolate")
+        try {
+            backgroundMethodChannel?.invokeMethod("challengeCompleted", mapOf("ruleId" to ruleId))
+        } catch (e: Exception) {
+            Log.e(TAG, "Error forwarding challenge completed to background isolate", e)
         }
     }
 

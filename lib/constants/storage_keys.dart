@@ -12,9 +12,22 @@ class StorageKeys {
   static const String settingsReminderCooldown = 'settingsReminderCooldown';
   static const String settingsActivityTimeout = 'settingsActivityTimeout';
 
-  // Overlay appearance keys
+  // Coach overlay appearance keys
   static const String settingsOverlayMessage = 'settingsOverlayMessage';
   static const String settingsOverlayColor = 'settingsOverlayColor';
   static const String settingsOverlayButtonText = 'settingsOverlayButtonText';
   static const String settingsOverlayButtonColor = 'settingsOverlayButtonColor';
+
+  // App rules
+  static const String appRules = 'appRules';
+
+  // Rules overlay appearance keys
+  static const String settingsRulesOverlayMessage = 'settingsRulesOverlayMessage';
+  static const String settingsRulesOverlayColor = 'settingsRulesOverlayColor';
+  static const String settingsRulesOverlayButtonText = 'settingsRulesOverlayButtonText';
+  static const String settingsRulesOverlayButtonColor = 'settingsRulesOverlayButtonColor';
+
+  // Challenge settings
+  static const String settingsLongPressDuration = 'settingsLongPressDuration';
+  static const String settingsTypingPhrase = 'settingsTypingPhrase';
 }

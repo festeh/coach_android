@@ -14,14 +14,23 @@ import android.os.Looper
 import android.os.PowerManager
 import android.os.Process
 import android.provider.Settings
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
+import android.util.TypedValue
+import android.view.Gravity
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.graphics.drawable.GradientDrawable
 import android.widget.Button
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.annotation.RequiresApi
+import android.os.CountDownTimer
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
@@ -36,6 +45,8 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
     private var windowManager: WindowManager? = null
     private var overlayView: View? = null
     private var layoutInflater: LayoutInflater? = null
+    private var currentRuleId: String? = null
+    private var longPressTimer: CountDownTimer? = null
     
     companion object {
         const val TAG = "MainActivity"
@@ -122,8 +133,11 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
             }
             "showOverlay" -> {
                 val packageName = call.argument<String>("packageName")
-                Log.d(TAG, "Received showOverlay call with packageName: $packageName")
-                showOverlay(packageName)
+                val overlayType = call.argument<String>("overlayType")
+                val challengeType = call.argument<String>("challengeType")
+                val ruleId = call.argument<String>("ruleId")
+                Log.d(TAG, "Received showOverlay call with packageName: $packageName, overlayType: $overlayType, challengeType: $challengeType")
+                showOverlay(packageName, overlayType, challengeType, ruleId)
                 result.success(null)
             }
             "hideOverlay" -> {
@@ -269,7 +283,7 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
 
     // --- Overlay Management ---
 
-    private fun showOverlay(packageName: String?) {
+    private fun showOverlay(packageName: String?, overlayType: String? = null, challengeType: String? = null, ruleId: String? = null) {
         if (overlayView != null) {
             Log.d(TAG, "Overlay already shown for $packageName.")
             return
@@ -279,15 +293,22 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
             return
         }
 
-        Log.d(TAG, "Showing overlay for package: $packageName")
-        overlayView = layoutInflater?.inflate(R.layout.overlay_layout, null)
+        currentRuleId = ruleId
+        val effectiveChallengeType = challengeType ?: "none"
 
-        // Read overlay preferences
+        Log.d(TAG, "Showing overlay for package: $packageName (type: ${overlayType ?: "coach"}, challenge: $effectiveChallengeType)")
+
+        // Read overlay preferences based on overlay type
         val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-        val customMessage = prefs.getString("flutter.settingsOverlayMessage", "") ?: ""
-        val overlayColorHex = prefs.getString("flutter.settingsOverlayColor", "FF000000") ?: "FF000000"
-        val customButtonText = prefs.getString("flutter.settingsOverlayButtonText", "") ?: ""
-        val buttonColorHex = prefs.getString("flutter.settingsOverlayButtonColor", "FFFF5252") ?: "FFFF5252"
+        val isRule = overlayType == "rule"
+        val messageKey = if (isRule) "flutter.settingsRulesOverlayMessage" else "flutter.settingsOverlayMessage"
+        val colorKey = if (isRule) "flutter.settingsRulesOverlayColor" else "flutter.settingsOverlayColor"
+        val buttonTextKey = if (isRule) "flutter.settingsRulesOverlayButtonText" else "flutter.settingsOverlayButtonText"
+        val buttonColorKey = if (isRule) "flutter.settingsRulesOverlayButtonColor" else "flutter.settingsOverlayButtonColor"
+        val customMessage = prefs.getString(messageKey, "") ?: ""
+        val overlayColorHex = prefs.getString(colorKey, "FF000000") ?: "FF000000"
+        val customButtonText = prefs.getString(buttonTextKey, "") ?: ""
+        val buttonColorHex = prefs.getString(buttonColorKey, "FFFF5252") ?: "FFFF5252"
 
         // Resolve friendly app name
         val appName = if (packageName != null && packageName.isNotEmpty()) {
@@ -302,66 +323,45 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
         }
 
         // Build display text
-        overlayView?.findViewById<TextView>(R.id.overlay_text)?.let { textView ->
-            val displayText = if (customMessage.isNotEmpty()) {
-                if (appName != null) {
-                    customMessage.replace("{app}", appName)
-                } else {
-                    customMessage.replace("{app}", "")
-                }
-            } else if (appName != null) {
-                "I detected $appName.\nIt's time to focus!"
+        val displayText = if (customMessage.isNotEmpty()) {
+            if (appName != null) {
+                customMessage.replace("{app}", appName)
             } else {
-                "Focus Time!"
+                customMessage.replace("{app}", "")
             }
-            textView.text = displayText
-            Log.d(TAG, "Set overlay text to: $displayText")
+        } else if (appName != null) {
+            "I detected $appName.\nIt's time to focus!"
+        } else {
+            "Focus Time!"
         }
 
-        // Apply dynamic background color (with 80% alpha)
+        // Parse colors
         val bgColor = try {
             java.lang.Long.parseLong(overlayColorHex, 16).toInt()
         } catch (e: NumberFormatException) {
             0xFF000000.toInt()
         }
-        // Replace alpha channel with CC (80%)
         val bgColorWithAlpha = (0xCC shl 24) or (bgColor and 0x00FFFFFF)
-        overlayView?.background = GradientDrawable().apply {
-            setColor(bgColorWithAlpha)
-            cornerRadius = 16f * resources.displayMetrics.density
-            setStroke((1f * resources.displayMetrics.density).toInt(), 0xFFFFFFFF.toInt())
+        val buttonColor = try {
+            java.lang.Long.parseLong(buttonColorHex, 16).toInt()
+        } catch (e: NumberFormatException) {
+            0xFFFF5252.toInt()
         }
 
-        // Apply custom button text and color
-        overlayView?.findViewById<Button>(R.id.close_overlay_button)?.let { button ->
-            if (customButtonText.isNotEmpty()) {
-                button.text = customButtonText
-            }
-            val buttonColor = try {
-                java.lang.Long.parseLong(buttonColorHex, 16).toInt()
-            } catch (e: NumberFormatException) {
-                0xFFFF5252.toInt()
-            }
-            button.backgroundTintList = android.content.res.ColorStateList.valueOf(buttonColor)
-        }
+        val density = resources.displayMetrics.density
 
-        // Find the close button and set its click listener
-        overlayView?.findViewById<Button>(R.id.close_overlay_button)?.setOnClickListener {
-            Log.d(TAG, "Close button clicked, simulating Home press and hiding overlay.")
-
-            // Simulate Home button press
-            val homeIntent = Intent(Intent.ACTION_MAIN)
-            homeIntent.addCategory(Intent.CATEGORY_HOME)
-            homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            try {
-                startActivity(homeIntent)
-                Log.d(TAG, "Sent Home intent.")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error sending Home intent", e)
+        when (effectiveChallengeType) {
+            "longPress" -> {
+                val longPressDuration = prefs.getInt("flutter.settingsLongPressDuration", 5)
+                overlayView = buildLongPressChallengeView(displayText, bgColorWithAlpha, buttonColor, density, longPressDuration)
             }
-
-            // Hide the overlay after simulating Home press
-            hideOverlay()
+            "typing" -> {
+                val typingPhrase = prefs.getString("flutter.settingsTypingPhrase", "I will focus") ?: "I will focus"
+                overlayView = buildTypingChallengeView(displayText, bgColorWithAlpha, buttonColor, density, typingPhrase)
+            }
+            else -> {
+                overlayView = buildStandardOverlayView(displayText, bgColorWithAlpha, buttonColor, customButtonText, density)
+            }
         }
 
         // Define layout parameters for the overlay
@@ -382,12 +382,249 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
         }
     }
 
+    private fun buildStandardOverlayView(displayText: String, bgColor: Int, buttonColor: Int, customButtonText: String, density: Float): View {
+        val view = layoutInflater?.inflate(R.layout.overlay_layout, null)!!
+
+        view.findViewById<TextView>(R.id.overlay_text)?.text = displayText
+        view.background = GradientDrawable().apply {
+            setColor(bgColor)
+            cornerRadius = 16f * density
+            setStroke((1f * density).toInt(), 0xFFFFFFFF.toInt())
+        }
+
+        view.findViewById<Button>(R.id.close_overlay_button)?.let { button ->
+            if (customButtonText.isNotEmpty()) {
+                button.text = customButtonText
+            }
+            button.backgroundTintList = android.content.res.ColorStateList.valueOf(buttonColor)
+            button.setOnClickListener {
+                goHomeAndHideOverlay()
+            }
+        }
+
+        return view
+    }
+
+    private fun buildLongPressChallengeView(displayText: String, bgColor: Int, buttonColor: Int, density: Float, durationSeconds: Int): View {
+        val dp = { value: Int -> (value * density).toInt() }
+
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), dp(24), dp(24), dp(24))
+            background = GradientDrawable().apply {
+                setColor(bgColor)
+                cornerRadius = 16f * density
+                setStroke((1f * density).toInt(), 0xFFFFFFFF.toInt())
+            }
+        }
+
+        // X close button at top-right
+        val closeButton = TextView(this).apply {
+            text = "\u2715"
+            setTextColor(0xAAFFFFFF.toInt())
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+            gravity = Gravity.END
+            setPadding(0, 0, 0, dp(8))
+            setOnClickListener { goHomeAndHideOverlay() }
+        }
+        root.addView(closeButton, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ))
+
+        // Message text
+        val textView = TextView(this).apply {
+            text = displayText
+            setTextColor(0xFFFFFFFF.toInt())
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(dp(8), dp(8), dp(8), dp(8))
+        }
+        root.addView(textView)
+
+        // Progress bar
+        val progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+            max = 100
+            progress = 0
+            progressTintList = android.content.res.ColorStateList.valueOf(buttonColor)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(8)
+            ).apply { topMargin = dp(16) }
+        }
+        root.addView(progressBar)
+
+        // Hold button
+        val holdButton = Button(this).apply {
+            text = "Hold to dismiss"
+            setTextColor(0xFFFFFFFF.toInt())
+            backgroundTintList = android.content.res.ColorStateList.valueOf(buttonColor)
+            isAllCaps = false
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(8) }
+        }
+
+        val durationMs = durationSeconds * 1000L
+
+        holdButton.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    longPressTimer = object : CountDownTimer(durationMs, 50) {
+                        override fun onTick(millisUntilFinished: Long) {
+                            val elapsed = durationMs - millisUntilFinished
+                            progressBar.progress = (elapsed * 100 / durationMs).toInt()
+                        }
+
+                        override fun onFinish() {
+                            progressBar.progress = 100
+                            notifyChallengeCompleted()
+                        }
+                    }.start()
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    longPressTimer?.cancel()
+                    longPressTimer = null
+                    progressBar.progress = 0
+                    true
+                }
+                else -> false
+            }
+        }
+        root.addView(holdButton)
+
+        return root
+    }
+
+    private fun buildTypingChallengeView(displayText: String, bgColor: Int, buttonColor: Int, density: Float, phrase: String): View {
+        val dp = { value: Int -> (value * density).toInt() }
+
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), dp(24), dp(24), dp(24))
+            background = GradientDrawable().apply {
+                setColor(bgColor)
+                cornerRadius = 16f * density
+                setStroke((1f * density).toInt(), 0xFFFFFFFF.toInt())
+            }
+        }
+
+        // X close button at top-right
+        val closeButton = TextView(this).apply {
+            text = "\u2715"
+            setTextColor(0xAAFFFFFF.toInt())
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+            gravity = Gravity.END
+            setPadding(0, 0, 0, dp(8))
+            setOnClickListener { goHomeAndHideOverlay() }
+        }
+        root.addView(closeButton, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ))
+
+        // Message text
+        val textView = TextView(this).apply {
+            text = displayText
+            setTextColor(0xFFFFFFFF.toInt())
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(dp(8), dp(8), dp(8), dp(8))
+        }
+        root.addView(textView)
+
+        // Instruction text showing the phrase to type
+        val instructionText = TextView(this).apply {
+            text = "Type: \"$phrase\""
+            setTextColor(0xCCFFFFFF.toInt())
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+            setPadding(dp(8), dp(16), dp(8), dp(4))
+        }
+        root.addView(instructionText)
+
+        // EditText for user input
+        val editText = EditText(this).apply {
+            setTextColor(0xFFFFFFFF.toInt())
+            setHintTextColor(0x88FFFFFF.toInt())
+            hint = "Type here..."
+            setBackgroundColor(0x33FFFFFF.toInt())
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(8) }
+        }
+        root.addView(editText)
+
+        // Submit button
+        val submitButton = Button(this).apply {
+            text = "Submit"
+            setTextColor(0xFFFFFFFF.toInt())
+            backgroundTintList = android.content.res.ColorStateList.valueOf(buttonColor)
+            isAllCaps = false
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            isEnabled = false
+            alpha = 0.5f
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(8) }
+        }
+
+        editText.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                val matches = s.toString().trim().equals(phrase, ignoreCase = true)
+                submitButton.isEnabled = matches
+                submitButton.alpha = if (matches) 1.0f else 0.5f
+            }
+        })
+
+        submitButton.setOnClickListener {
+            notifyChallengeCompleted()
+        }
+        root.addView(submitButton)
+
+        return root
+    }
+
+    private fun goHomeAndHideOverlay() {
+        Log.d(TAG, "Sending Home intent and hiding overlay.")
+        val homeIntent = Intent(Intent.ACTION_MAIN)
+        homeIntent.addCategory(Intent.CATEGORY_HOME)
+        homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        try {
+            startActivity(homeIntent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending Home intent", e)
+        }
+        hideOverlay()
+    }
+
+    private fun notifyChallengeCompleted() {
+        val ruleId = currentRuleId
+        if (ruleId != null) {
+            Log.d(TAG, "Challenge completed for rule: $ruleId")
+            goHomeAndHideOverlay()
+            FocusMonitorService.getInstance()?.notifyChallengeCompleted(ruleId)
+        } else {
+            Log.w(TAG, "notifyChallengeCompleted called but no currentRuleId set")
+            goHomeAndHideOverlay()
+        }
+    }
+
     private fun hideOverlay() {
         if (overlayView == null) {
             Log.d(TAG, "Overlay not shown or already hidden.")
             return
         }
         Log.d(TAG, "Hiding overlay...")
+        longPressTimer?.cancel()
+        longPressTimer = null
         try {
             windowManager?.removeView(overlayView)
             overlayView = null
@@ -429,10 +666,10 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
     
     // --- Service Event Callbacks ---
     
-    fun showOverlayFromService(packageName: String) {
-        Log.d(TAG, "Background service requests show overlay for: $packageName")
+    fun showOverlayFromService(packageName: String, overlayType: String? = null, challengeType: String? = null, ruleId: String? = null) {
+        Log.d(TAG, "Background service requests show overlay for: $packageName (type: ${overlayType ?: "coach"}, challenge: ${challengeType ?: "none"})")
         runOnUiThread {
-            showOverlay(packageName)
+            showOverlay(packageName, overlayType, challengeType, ruleId)
         }
     }
     

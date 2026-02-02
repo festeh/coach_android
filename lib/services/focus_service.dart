@@ -87,14 +87,14 @@ class FocusService {
   /// Shows the native system overlay, displaying the provided [packageName].
   ///
   /// Requires Android Oreo (API 26) or higher and overlay permission.
-  static Future<void> showOverlay(String packageName) async {
+  static Future<void> showOverlay(String packageName, {String? overlayType}) async {
     try {
       _log.info(
-        'Requesting to show native overlay for package: $packageName...',
+        'Requesting to show native overlay for package: $packageName (type: ${overlayType ?? 'coach'})...',
       );
-      // Pass the package name as an argument
       await _methodChannel.invokeMethod('showOverlay', {
         'packageName': packageName,
+        if (overlayType != null) 'overlayType': overlayType,
       });
       _log.info('Native showOverlay call successful for $packageName.');
     } on PlatformException catch (e) {

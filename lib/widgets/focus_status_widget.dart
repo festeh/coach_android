@@ -159,7 +159,7 @@ class FocusStatusWidget extends ConsumerWidget {
             info,
             style: TextStyle(
               fontSize: 11,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
             ),
             textAlign: TextAlign.center,
           ),
@@ -168,15 +168,6 @@ class FocusStatusWidget extends ConsumerWidget {
     );
   }
 
-  String _getFocusCountText(FocusState state) {
-    final count = state.focusData.numFocuses;
-    if (state.focusData.isFocusing && count > 0) {
-      return 'Focus #$count today';
-    } else if (count > 0) {
-      return '$count completed today';
-    }
-    return '';
-  }
 
   String _getFocusStatusText(FocusState state) {
     if (state.status == FocusStatus.loading) {
