@@ -7,8 +7,6 @@ part 'app_selection_state.g.dart';
 abstract class AppSelectionState with _$AppSelectionState {
   const factory AppSelectionState({
     @Default({}) Set<String> selectedPackages,
-    @Default(false) bool isLoading,
-    String? errorMessage,
   }) = _AppSelectionState;
 
   factory AppSelectionState.fromJson(Map<String, dynamic> json) =>

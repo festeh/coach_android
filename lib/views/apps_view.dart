@@ -19,7 +19,7 @@ class AppsView extends ConsumerStatefulWidget {
 
 class _AppsViewState extends ConsumerState<AppsView> {
   static final _log = Logger('AppsView');
-  bool _isLoading = true;
+  bool _isLoadingApps = true;
 
   @override
   void initState() {
@@ -44,13 +44,13 @@ class _AppsViewState extends ConsumerState<AppsView> {
       }
       if (mounted) {
         setState(() {
-          _isLoading = false;
+          _isLoadingApps = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _isLoading = false;
+          _isLoadingApps = false;
         });
       }
       _log.warning("Failed to get installed apps: '$e'");
@@ -61,12 +61,35 @@ class _AppsViewState extends ConsumerState<AppsView> {
 
   @override
   Widget build(BuildContext context) {
-    final appSelection = ref.watch(appSelectionProvider);
+    final appSelectionAsync = ref.watch(appSelectionProvider);
 
     return Scaffold(
-      body: _isLoading
+      body: _isLoadingApps
           ? const Center(child: CircularProgressIndicator())
-          : _buildContent(appSelection),
+          : appSelectionAsync.when(
+              loading: () => Column(
+                children: [
+                  const FocusStatusWidget(),
+                  const Expanded(
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                ],
+              ),
+              error: (error, stack) {
+                _log.severe('Error loading app selection: $error', error, stack);
+                return Column(
+                  children: [
+                    const FocusStatusWidget(),
+                    Expanded(
+                      child: Center(
+                        child: Text('Error loading selection: $error'),
+                      ),
+                    ),
+                  ],
+                );
+              },
+              data: (appSelection) => _buildContent(appSelection),
+            ),
     );
   }
 

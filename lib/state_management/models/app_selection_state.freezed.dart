@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$AppSelectionState {
 
- Set<String> get selectedPackages; bool get isLoading; String? get errorMessage;
+ Set<String> get selectedPackages;
 /// Create a copy of AppSelectionState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $AppSelectionStateCopyWith<AppSelectionState> get copyWith => _$AppSelectionStat
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppSelectionState&&const DeepCollectionEquality().equals(other.selectedPackages, selectedPackages)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppSelectionState&&const DeepCollectionEquality().equals(other.selectedPackages, selectedPackages));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(selectedPackages),isLoading,errorMessage);
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(selectedPackages));
 
 @override
 String toString() {
-  return 'AppSelectionState(selectedPackages: $selectedPackages, isLoading: $isLoading, errorMessage: $errorMessage)';
+  return 'AppSelectionState(selectedPackages: $selectedPackages)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $AppSelectionStateCopyWith<$Res>  {
   factory $AppSelectionStateCopyWith(AppSelectionState value, $Res Function(AppSelectionState) _then) = _$AppSelectionStateCopyWithImpl;
 @useResult
 $Res call({
- Set<String> selectedPackages, bool isLoading, String? errorMessage
+ Set<String> selectedPackages
 });
 
 
@@ -65,12 +65,10 @@ class _$AppSelectionStateCopyWithImpl<$Res>
 
 /// Create a copy of AppSelectionState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? selectedPackages = null,Object? isLoading = null,Object? errorMessage = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? selectedPackages = null,}) {
   return _then(_self.copyWith(
 selectedPackages: null == selectedPackages ? _self.selectedPackages : selectedPackages // ignore: cast_nullable_to_non_nullable
-as Set<String>,isLoading: null == isLoading ? _self.isLoading : isLoading // ignore: cast_nullable_to_non_nullable
-as bool,errorMessage: freezed == errorMessage ? _self.errorMessage : errorMessage // ignore: cast_nullable_to_non_nullable
-as String?,
+as Set<String>,
   ));
 }
 
@@ -155,10 +153,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( Set<String> selectedPackages,  bool isLoading,  String? errorMessage)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( Set<String> selectedPackages)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AppSelectionState() when $default != null:
-return $default(_that.selectedPackages,_that.isLoading,_that.errorMessage);case _:
+return $default(_that.selectedPackages);case _:
   return orElse();
 
 }
@@ -176,10 +174,10 @@ return $default(_that.selectedPackages,_that.isLoading,_that.errorMessage);case 
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( Set<String> selectedPackages,  bool isLoading,  String? errorMessage)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( Set<String> selectedPackages)  $default,) {final _that = this;
 switch (_that) {
 case _AppSelectionState():
-return $default(_that.selectedPackages,_that.isLoading,_that.errorMessage);case _:
+return $default(_that.selectedPackages);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -196,10 +194,10 @@ return $default(_that.selectedPackages,_that.isLoading,_that.errorMessage);case 
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( Set<String> selectedPackages,  bool isLoading,  String? errorMessage)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( Set<String> selectedPackages)?  $default,) {final _that = this;
 switch (_that) {
 case _AppSelectionState() when $default != null:
-return $default(_that.selectedPackages,_that.isLoading,_that.errorMessage);case _:
+return $default(_that.selectedPackages);case _:
   return null;
 
 }
@@ -211,7 +209,7 @@ return $default(_that.selectedPackages,_that.isLoading,_that.errorMessage);case 
 @JsonSerializable()
 
 class _AppSelectionState implements AppSelectionState {
-  const _AppSelectionState({final  Set<String> selectedPackages = const {}, this.isLoading = false, this.errorMessage}): _selectedPackages = selectedPackages;
+  const _AppSelectionState({final  Set<String> selectedPackages = const {}}): _selectedPackages = selectedPackages;
   factory _AppSelectionState.fromJson(Map<String, dynamic> json) => _$AppSelectionStateFromJson(json);
 
  final  Set<String> _selectedPackages;
@@ -221,8 +219,6 @@ class _AppSelectionState implements AppSelectionState {
   return EqualUnmodifiableSetView(_selectedPackages);
 }
 
-@override@JsonKey() final  bool isLoading;
-@override final  String? errorMessage;
 
 /// Create a copy of AppSelectionState
 /// with the given fields replaced by the non-null parameter values.
@@ -237,16 +233,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppSelectionState&&const DeepCollectionEquality().equals(other._selectedPackages, _selectedPackages)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppSelectionState&&const DeepCollectionEquality().equals(other._selectedPackages, _selectedPackages));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_selectedPackages),isLoading,errorMessage);
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_selectedPackages));
 
 @override
 String toString() {
-  return 'AppSelectionState(selectedPackages: $selectedPackages, isLoading: $isLoading, errorMessage: $errorMessage)';
+  return 'AppSelectionState(selectedPackages: $selectedPackages)';
 }
 
 
@@ -257,7 +253,7 @@ abstract mixin class _$AppSelectionStateCopyWith<$Res> implements $AppSelectionS
   factory _$AppSelectionStateCopyWith(_AppSelectionState value, $Res Function(_AppSelectionState) _then) = __$AppSelectionStateCopyWithImpl;
 @override @useResult
 $Res call({
- Set<String> selectedPackages, bool isLoading, String? errorMessage
+ Set<String> selectedPackages
 });
 
 
@@ -274,12 +270,10 @@ class __$AppSelectionStateCopyWithImpl<$Res>
 
 /// Create a copy of AppSelectionState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? selectedPackages = null,Object? isLoading = null,Object? errorMessage = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? selectedPackages = null,}) {
   return _then(_AppSelectionState(
 selectedPackages: null == selectedPackages ? _self._selectedPackages : selectedPackages // ignore: cast_nullable_to_non_nullable
-as Set<String>,isLoading: null == isLoading ? _self.isLoading : isLoading // ignore: cast_nullable_to_non_nullable
-as bool,errorMessage: freezed == errorMessage ? _self.errorMessage : errorMessage // ignore: cast_nullable_to_non_nullable
-as String?,
+as Set<String>,
   ));
 }
 

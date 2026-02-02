@@ -13,13 +13,7 @@ _AppSelectionState _$AppSelectionStateFromJson(Map<String, dynamic> json) =>
               ?.map((e) => e as String)
               .toSet() ??
           const {},
-      isLoading: json['isLoading'] as bool? ?? false,
-      errorMessage: json['errorMessage'] as String?,
     );
 
 Map<String, dynamic> _$AppSelectionStateToJson(_AppSelectionState instance) =>
-    <String, dynamic>{
-      'selectedPackages': instance.selectedPackages.toList(),
-      'isLoading': instance.isLoading,
-      'errorMessage': instance.errorMessage,
-    };
+    <String, dynamic>{'selectedPackages': instance.selectedPackages.toList()};

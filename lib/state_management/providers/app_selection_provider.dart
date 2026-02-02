@@ -7,34 +7,23 @@ import '../../background_monitor_handler.dart';
 
 final _log = Logger('AppSelectionProvider');
 
-class AppSelectionNotifier extends Notifier<AppSelectionState> {
+class AppSelectionNotifier extends AsyncNotifier<AppSelectionState> {
   @override
-  AppSelectionState build() {
-    _loadInitialState();
-    return const AppSelectionState();
+  Future<AppSelectionState> build() async {
+    _log.info('Loading selected app packages...');
+    final stateService = ref.read(stateServiceProvider);
+
+    final selectedPackages = await stateService.loadSelectedAppPackages();
+    _log.info('Loaded ${selectedPackages.length} selected app packages');
+
+    return AppSelectionState(selectedPackages: selectedPackages);
   }
 
   StateService get _stateService => ref.read(stateServiceProvider);
 
-  Future<void> _loadInitialState() async {
-    state = state.copyWith(isLoading: true);
-    try {
-      final selectedPackages = await _stateService.loadSelectedAppPackages();
-      state = state.copyWith(
-        selectedPackages: selectedPackages,
-        isLoading: false,
-      );
-    } catch (e) {
-      _log.severe('Error loading selected apps: $e');
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: e.toString(),
-      );
-    }
-  }
-
   Future<void> toggleApp(String packageName) async {
-    final currentPackages = Set<String>.from(state.selectedPackages);
+    final current = state.value ?? const AppSelectionState();
+    final currentPackages = Set<String>.from(current.selectedPackages);
 
     if (currentPackages.contains(packageName)) {
       currentPackages.remove(packageName);
@@ -44,17 +33,20 @@ class AppSelectionNotifier extends Notifier<AppSelectionState> {
       _log.info('Added app to selection: $packageName');
     }
 
-    state = state.copyWith(selectedPackages: currentPackages);
+    state = AsyncData(current.copyWith(selectedPackages: currentPackages));
 
     // Persist the changes
     await _stateService.saveSelectedApps(currentPackages);
+    _log.info('Persisted ${currentPackages.length} selected app packages');
 
     // Immediately sync to background isolate
     await BackgroundMonitorHandler.updateMonitoredPackages(currentPackages);
+    _log.info('Synced selection to background isolate');
   }
 
   Future<void> setSelectedApps(Set<String> packages) async {
-    state = state.copyWith(selectedPackages: packages);
+    _log.info('Setting selected apps: ${packages.length} packages');
+    state = AsyncData(AppSelectionState(selectedPackages: packages));
     await _stateService.saveSelectedApps(packages);
 
     // Immediately sync to background isolate
@@ -62,7 +54,8 @@ class AppSelectionNotifier extends Notifier<AppSelectionState> {
   }
 
   Future<void> clearSelection() async {
-    state = state.copyWith(selectedPackages: {});
+    _log.info('Clearing all selected apps');
+    state = const AsyncData(AppSelectionState());
     await _stateService.saveSelectedApps({});
 
     // Immediately sync to background isolate
@@ -70,9 +63,11 @@ class AppSelectionNotifier extends Notifier<AppSelectionState> {
   }
 }
 
-final appSelectionProvider = NotifierProvider<AppSelectionNotifier, AppSelectionState>(AppSelectionNotifier.new);
+final appSelectionProvider =
+    AsyncNotifierProvider<AppSelectionNotifier, AppSelectionState>(
+        AppSelectionNotifier.new);
 
-// Helper provider to get just the selected packages
+/// Helper provider to get just the selected packages
 final selectedPackagesProvider = Provider<Set<String>>((ref) {
-  return ref.watch(appSelectionProvider).selectedPackages;
+  return ref.watch(appSelectionProvider).value?.selectedPackages ?? {};
 });
