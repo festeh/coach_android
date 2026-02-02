@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../constants/storage_keys.dart';
 import '../models/app_info.dart';
 import '../models/app_rule.dart';
 import '../services/focus_service.dart';
@@ -30,6 +33,7 @@ class _AppDetailBottomSheetState extends ConsumerState<AppDetailBottomSheet> {
   int _blockedCount = 0;
   late bool _coachEnabled;
   Map<String, RuleCounters> _ruleCounters = {};
+  Set<String> _pendingChallengeIds = {};
 
   @override
   void initState() {
@@ -56,18 +60,25 @@ class _AppDetailBottomSheetState extends ConsumerState<AppDetailBottomSheet> {
         .where((e) => e.packageName == widget.app.packageName)
         .toList();
 
-    // Load rule counters
+    // Load rule counters and pending challenges
     final rules = ref.read(rulesForAppProvider(widget.app.packageName));
     final counters = <String, RuleCounters>{};
     for (final rule in rules) {
       counters[rule.id] = await UsageDatabase.instance.getCounters(rule.id);
     }
 
+    final prefs = await SharedPreferences.getInstance();
+    final pendingJson = prefs.getString(StorageKeys.pendingChallenges);
+    final pendingIds = pendingJson != null
+        ? (jsonDecode(pendingJson) as List).cast<String>().toSet()
+        : <String>{};
+
     if (mounted) {
       setState(() {
         _usageTime = usage.isNotEmpty ? usage.first.formattedTime : '0m';
         _blockedCount = blocked.isNotEmpty ? blocked.first.count : 0;
         _ruleCounters = counters;
+        _pendingChallengeIds = pendingIds;
         _isLoading = false;
       });
     }
@@ -136,6 +147,7 @@ class _AppDetailBottomSheetState extends ConsumerState<AppDetailBottomSheet> {
       top: false,
       child: Padding(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: SingleChildScrollView(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -218,6 +230,7 @@ class _AppDetailBottomSheetState extends ConsumerState<AppDetailBottomSheet> {
           ),
         ],
       ),
+      ),
     ),
     );
   }
@@ -225,10 +238,14 @@ class _AppDetailBottomSheetState extends ConsumerState<AppDetailBottomSheet> {
   Widget _buildRuleTile(BuildContext context, AppRule rule) {
     final theme = Theme.of(context);
     final counters = _ruleCounters[rule.id];
+    final openCount = counters?.openCount ?? 0;
     final triggerCount = counters?.triggerCount ?? 0;
+    final isPending = _pendingChallengeIds.contains(rule.id);
+    final maxReached = triggerCount >= rule.maxTriggers;
+    final opensUntilNext = rule.everyN - (openCount % rule.everyN);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
         onTap: () => _editRule(rule),
         borderRadius: BorderRadius.circular(8),
@@ -240,22 +257,63 @@ class _AppDetailBottomSheetState extends ConsumerState<AppDetailBottomSheet> {
             ),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(
-                  'Every ${_ordinal(rule.everyN)} open${_challengeLabel(rule.challengeType)} ($triggerCount/${rule.maxTriggers})',
-                  style: theme.textTheme.bodyMedium,
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Every ${_ordinal(rule.everyN)} open',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => _deleteRule(rule.id),
+                    child: Icon(
+                      Icons.close,
+                      size: 18,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
-              InkWell(
-                onTap: () => _deleteRule(rule.id),
-                child: Icon(
-                  Icons.close,
-                  size: 18,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+              const SizedBox(height: 6),
+              if (rule.challengeType != 'none')
+                _buildRuleStatLine(theme, 'Challenge', _challengeName(rule.challengeType)),
+              _buildRuleStatLine(theme, 'Opens today', '$openCount'),
+              _buildRuleStatLine(
+                theme,
+                'Triggered',
+                '$triggerCount / ${rule.maxTriggers}',
+                highlight: maxReached,
               ),
+              if (maxReached)
+                _buildRuleStatLine(theme, 'Next trigger', 'Max reached',
+                    highlight: true)
+              else
+                _buildRuleStatLine(
+                    theme, 'Next trigger', 'in $opensUntilNext open${opensUntilNext == 1 ? '' : 's'}'),
+              if (isPending)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Row(
+                    children: [
+                      Icon(Icons.hourglass_top,
+                          size: 14, color: theme.colorScheme.tertiary),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Pending challenge',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.tertiary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ),
         ),
@@ -263,14 +321,43 @@ class _AppDetailBottomSheetState extends ConsumerState<AppDetailBottomSheet> {
     );
   }
 
-  String _challengeLabel(String type) {
+  Widget _buildRuleStatLine(ThemeData theme, String label, String value,
+      {bool highlight = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: highlight ? FontWeight.w600 : FontWeight.normal,
+                color: highlight ? theme.colorScheme.error : null,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _challengeName(String type) {
     switch (type) {
       case 'longPress':
-        return ' \u00b7 Long Press';
+        return 'Long Press';
       case 'typing':
-        return ' \u00b7 Typing';
+        return 'Typing';
       default:
-        return '';
+        return 'None';
     }
   }
 

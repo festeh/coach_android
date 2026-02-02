@@ -30,4 +30,7 @@ class StorageKeys {
   // Challenge settings
   static const String settingsLongPressDuration = 'settingsLongPressDuration';
   static const String settingsTypingPhrase = 'settingsTypingPhrase';
+
+  // Pending challenges (JSON array of rule IDs)
+  static const String pendingChallenges = 'pendingChallenges';
 }

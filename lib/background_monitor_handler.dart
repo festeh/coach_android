@@ -26,6 +26,15 @@ class BackgroundMonitorHandler {
   static Set<String> _monitoredPackages = {};
   static Map<String, AppRule> _rules = {};
   static Map<String, String> _pendingChallenges = {}; // ruleId → packageName
+
+  /// Persist pending challenge rule IDs to SharedPreferences so the UI can read them
+  static Future<void> _persistPendingChallenges() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      StorageKeys.pendingChallenges,
+      jsonEncode(_pendingChallenges.keys.toList()),
+    );
+  }
   static bool _isInitialized = false;
   static WebSocketService? _webSocketService;
   static StreamSubscription<Map<String, dynamic>>? _focusUpdatesSubscription;
@@ -252,6 +261,7 @@ class BackgroundMonitorHandler {
       if (rule == null) {
         // Rule was deleted while pending — clean up
         _pendingChallenges.remove(pendingRuleId);
+        await _persistPendingChallenges();
         _log.info('Cleaned up pending challenge for deleted rule $pendingRuleId');
       } else {
         _log.info('Re-showing pending challenge for rule ${rule.id} on $packageName');
@@ -279,6 +289,7 @@ class BackgroundMonitorHandler {
               _log.info('Rule ${rule.id} triggered! (${counters.triggerCount + 1}/${rule.maxTriggers})');
             } else {
               _pendingChallenges[rule.id] = packageName;
+              await _persistPendingChallenges();
               _log.info('Rule ${rule.id} triggered with challenge ${rule.challengeType}, pending completion');
             }
             await _showRuleOverlay(packageName, rule);
@@ -296,6 +307,7 @@ class BackgroundMonitorHandler {
   /// Complete a challenge — called from native side
   static Future<void> _completeChallenge(String ruleId) async {
     _pendingChallenges.remove(ruleId);
+    await _persistPendingChallenges();
     await UsageDatabase.instance.incrementTriggerCount(ruleId);
     _log.info('Challenge completed for rule $ruleId, trigger count incremented');
     await _hideOverlay();
