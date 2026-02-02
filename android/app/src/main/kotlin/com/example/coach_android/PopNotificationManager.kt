@@ -32,6 +32,16 @@ class PopNotificationManager(private val context: Context) {
 
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     private val sharedPrefs: SharedPreferences = context.getSharedPreferences("focus_reminders", Context.MODE_PRIVATE)
+    private val flutterPrefs: SharedPreferences = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+
+    private val focusGapThreshold: Int
+        get() = flutterPrefs.getLong("flutter.settingsFocusGapThreshold", FOCUS_GAP_THRESHOLD.toLong()).toInt()
+
+    private val reminderCooldown: Int
+        get() = flutterPrefs.getLong("flutter.settingsReminderCooldown", REMINDER_COOLDOWN.toLong()).toInt()
+
+    private val activityTimeout: Int
+        get() = flutterPrefs.getLong("flutter.settingsActivityTimeout", ACTIVITY_TIMEOUT.toLong()).toInt()
 
     init {
         createNotificationChannel()
@@ -66,15 +76,17 @@ class PopNotificationManager(private val context: Context) {
     fun checkAndShowFocusReminder(sinceLastChange: Int, isFocusing: Boolean) {
         val currentTime = System.currentTimeMillis() / 1000
 
+        Log.d(TAG, "Settings: focusGapThreshold=${focusGapThreshold}s, reminderCooldown=${reminderCooldown}s, activityTimeout=${activityTimeout}s")
+
         // Don't show reminder if already focusing
         if (isFocusing) {
             Log.d(TAG, "User is already focusing, skipping reminder")
             return
         }
 
-        // Check if enough time has passed since last focus (2 hours)
-        if (sinceLastChange < FOCUS_GAP_THRESHOLD) {
-            Log.d(TAG, "Not enough time since last focus: ${sinceLastChange}s < ${FOCUS_GAP_THRESHOLD}s")
+        // Check if enough time has passed since last focus
+        if (sinceLastChange < focusGapThreshold) {
+            Log.d(TAG, "Not enough time since last focus: ${sinceLastChange}s < ${focusGapThreshold}s")
             return
         }
 
@@ -82,8 +94,8 @@ class PopNotificationManager(private val context: Context) {
         val lastActivityTime = sharedPrefs.getLong(PREF_LAST_ACTIVITY_TIME, 0)
         val timeSinceActivity = currentTime - lastActivityTime
 
-        if (timeSinceActivity > ACTIVITY_TIMEOUT) {
-            Log.d(TAG, "User not active recently: ${timeSinceActivity}s > ${ACTIVITY_TIMEOUT}s")
+        if (timeSinceActivity > activityTimeout) {
+            Log.d(TAG, "User not active recently: ${timeSinceActivity}s > ${activityTimeout}s")
             return
         }
 
@@ -91,8 +103,8 @@ class PopNotificationManager(private val context: Context) {
         val lastReminderTime = sharedPrefs.getLong(PREF_LAST_REMINDER_TIME, 0)
         val timeSinceLastReminder = currentTime - lastReminderTime
 
-        if (timeSinceLastReminder < REMINDER_COOLDOWN) {
-            Log.d(TAG, "Reminder cooldown active: ${timeSinceLastReminder}s < ${REMINDER_COOLDOWN}s")
+        if (timeSinceLastReminder < reminderCooldown) {
+            Log.d(TAG, "Reminder cooldown active: ${timeSinceLastReminder}s < ${reminderCooldown}s")
             return
         }
 

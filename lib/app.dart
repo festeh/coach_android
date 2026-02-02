@@ -3,6 +3,7 @@ import 'views/apps_view.dart';
 import 'views/stats_view.dart';
 import 'views/logs_view.dart';
 import 'views/debug_view.dart';
+import 'views/settings_view.dart';
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -106,13 +107,17 @@ class _MainScreenState extends State<MainScreen> {
       appBar: AppBar(
         actions: [
           IconButton(
-            icon: Icon(
-              Theme.of(context).brightness == Brightness.dark
-                  ? Icons.light_mode
-                  : Icons.dark_mode,
-            ),
-            onPressed: widget.onThemeToggle,
-            tooltip: 'Toggle theme',
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      SettingsView(onThemeToggle: widget.onThemeToggle),
+                ),
+              );
+            },
+            tooltip: 'Settings',
           ),
         ],
       ),
