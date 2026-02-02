@@ -352,7 +352,7 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
 
         when (effectiveChallengeType) {
             "longPress" -> {
-                val longPressDuration = prefs.getInt("flutter.settingsLongPressDuration", 5)
+                val longPressDuration = prefs.getLong("flutter.settingsLongPressDuration", 5).toInt()
                 overlayView = buildLongPressChallengeView(displayText, bgColorWithAlpha, buttonColor, density, longPressDuration)
             }
             "typing" -> {
@@ -685,14 +685,10 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
         // Forward to the main UI via method channel
         runOnUiThread {
             try {
-                Log.d(TAG, "Calling focusStateChanged on method channel: $mainMethodChannel")
-                Log.d(TAG, "Data to send: $data")
-                Log.d(TAG, "Data type: ${data.javaClass.simpleName}")
+                Log.d(TAG, "Forwarding focusStateChanged to UI: $data")
                 
                 mainMethodChannel?.invokeMethod("focusStateChanged", data, object : MethodChannel.Result {
-                    override fun success(result: Any?) {
-                        Log.d(TAG, "focusStateChanged success: $result")
-                    }
+                    override fun success(result: Any?) {}
                     
                     override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) {
                         Log.e(TAG, "focusStateChanged error: $errorCode - $errorMessage")

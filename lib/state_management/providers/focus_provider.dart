@@ -43,17 +43,12 @@ class FocusStateNotifier extends Notifier<FocusState> {
   }
 
   Future<dynamic> _handleMethodCall(MethodCall call) async {
-    _log.info('=== METHOD CALL RECEIVED ===');
-    _log.info('Method: ${call.method}');
-    _log.info('Arguments: ${call.arguments}');
-    _log.info('=== END METHOD CALL INFO ===');
+    _log.fine('Method call: ${call.method} args=${call.arguments}');
 
     try {
       switch (call.method) {
         case 'focusStateChanged':
-          _log.info('=== PROCESSING FOCUS STATE CHANGED ===');
           final data = Map<String, dynamic>.from(call.arguments as Map);
-          _log.info('Focus state data: $data');
 
           // Update state from background notification
           final focusData = FocusData(

@@ -48,7 +48,7 @@ Future<void> _startBackgroundService() async {
 /// This is the entry point for the background Flutter isolate
 /// It runs independently of the main UI and handles all monitoring logic
 @pragma('vm:entry-point')
-void backgroundMain() {
+Future<void> backgroundMain() async {
   final log = Logger('BackgroundIsolate');
 
   try {
@@ -60,14 +60,11 @@ void backgroundMain() {
     WidgetsFlutterBinding.ensureInitialized();
     log.info('Flutter binding initialized');
 
-    log.info('Background isolate started');
-
     // Initialize the background monitor handler (which will initialize WebSocket)
-    BackgroundMonitorHandler.initialize();
-    log.info('BackgroundMonitorHandler.initialize() called');
+    await BackgroundMonitorHandler.initialize();
+    log.info('BackgroundMonitorHandler initialized');
   } catch (e, stackTrace) {
     log.severe('Failed to start background isolate: $e', e, stackTrace);
-    // Re-throw so the native side can handle the error
     rethrow;
   }
 }

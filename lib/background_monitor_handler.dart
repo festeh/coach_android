@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -79,7 +80,22 @@ class BackgroundMonitorHandler {
   /// Load persisted state from SharedPreferences
   static Future<void> _loadPersistedState() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      // In background isolates, the binding may not be fully ready yet.
+      // Retry a few times with a delay to allow plugin registration to complete.
+      SharedPreferences? prefs;
+      for (var attempt = 0; attempt < 5; attempt++) {
+        try {
+          WidgetsFlutterBinding.ensureInitialized();
+          prefs = await SharedPreferences.getInstance();
+          break;
+        } catch (_) {
+          _log.warning('SharedPreferences not ready, retrying (attempt ${attempt + 1})...');
+          await Future.delayed(const Duration(milliseconds: 200));
+        }
+      }
+      if (prefs == null) {
+        throw Exception('SharedPreferences unavailable after retries');
+      }
       
       // Load focus data
       _focusData = FocusData.fromSharedPreferences(
