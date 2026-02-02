@@ -29,7 +29,7 @@ enum LogCategory {
 }
 
 @freezed
-class LogEntry with _$LogEntry {
+abstract class LogEntry with _$LogEntry {
   const factory LogEntry({
     required DateTime timestamp,
     required LogLevel level,

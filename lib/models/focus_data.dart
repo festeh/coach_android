@@ -4,7 +4,7 @@ part 'focus_data.freezed.dart';
 part 'focus_data.g.dart';
 
 @freezed
-class FocusData with _$FocusData {
+abstract class FocusData with _$FocusData {
   const factory FocusData({
     @Default(false) bool isFocusing,
     @Default(0) int sinceLastChange,

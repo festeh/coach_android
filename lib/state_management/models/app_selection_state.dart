@@ -4,7 +4,7 @@ part 'app_selection_state.freezed.dart';
 part 'app_selection_state.g.dart';
 
 @freezed
-class AppSelectionState with _$AppSelectionState {
+abstract class AppSelectionState with _$AppSelectionState {
   const factory AppSelectionState({
     @Default({}) Set<String> selectedPackages,
     @Default(false) bool isLoading,

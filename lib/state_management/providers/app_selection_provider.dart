@@ -7,12 +7,14 @@ import '../../background_monitor_handler.dart';
 
 final _log = Logger('AppSelectionProvider');
 
-class AppSelectionNotifier extends StateNotifier<AppSelectionState> {
-  final StateService _stateService;
-
-  AppSelectionNotifier(this._stateService) : super(const AppSelectionState()) {
+class AppSelectionNotifier extends Notifier<AppSelectionState> {
+  @override
+  AppSelectionState build() {
     _loadInitialState();
+    return const AppSelectionState();
   }
+
+  StateService get _stateService => ref.read(stateServiceProvider);
 
   Future<void> _loadInitialState() async {
     state = state.copyWith(isLoading: true);
@@ -33,7 +35,7 @@ class AppSelectionNotifier extends StateNotifier<AppSelectionState> {
 
   Future<void> toggleApp(String packageName) async {
     final currentPackages = Set<String>.from(state.selectedPackages);
-    
+
     if (currentPackages.contains(packageName)) {
       currentPackages.remove(packageName);
       _log.info('Removed app from selection: $packageName');
@@ -43,10 +45,10 @@ class AppSelectionNotifier extends StateNotifier<AppSelectionState> {
     }
 
     state = state.copyWith(selectedPackages: currentPackages);
-    
+
     // Persist the changes
     await _stateService.saveSelectedApps(currentPackages);
-    
+
     // Immediately sync to background isolate
     await BackgroundMonitorHandler.updateMonitoredPackages(currentPackages);
   }
@@ -54,7 +56,7 @@ class AppSelectionNotifier extends StateNotifier<AppSelectionState> {
   Future<void> setSelectedApps(Set<String> packages) async {
     state = state.copyWith(selectedPackages: packages);
     await _stateService.saveSelectedApps(packages);
-    
+
     // Immediately sync to background isolate
     await BackgroundMonitorHandler.updateMonitoredPackages(packages);
   }
@@ -62,16 +64,13 @@ class AppSelectionNotifier extends StateNotifier<AppSelectionState> {
   Future<void> clearSelection() async {
     state = state.copyWith(selectedPackages: {});
     await _stateService.saveSelectedApps({});
-    
+
     // Immediately sync to background isolate
     await BackgroundMonitorHandler.updateMonitoredPackages({});
   }
 }
 
-final appSelectionProvider = StateNotifierProvider<AppSelectionNotifier, AppSelectionState>((ref) {
-  final stateService = ref.watch(stateServiceProvider);
-  return AppSelectionNotifier(stateService);
-});
+final appSelectionProvider = NotifierProvider<AppSelectionNotifier, AppSelectionState>(AppSelectionNotifier.new);
 
 // Helper provider to get just the selected packages
 final selectedPackagesProvider = Provider<Set<String>>((ref) {

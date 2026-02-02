@@ -6,22 +6,20 @@ part of 'app_selection_state.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$AppSelectionStateImpl _$$AppSelectionStateImplFromJson(
-  Map<String, dynamic> json,
-) => _$AppSelectionStateImpl(
-  selectedPackages:
-      (json['selectedPackages'] as List<dynamic>?)
-          ?.map((e) => e as String)
-          .toSet() ??
-      const {},
-  isLoading: json['isLoading'] as bool? ?? false,
-  errorMessage: json['errorMessage'] as String?,
-);
+_AppSelectionState _$AppSelectionStateFromJson(Map<String, dynamic> json) =>
+    _AppSelectionState(
+      selectedPackages:
+          (json['selectedPackages'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toSet() ??
+          const {},
+      isLoading: json['isLoading'] as bool? ?? false,
+      errorMessage: json['errorMessage'] as String?,
+    );
 
-Map<String, dynamic> _$$AppSelectionStateImplToJson(
-  _$AppSelectionStateImpl instance,
-) => <String, dynamic>{
-  'selectedPackages': instance.selectedPackages.toList(),
-  'isLoading': instance.isLoading,
-  'errorMessage': instance.errorMessage,
-};
+Map<String, dynamic> _$AppSelectionStateToJson(_AppSelectionState instance) =>
+    <String, dynamic>{
+      'selectedPackages': instance.selectedPackages.toList(),
+      'isLoading': instance.isLoading,
+      'errorMessage': instance.errorMessage,
+    };

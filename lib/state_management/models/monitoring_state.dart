@@ -4,7 +4,7 @@ part 'monitoring_state.freezed.dart';
 part 'monitoring_state.g.dart';
 
 @freezed
-class MonitoringState with _$MonitoringState {
+abstract class MonitoringState with _$MonitoringState {
   const factory MonitoringState({
     @Default(false) bool isMonitoring,
     @Default(false) bool hasUsageStatsPermission,

@@ -29,9 +29,11 @@ class PermissionsState {
   }
 }
 
-class PermissionsNotifier extends StateNotifier<PermissionsState> {
-  PermissionsNotifier() : super(const PermissionsState()) {
+class PermissionsNotifier extends Notifier<PermissionsState> {
+  @override
+  PermissionsState build() {
     _checkInitialPermission();
+    return const PermissionsState();
   }
 
   Future<void> _checkInitialPermission() async {
@@ -54,7 +56,7 @@ class PermissionsNotifier extends StateNotifier<PermissionsState> {
 
   Future<bool> checkAndRequestUsageStatsPermission(BuildContext context) async {
     state = state.copyWith(isCheckingPermission: true);
-    
+
     bool hasPermission = await FocusService.checkUsageStatsPermission();
 
     if (!hasPermission && context.mounted) {
@@ -103,6 +105,4 @@ class PermissionsNotifier extends StateNotifier<PermissionsState> {
   }
 }
 
-final permissionsProvider = StateNotifierProvider<PermissionsNotifier, PermissionsState>((ref) {
-  return PermissionsNotifier();
-});
+final permissionsProvider = NotifierProvider<PermissionsNotifier, PermissionsState>(PermissionsNotifier.new);

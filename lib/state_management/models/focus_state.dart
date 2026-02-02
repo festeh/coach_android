@@ -5,7 +5,7 @@ part 'focus_state.freezed.dart';
 part 'focus_state.g.dart';
 
 @freezed
-class FocusState with _$FocusState {
+abstract class FocusState with _$FocusState {
   const factory FocusState({
     @Default(FocusData()) FocusData focusData,
     @Default(FocusStatus.loading) FocusStatus status,

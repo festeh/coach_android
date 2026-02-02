@@ -225,27 +225,29 @@ final serviceEventHistoryProvider = Provider<List<ServiceEvent>>((ref) {
 });
 
 // Health status provider
-final serviceHealthStatusProvider = StateNotifierProvider<ServiceHealthNotifier, ServiceHealthStatus>((ref) {
-  return ServiceHealthNotifier(ref);
-});
+final serviceHealthStatusProvider = NotifierProvider<ServiceHealthNotifier, ServiceHealthStatus>(ServiceHealthNotifier.new);
 
-class ServiceHealthNotifier extends StateNotifier<ServiceHealthStatus> {
-  final Ref _ref;
+class ServiceHealthNotifier extends Notifier<ServiceHealthStatus> {
   StreamSubscription<ServiceEvent>? _eventSubscription;
-  
-  ServiceHealthNotifier(this._ref) : super(ServiceHealthStatus(
-    status: ServiceStatus.stopped,
-    lastHealthCheck: DateTime.now(),
-    webSocketConnected: false,
-    monitoringActive: false,
-    errorCount: 0,
-    memoryUsageMB: 0,
-  )) {
+
+  @override
+  ServiceHealthStatus build() {
+    ref.onDispose(() {
+      _eventSubscription?.cancel();
+    });
     _listenToEvents();
+    return ServiceHealthStatus(
+      status: ServiceStatus.stopped,
+      lastHealthCheck: DateTime.now(),
+      webSocketConnected: false,
+      monitoringActive: false,
+      errorCount: 0,
+      memoryUsageMB: 0,
+    );
   }
-  
+
   void _listenToEvents() {
-    final bus = _ref.read(serviceEventBusProvider);
+    final bus = ref.read(serviceEventBusProvider);
     _eventSubscription = bus.events.listen((event) {
       switch (event.type) {
         case ServiceEventType.serviceStarted:
@@ -292,11 +294,5 @@ class ServiceHealthNotifier extends StateNotifier<ServiceHealthStatus> {
           break;
       }
     });
-  }
-  
-  @override
-  void dispose() {
-    _eventSubscription?.cancel();
-    super.dispose();
   }
 }

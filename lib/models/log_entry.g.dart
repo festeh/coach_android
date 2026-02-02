@@ -6,27 +6,25 @@ part of 'log_entry.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$LogEntryImpl _$$LogEntryImplFromJson(Map<String, dynamic> json) =>
-    _$LogEntryImpl(
-      timestamp: DateTime.parse(json['timestamp'] as String),
-      level: $enumDecode(_$LogLevelEnumMap, json['level']),
-      source: $enumDecode(_$LogSourceEnumMap, json['source']),
-      category: $enumDecode(_$LogCategoryEnumMap, json['category']),
-      message: json['message'] as String,
-      metadata: json['metadata'] as Map<String, dynamic>?,
-      stackTrace: json['stackTrace'] as String?,
-    );
+_LogEntry _$LogEntryFromJson(Map<String, dynamic> json) => _LogEntry(
+  timestamp: DateTime.parse(json['timestamp'] as String),
+  level: $enumDecode(_$LogLevelEnumMap, json['level']),
+  source: $enumDecode(_$LogSourceEnumMap, json['source']),
+  category: $enumDecode(_$LogCategoryEnumMap, json['category']),
+  message: json['message'] as String,
+  metadata: json['metadata'] as Map<String, dynamic>?,
+  stackTrace: json['stackTrace'] as String?,
+);
 
-Map<String, dynamic> _$$LogEntryImplToJson(_$LogEntryImpl instance) =>
-    <String, dynamic>{
-      'timestamp': instance.timestamp.toIso8601String(),
-      'level': _$LogLevelEnumMap[instance.level]!,
-      'source': _$LogSourceEnumMap[instance.source]!,
-      'category': _$LogCategoryEnumMap[instance.category]!,
-      'message': instance.message,
-      'metadata': instance.metadata,
-      'stackTrace': instance.stackTrace,
-    };
+Map<String, dynamic> _$LogEntryToJson(_LogEntry instance) => <String, dynamic>{
+  'timestamp': instance.timestamp.toIso8601String(),
+  'level': _$LogLevelEnumMap[instance.level]!,
+  'source': _$LogSourceEnumMap[instance.source]!,
+  'category': _$LogCategoryEnumMap[instance.category]!,
+  'message': instance.message,
+  'metadata': instance.metadata,
+  'stackTrace': instance.stackTrace,
+};
 
 const _$LogLevelEnumMap = {
   LogLevel.debug: 'debug',

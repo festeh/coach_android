@@ -13,21 +13,27 @@ import '../../constants/channel_names.dart';
 
 final _log = Logger('FocusProvider');
 
-class FocusStateNotifier extends StateNotifier<FocusState> {
-  final StateService _stateService;
+class FocusStateNotifier extends Notifier<FocusState> {
   Timer? _uiPollingTimer;
   static const Duration _uiPollingInterval = Duration(seconds: 30);
-
-  FocusStateNotifier(this._stateService) : super(const FocusState()) {
-    _loadInitialState();
-    // _setupWebSocketMessageListener(); // Disabled - background is now source of truth
-    _setupMethodChannelHandler();
-    _startUIPolling();
-  }
 
   static const MethodChannel _methodChannel = MethodChannel(
     ChannelNames.mainMethods,
   );
+
+  @override
+  FocusState build() {
+    ref.onDispose(() {
+      _uiPollingTimer?.cancel();
+      _uiPollingTimer = null;
+    });
+    _loadInitialState();
+    _setupMethodChannelHandler();
+    _startUIPolling();
+    return const FocusState();
+  }
+
+  StateService get _stateService => ref.read(stateServiceProvider);
 
   void _setupMethodChannelHandler() {
     _log.info(
@@ -220,10 +226,10 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
     _uiPollingTimer = Timer.periodic(_uiPollingInterval, (_) async {
       try {
         _log.fine('UI polling: requesting focus state refresh from background');
-        
+
         // Send refresh request via the plugin method channel
         _methodChannel.invokeMethod('requestFocusStateRefresh');
-        
+
         EnhancedLogger.debug(
           LogSource.ui,
           LogCategory.system,
@@ -234,23 +240,12 @@ class FocusStateNotifier extends StateNotifier<FocusState> {
         // Continue running, don't cancel the timer for temporary failures
       }
     });
-    
-    _log.info('UI polling started - will query background isolate every ${_uiPollingInterval.inSeconds} seconds');
-  }
 
-  @override
-  void dispose() {
-    _uiPollingTimer?.cancel();
-    _uiPollingTimer = null;
-    super.dispose();
+    _log.info('UI polling started - will query background isolate every ${_uiPollingInterval.inSeconds} seconds');
   }
 }
 
 final stateServiceProvider = Provider<StateService>((ref) => StateService());
 
 final focusStateProvider =
-    StateNotifierProvider<FocusStateNotifier, FocusState>((ref) {
-      final stateService = ref.watch(stateServiceProvider);
-      return FocusStateNotifier(stateService);
-    });
-
+    NotifierProvider<FocusStateNotifier, FocusState>(FocusStateNotifier.new);
