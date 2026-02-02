@@ -6,6 +6,7 @@ import '../services/installed_apps_service.dart';
 import '../state_management/providers/app_selection_provider.dart';
 import '../state_management/providers/permissions_provider.dart';
 import '../state_management/models/app_selection_state.dart';
+import '../widgets/app_detail_bottom_sheet.dart';
 import '../widgets/focus_status_widget.dart';
 
 
@@ -73,7 +74,6 @@ class _AppsViewState extends ConsumerState<AppsView> {
     return Column(
       children: [
         const FocusStatusWidget(),
-        _buildAppCount(),
         Expanded(
           child: _buildAppList(appSelection),
         ),
@@ -81,20 +81,6 @@ class _AppsViewState extends ConsumerState<AppsView> {
     );
   }
 
-
-  Widget _buildAppCount() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Text(
-        'Total Apps: ${_installedApps.length}',
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: Theme.of(context).colorScheme.onSurface,
-        ),
-      ),
-    );
-  }
 
   Widget _buildAppList(AppSelectionState appSelection) {
     // Sort apps: selected (blocked) first, then alphabetically
@@ -136,17 +122,28 @@ class _AppsViewState extends ConsumerState<AppsView> {
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
-            leading: IconButton(
-              icon: Icon(
-                isSelected ? Icons.check_box : Icons.check_box_outline_blank,
-                color: isSelected
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-              onPressed: () {
-                ref.read(appSelectionProvider.notifier).toggleApp(app.packageName);
-              },
-            ),
+            trailing: isSelected
+                ? Text(
+                    'C',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  )
+                : null,
+            onTap: () {
+              showModalBottomSheet(
+                context: context,
+                builder: (_) => AppDetailBottomSheet(
+                  app: app,
+                  isCoachEnabled: isSelected,
+                  onToggle: (_) {
+                    ref.read(appSelectionProvider.notifier).toggleApp(app.packageName);
+                  },
+                ),
+              );
+            },
           ),
         );
       },
