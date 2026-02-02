@@ -5,6 +5,7 @@ import '../state_management/providers/permissions_provider.dart';
 import 'package:logging/logging.dart';
 import 'package:flutter/services.dart';
 import '../constants/channel_names.dart';
+import 'logs_view.dart';
 
 final _log = Logger('DebugView');
 
@@ -114,20 +115,36 @@ class _DebugViewState extends ConsumerState<DebugView> with WidgetsBindingObserv
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Debug Console'),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Debug Console',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
-              ),
+            // Logs
+            _buildSection(
+              context,
+              'Logs',
+              Icons.list,
+              [
+                _buildActionButton(
+                  context,
+                  'View Logs',
+                  Icons.terminal,
+                  () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LogsView()),
+                    );
+                  },
+                ),
+              ],
             ),
+
             const SizedBox(height: 24),
-            
+
             // Permissions Section
             _buildSection(
               context,

@@ -5,9 +5,6 @@ import 'package:logging/logging.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../config.dart';
-import '../models/log_entry.dart';
-import 'enhanced_logger.dart';
-import 'service_event_bus.dart';
 
 final _log = Logger('WebSocketService');
 
@@ -29,7 +26,6 @@ class WebSocketService {
   static const Duration _focusQueryInterval = Duration(seconds: 60);
 
   Completer<Map<String, dynamic>>? _pendingRequest;
-  final _eventBus = ServiceEventBus();
 
   // Stream for focus updates that can be listened to directly
   final _focusUpdatesController =
@@ -57,11 +53,6 @@ class WebSocketService {
   Future<void> initialize() async {
     if (AppConfig.webSocketUrl.isEmpty) {
       _log.warning('WebSocket URL not configured');
-      EnhancedLogger.warning(
-        LogSource.webSocket,
-        LogCategory.connection,
-        'WebSocket URL not configured - cannot connect',
-      );
       return;
     }
 
@@ -80,12 +71,6 @@ class WebSocketService {
 
     try {
       _log.info('Connecting to WebSocket: ${AppConfig.webSocketUrl}');
-      EnhancedLogger.info(
-        LogSource.webSocket,
-        LogCategory.connection,
-        'Attempting WebSocket connection',
-        {'url': AppConfig.webSocketUrl},
-      );
 
       _channel = IOWebSocketChannel.connect(
         Uri.parse(AppConfig.webSocketUrl),
@@ -106,14 +91,8 @@ class WebSocketService {
       _reconnectAttempts = 0;
 
       _startPeriodicFocusQuery();
-      _updateConnectionStatus(true);
 
       _log.info('WebSocket connected successfully');
-      EnhancedLogger.info(
-        LogSource.webSocket,
-        LogCategory.connection,
-        'WebSocket connected successfully',
-      );
     } catch (e) {
       _isConnecting = false;
       _handleError(e);
@@ -127,13 +106,6 @@ class WebSocketService {
 
       final data = jsonDecode(message as String) as Map<String, dynamic>;
       final messageType = data['type'] as String?;
-
-      EnhancedLogger.debug(
-        LogSource.webSocket,
-        LogCategory.connection,
-        'WebSocket message received',
-        {'type': messageType, 'data': data},
-      );
 
       // Handle response to pending requests
       // Map server response types to our request types
@@ -150,48 +122,17 @@ class WebSocketService {
           messageType == 'focusing_status' ||
           (messageType == null && data.containsKey('focusing'))) {
         _focusUpdatesController.add(data);
-        
-        EnhancedLogger.debug(
-          LogSource.webSocket,
-          LogCategory.connection,
-          'Focus update emitted to stream',
-          {
-            'focusing': data['focusing'],
-            'focus_time_left': data['focus_time_left'],
-            'num_focuses': data['num_focuses'],
-            'since_last_change': data['since_last_change'],
-          },
-        );
+        _log.fine('Focus update emitted to stream: focusing=${data['focusing']}');
       }
 
-      // Broadcast message to interested parties via event bus
-      _eventBus.emit(
-        ServiceEvent(
-          type: ServiceEventType.webSocketMessage,
-          message: 'WebSocket message received',
-          data: data,
-        ),
-      );
     } catch (e) {
       _log.severe('Error processing WebSocket message: $e');
-      EnhancedLogger.error(
-        LogSource.webSocket,
-        LogCategory.connection,
-        'Error processing WebSocket message',
-        {'error': e.toString(), 'message': message},
-      );
     }
   }
 
   /// Handle WebSocket errors
   void _handleError(dynamic error) {
     _log.severe('WebSocket error: $error');
-    EnhancedLogger.error(
-      LogSource.webSocket,
-      LogCategory.connection,
-      'WebSocket connection error',
-      {'error': error.toString()},
-    );
 
     _cleanup();
     _scheduleReconnect();
@@ -200,11 +141,6 @@ class WebSocketService {
   /// Handle WebSocket disconnect
   void _handleDisconnect() {
     _log.info('WebSocket disconnected');
-    EnhancedLogger.info(
-      LogSource.webSocket,
-      LogCategory.connection,
-      'WebSocket connection closed',
-    );
 
     _cleanup();
     _scheduleReconnect();
@@ -224,8 +160,6 @@ class WebSocketService {
     _focusQueryTimer?.cancel();
     _focusQueryTimer = null;
 
-    _updateConnectionStatus(false);
-
     // Complete any pending request with error
     if (_pendingRequest != null && !_pendingRequest!.isCompleted) {
       _pendingRequest!.completeError(Exception('WebSocket connection lost'));
@@ -238,13 +172,7 @@ class WebSocketService {
     if (_reconnectTimer != null) return;
 
     if (_reconnectAttempts >= _maxReconnectAttempts) {
-      _log.severe('Max reconnection attempts reached. Giving up.');
-      EnhancedLogger.error(
-        LogSource.webSocket,
-        LogCategory.connection,
-        'Max WebSocket reconnection attempts reached',
-        {'attempts': _reconnectAttempts},
-      );
+      _log.severe('Max reconnection attempts reached ($_reconnectAttempts). Giving up.');
       return;
     }
 
@@ -260,17 +188,6 @@ class WebSocketService {
 
     _log.info(
       'Scheduling reconnection attempt $_reconnectAttempts in ${delay.inSeconds}s',
-    );
-    EnhancedLogger.info(
-      LogSource.webSocket,
-      LogCategory.connection,
-      'Scheduling WebSocket reconnection',
-      {'attempt': _reconnectAttempts, 'delaySeconds': delay.inSeconds},
-    );
-
-    _eventBus.emitSimple(
-      ServiceEventType.webSocketReconnecting,
-      'Reconnecting in ${delay.inSeconds}s',
     );
 
     _reconnectTimer = Timer(delay, () {
@@ -295,23 +212,6 @@ class WebSocketService {
     });
   }
 
-  /// Update connection status with health monitor and event bus
-  void _updateConnectionStatus(bool connected) {
-    // Emit event for health monitoring - the health monitor will listen to these events
-    // This avoids circular dependency issues
-    if (connected) {
-      _eventBus.emitSimple(
-        ServiceEventType.webSocketConnected,
-        'WebSocket connected',
-      );
-    } else {
-      _eventBus.emitSimple(
-        ServiceEventType.webSocketDisconnected,
-        'WebSocket disconnected',
-      );
-    }
-  }
-
   /// Send a message through WebSocket
   Future<void> _sendMessage(Map<String, dynamic> message) async {
     if (!_isConnected || _channel == null) {
@@ -323,12 +223,6 @@ class WebSocketService {
       _channel!.sink.add(jsonMessage);
 
       _log.fine('Sent WebSocket message: $jsonMessage');
-      EnhancedLogger.debug(
-        LogSource.webSocket,
-        LogCategory.connection,
-        'WebSocket message sent',
-        message,
-      );
     } catch (e) {
       _log.severe('Failed to send WebSocket message: $e');
       throw Exception('Failed to send WebSocket message: $e');
@@ -346,21 +240,8 @@ class WebSocketService {
     try {
       await _sendMessage({'type': 'focus'});
       _log.info('Focus command sent successfully');
-      
-      EnhancedLogger.info(
-        LogSource.webSocket,
-        LogCategory.connection,
-        'Focus command sent to WebSocket server',
-      );
     } catch (e) {
       _log.severe('Failed to send focus command: $e');
-      
-      EnhancedLogger.error(
-        LogSource.webSocket,
-        LogCategory.connection,
-        'Failed to send focus command',
-        {'error': e.toString()},
-      );
       
       rethrow;
     }
@@ -376,16 +257,6 @@ class WebSocketService {
     // Check if connected, if not try to connect
     if (!_isConnected) {
       _log.info('WebSocket not connected, attempting to connect first');
-
-      EnhancedLogger.info(
-        LogSource.webSocket,
-        LogCategory.connection,
-        'WebSocket not connected, attempting connection before focus status request',
-        {
-          'url': AppConfig.webSocketUrl,
-          'reconnectAttempts': _reconnectAttempts,
-        },
-      );
 
       try {
         await _connect();
@@ -407,18 +278,6 @@ class WebSocketService {
           final errorMsg =
               'Could not establish WebSocket connection after ${totalWaitTime.inSeconds}s. URL: ${AppConfig.webSocketUrl}';
           _log.severe(errorMsg);
-
-          EnhancedLogger.error(
-            LogSource.webSocket,
-            LogCategory.connection,
-            'WebSocket connection failed before focus status request',
-            {
-              'url': AppConfig.webSocketUrl,
-              'waitTimeSeconds': totalWaitTime.inSeconds,
-              'reconnectAttempts': _reconnectAttempts,
-            },
-          );
-
           throw Exception(errorMsg);
         }
         _log.info(
@@ -431,14 +290,6 @@ class WebSocketService {
         }
       } catch (e) {
         _log.severe('Failed to establish WebSocket connection: $e');
-
-        EnhancedLogger.error(
-          LogSource.webSocket,
-          LogCategory.connection,
-          'Exception during WebSocket connection attempt',
-          {'error': e.toString(), 'url': AppConfig.webSocketUrl},
-        );
-
         throw Exception('WebSocket connection failed: $e');
       }
     } else {
@@ -455,12 +306,6 @@ class WebSocketService {
       // Send the request
       await _sendMessage({'type': 'get_focusing'});
 
-      EnhancedLogger.info(
-        LogSource.webSocket,
-        LogCategory.connection,
-        'Focus status request sent',
-      );
-
       // Wait for response with timeout
       final response = await completer.future.timeout(
         const Duration(seconds: 10),
@@ -470,42 +315,15 @@ class WebSocketService {
           final timeoutError =
               'Focus status request timed out after 10s - WebSocket connected: $_isConnected, URL: ${AppConfig.webSocketUrl}';
           _log.severe(timeoutError);
-
-          EnhancedLogger.error(
-            LogSource.webSocket,
-            LogCategory.connection,
-            'Focus status request timeout',
-            {
-              'timeoutSeconds': 10,
-              'isConnected': _isConnected,
-              'url': AppConfig.webSocketUrl,
-              'hasPendingRequest': _pendingRequest != null,
-            },
-          );
-
           throw TimeoutException(timeoutError, const Duration(seconds: 10));
         },
       );
 
-      EnhancedLogger.info(
-        LogSource.webSocket,
-        LogCategory.connection,
-        'Focus status response received',
-        response,
-      );
-
+      _log.info('Focus status response received');
       return response;
     } catch (e) {
       _pendingRequest = null;
       _log.severe('Focus status request failed: $e');
-
-      EnhancedLogger.error(
-        LogSource.webSocket,
-        LogCategory.connection,
-        'Focus status request failed',
-        {'error': e.toString()},
-      );
-
       rethrow;
     }
   }

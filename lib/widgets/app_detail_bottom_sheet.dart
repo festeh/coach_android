@@ -132,7 +132,9 @@ class _AppDetailBottomSheetState extends ConsumerState<AppDetailBottomSheet> {
     final theme = Theme.of(context);
     final rules = ref.watch(rulesForAppProvider(widget.app.packageName));
 
-    return Padding(
+    return SafeArea(
+      top: false,
+      child: Padding(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -216,6 +218,7 @@ class _AppDetailBottomSheetState extends ConsumerState<AppDetailBottomSheet> {
           ),
         ],
       ),
+    ),
     );
   }
 

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
 import '../models/app_info.dart';
 import '../services/installed_apps_service.dart';
+import '../state_management/providers/app_rules_provider.dart';
 import '../state_management/providers/app_selection_provider.dart';
 import '../state_management/providers/permissions_provider.dart';
 import '../state_management/models/app_selection_state.dart';
@@ -106,13 +107,17 @@ class _AppsViewState extends ConsumerState<AppsView> {
 
 
   Widget _buildAppList(AppSelectionState appSelection) {
-    // Sort apps: selected (blocked) first, then alphabetically
+    // Sort apps: selected/ruled first, then alphabetically
     final sortedApps = List<AppInfo>.from(_installedApps)
       ..sort((a, b) {
         final aSelected = appSelection.selectedPackages.contains(a.packageName);
         final bSelected = appSelection.selectedPackages.contains(b.packageName);
-        if (aSelected && !bSelected) return -1;
-        if (!aSelected && bSelected) return 1;
+        final aHasRules = ref.read(rulesForAppProvider(a.packageName)).isNotEmpty;
+        final bHasRules = ref.read(rulesForAppProvider(b.packageName)).isNotEmpty;
+        final aActive = aSelected || aHasRules;
+        final bActive = bSelected || bHasRules;
+        if (aActive && !bActive) return -1;
+        if (!aActive && bActive) return 1;
         return a.name.compareTo(b.name);
       });
 
@@ -122,18 +127,23 @@ class _AppsViewState extends ConsumerState<AppsView> {
       itemBuilder: (context, index) {
         final app = sortedApps[index];
         final isSelected = appSelection.selectedPackages.contains(app.packageName);
+        final hasRules = ref.watch(rulesForAppProvider(app.packageName)).isNotEmpty;
 
         return Container(
           margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
           decoration: BoxDecoration(
             color: isSelected
                 ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1)
-                : Theme.of(context).colorScheme.surface,
+                : hasRules
+                    ? Theme.of(context).colorScheme.secondary.withValues(alpha: 0.07)
+                    : Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: isSelected
                   ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                  : hasRules
+                      ? Theme.of(context).colorScheme.secondary.withValues(alpha: 0.5)
+                      : Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
               width: 1,
             ),
           ),
@@ -145,14 +155,30 @@ class _AppsViewState extends ConsumerState<AppsView> {
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
-            trailing: isSelected
-                ? Text(
-                    'C',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+            trailing: (isSelected || hasRules)
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isSelected)
+                        Text(
+                          'C',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      if (isSelected && hasRules) const SizedBox(width: 6),
+                      if (hasRules)
+                        Text(
+                          'R',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.secondary,
+                          ),
+                        ),
+                    ],
                   )
                 : null,
             onTap: () {

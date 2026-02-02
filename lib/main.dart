@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
 import 'app.dart';
 import 'background_monitor_handler.dart';
+import 'services/enhanced_logger.dart';
 import 'services/focus_service.dart';
 import 'services/installed_apps_service.dart';
 
@@ -11,12 +12,8 @@ final _log = Logger('Main');
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Configure logging to print to console
-  Logger.root.level = Level.ALL;
-  Logger.root.onRecord.listen((record) {
-    // ignore: avoid_print
-    print('${record.level.name}: ${record.time}: ${record.loggerName}: ${record.message}');
-  });
+  // Configure logging: bridge standard Logger → EnhancedLogger → logcat + in-app logs
+  EnhancedLogger.initializeFromLogging();
   
   // Start background service early
   await _startBackgroundService();
@@ -55,13 +52,8 @@ void backgroundMain() {
   final log = Logger('BackgroundIsolate');
 
   try {
-    // Configure logging for background isolate to output to Android logcat
-    Logger.root.level = Level.ALL;
-    Logger.root.onRecord.listen((record) {
-      // Use print() to ensure logs appear in Android logcat
-      // ignore: avoid_print
-      print('${record.level.name}: ${record.time}: ${record.loggerName}: ${record.message}');
-    });
+    // Configure logging: bridge standard Logger → EnhancedLogger → logcat + in-app logs
+    EnhancedLogger.initializeFromLogging();
 
     log.info('Background isolate entry point called');
 

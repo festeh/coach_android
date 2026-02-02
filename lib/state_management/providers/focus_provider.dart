@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logging/logging.dart';
 import 'package:flutter/services.dart';
 import '../models/focus_state.dart';
-import '../../models/log_entry.dart';
 import '../../models/focus_data.dart';
-import '../../services/enhanced_logger.dart';
 import '../services/state_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../constants/storage_keys.dart';
@@ -68,14 +66,7 @@ class FocusStateNotifier extends Notifier<FocusState> {
             lastFocusEndTime: data['lastFocusEndTime'] as int? ?? 0,
           );
           await updateFocusState(focusData);
-
-          EnhancedLogger.info(
-            LogSource.ui,
-            LogCategory.system,
-            'Focus state updated from background',
-            data,
-          );
-
+          _log.info('Focus state updated from background');
           return null;
         default:
           _log.warning('Unknown method call from background: ${call.method}');
@@ -99,12 +90,7 @@ class FocusStateNotifier extends Notifier<FocusState> {
     // Sync initial focus state to background
     await _syncFocusStateToBackground(cachedFocusing);
 
-    EnhancedLogger.info(
-      LogSource.ui,
-      LogCategory.system,
-      'Initial focus state loaded from cache',
-      {'focusing': cachedFocusing},
-    );
+    _log.info('Initial focus state loaded from cache: focusing=$cachedFocusing');
 
     // Request current state from background isolate to ensure sync
     await forceFetch();
@@ -135,12 +121,6 @@ class FocusStateNotifier extends Notifier<FocusState> {
     state = state.copyWith(status: FocusStatus.loading);
 
     try {
-      EnhancedLogger.info(
-        LogSource.ui,
-        LogCategory.connection,
-        'Requesting focus state refresh from background isolate',
-      );
-
       // Send refresh request via the plugin method channel
       _methodChannel.invokeMethod('requestFocusStateRefresh');
 
@@ -157,13 +137,6 @@ class FocusStateNotifier extends Notifier<FocusState> {
       // The background isolate will respond via focusStateChanged method call
     } catch (e) {
       _log.severe('Failed to request focus state refresh: $e');
-
-      EnhancedLogger.error(
-        LogSource.ui,
-        LogCategory.connection,
-        'Failed to request focus state refresh from background',
-        {'error': e.toString()},
-      );
 
       // Fall back to cached state
       final cachedFocusing = await _stateService.loadFocusingState() ?? false;
@@ -193,18 +166,8 @@ class FocusStateNotifier extends Notifier<FocusState> {
   void updateFromWebSocket(Map<String, dynamic> data) {
     final newFocusData = FocusData.fromWebSocketResponse(data);
 
-    EnhancedLogger.info(
-      LogSource.webSocket,
-      LogCategory.connection,
-      'Focus status response received from WebSocket',
-      {
-        'focusing': newFocusData.isFocusing,
-        'numFocuses': newFocusData.numFocuses,
-        'timeLeftSeconds': newFocusData.focusTimeLeft,
-        'sinceLastChange': newFocusData.sinceLastChange,
-        'responseType': data['type'] ?? 'status_update',
-      },
-    );
+    _log.info('Focus status from WebSocket: focusing=${newFocusData.isFocusing}, '
+        'numFocuses=${newFocusData.numFocuses}, timeLeft=${newFocusData.focusTimeLeft}');
 
     // Update state and mark as ready since we got a response
     state = state.copyWith(
@@ -230,11 +193,6 @@ class FocusStateNotifier extends Notifier<FocusState> {
         // Send refresh request via the plugin method channel
         _methodChannel.invokeMethod('requestFocusStateRefresh');
 
-        EnhancedLogger.debug(
-          LogSource.ui,
-          LogCategory.system,
-          'UI periodic polling: requested focus state refresh from background',
-        );
       } catch (e) {
         _log.warning('UI polling failed to request focus state refresh: $e');
         // Continue running, don't cancel the timer for temporary failures

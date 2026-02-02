@@ -5,6 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:logging/logging.dart';
 import '../models/log_entry.dart';
 
+// ignore: avoid_print
+void _printToLogcat(String message) => print(message);
+
 final _log = Logger('EnhancedLogger');
 
 class EnhancedLogger {
@@ -101,15 +104,16 @@ class EnhancedLogger {
     if (_inMemoryLogs.length > _maxLogs) {
       _inMemoryLogs.removeAt(0);
     }
-    
+
     // Emit to stream for real-time updates
     _logStreamController.add(entry);
-    
+
     // Persist asynchronously
     _persistLog(entry);
-    
-    // Don't log to standard Logger in background service to avoid circular references
-    // The background service should use EnhancedLogger directly
+
+    // Print to logcat
+    _printToLogcat('${entry.level.displayName}: ${entry.timestamp}: '
+        '[${entry.source.displayName}/${entry.category.displayName}] ${entry.message}');
   }
   
   
@@ -236,6 +240,49 @@ class EnhancedLogger {
     return List.unmodifiable(_inMemoryLogs);
   }
   
+  /// Hook Logger.root.onRecord to forward all standard Logger calls into EnhancedLogger.
+  /// Call this once at startup instead of manually setting up Logger.root.onRecord.listen.
+  static void initializeFromLogging() {
+    Logger.root.level = Level.ALL;
+    Logger.root.onRecord.listen((record) {
+      // Guard against re-entrance: EnhancedLogger uses _log.severe() internally
+      if (record.loggerName == 'EnhancedLogger') return;
+
+      log(
+        level: _mapLevel(record.level),
+        source: _mapSource(record.loggerName),
+        category: _inferCategory(record.loggerName),
+        message: record.message,
+        stackTrace: record.stackTrace?.toString(),
+      );
+    });
+  }
+
+  static LogLevel _mapLevel(Level level) {
+    if (level >= Level.SHOUT) return LogLevel.critical;
+    if (level >= Level.SEVERE) return LogLevel.error;
+    if (level >= Level.WARNING) return LogLevel.warning;
+    if (level >= Level.INFO) return LogLevel.info;
+    return LogLevel.debug;
+  }
+
+  static LogSource _mapSource(String loggerName) {
+    final name = loggerName.toLowerCase();
+    if (name.contains('websocket')) return LogSource.webSocket;
+    if (name.contains('monitor') || name.contains('background')) return LogSource.monitor;
+    if (name.contains('focus') || name.contains('service')) return LogSource.service;
+    if (name.contains('ui') || name.contains('widget')) return LogSource.ui;
+    return LogSource.system;
+  }
+
+  static LogCategory _inferCategory(String loggerName) {
+    final name = loggerName.toLowerCase();
+    if (name.contains('websocket')) return LogCategory.connection;
+    if (name.contains('monitor')) return LogCategory.monitoring;
+    if (name.contains('widget')) return LogCategory.user;
+    return LogCategory.system;
+  }
+
   static void dispose() {
     _logStreamController.close();
   }

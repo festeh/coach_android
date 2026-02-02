@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import '../models/log_entry.dart';
 import '../services/enhanced_logger.dart';
-import '../services/service_event_bus.dart';
 import 'package:intl/intl.dart';
 
 class LogsView extends ConsumerStatefulWidget {
@@ -137,12 +136,79 @@ class _LogsViewState extends ConsumerState<LogsView> {
   
   @override
   Widget build(BuildContext context) {
-    final healthStatus = ref.watch(serviceHealthStatusProvider);
-    
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Logs'),
+        actions: [
+          IconButton(
+            icon: Icon(
+              _autoScroll ? Icons.lock_outline : Icons.lock_open,
+              color: _autoScroll
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+            ),
+            tooltip: _autoScroll ? 'Auto-scroll enabled' : 'Auto-scroll disabled',
+            onPressed: () {
+              setState(() {
+                _autoScroll = !_autoScroll;
+              });
+            },
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) async {
+              switch (value) {
+                case 'refresh':
+                  await _loadLogs();
+                  break;
+                case 'export':
+                  await _exportLogs();
+                  break;
+                case 'clear':
+                  final confirm = await _showClearConfirmation();
+                  if (confirm == true) {
+                    await _clearLogs();
+                  }
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'refresh',
+                child: Row(
+                  children: [
+                    Icon(Icons.refresh, size: 20),
+                    SizedBox(width: 8),
+                    Text('Refresh'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'export',
+                child: Row(
+                  children: [
+                    Icon(Icons.download, size: 20),
+                    SizedBox(width: 8),
+                    Text('Export'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'clear',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_outline, size: 20),
+                    SizedBox(width: 8),
+                    Text('Clear All'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
       body: Column(
         children: [
-          _buildServiceStatusBar(healthStatus),
           _buildFilterBar(),
           _buildSearchBar(),
           Expanded(
@@ -151,74 +217,6 @@ class _LogsViewState extends ConsumerState<LogsView> {
                 : _buildLogsList(),
           ),
         ],
-      ),
-    );
-  }
-  
-  Widget _buildServiceStatusBar(ServiceHealthStatus healthStatus) {
-    final statusColor = _getStatusColor(healthStatus.status);
-    final statusText = _getStatusText(healthStatus.status);
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: statusColor.withValues(alpha: 0.1),
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: statusColor,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            'Service: $statusText',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: statusColor,
-            ),
-          ),
-          const Spacer(),
-          if (healthStatus.webSocketConnected)
-            _buildIndicator('WS', Colors.green)
-          else
-            _buildIndicator('WS', Colors.red),
-          const SizedBox(width: 8),
-          if (healthStatus.monitoringActive)
-            _buildIndicator('Monitor', Colors.green)
-          else
-            _buildIndicator('Monitor', Colors.red),
-          const SizedBox(width: 8),
-          Text(
-            'Errors: ${healthStatus.errorCount}',
-            style: TextStyle(
-              fontSize: 12,
-              color: healthStatus.errorCount > 0 ? Colors.orange : Colors.green,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildIndicator(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withValues(alpha: 0.5)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
       ),
     );
   }
@@ -320,98 +318,26 @@ class _LogsViewState extends ConsumerState<LogsView> {
   }
   
   Widget _buildSearchBar() {
-    return Container(
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search logs...',
-                prefixIcon: const Icon(Icons.search, size: 20),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                filled: true,
-                fillColor: Theme.of(context).colorScheme.surfaceContainer,
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                  _applyFilters();
-                });
-              },
-            ),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Search logs...',
+          prefixIcon: const Icon(Icons.search, size: 20),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
           ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: Icon(
-              _autoScroll ? Icons.lock_outline : Icons.lock_open,
-              color: _autoScroll 
-                  ? Theme.of(context).colorScheme.primary 
-                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-            ),
-            tooltip: _autoScroll ? 'Auto-scroll enabled' : 'Auto-scroll disabled',
-            onPressed: () {
-              setState(() {
-                _autoScroll = !_autoScroll;
-              });
-            },
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            onSelected: (value) async {
-              switch (value) {
-                case 'refresh':
-                  await _loadLogs();
-                  break;
-                case 'export':
-                  await _exportLogs();
-                  break;
-                case 'clear':
-                  final confirm = await _showClearConfirmation();
-                  if (confirm == true) {
-                    await _clearLogs();
-                  }
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'refresh',
-                child: Row(
-                  children: [
-                    Icon(Icons.refresh, size: 20),
-                    SizedBox(width: 8),
-                    Text('Refresh'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'export',
-                child: Row(
-                  children: [
-                    Icon(Icons.download, size: 20),
-                    SizedBox(width: 8),
-                    Text('Export'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'clear',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete_outline, size: 20),
-                    SizedBox(width: 8),
-                    Text('Clear All'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
+          filled: true,
+          fillColor: Theme.of(context).colorScheme.surfaceContainer,
+        ),
+        onChanged: (value) {
+          setState(() {
+            _searchQuery = value;
+            _applyFilters();
+          });
+        },
       ),
     );
   }
@@ -591,36 +517,6 @@ class _LogsViewState extends ConsumerState<LogsView> {
         return Colors.red;
       case LogLevel.critical:
         return Colors.purple;
-    }
-  }
-  
-  Color _getStatusColor(ServiceStatus status) {
-    switch (status) {
-      case ServiceStatus.starting:
-        return Colors.blue;
-      case ServiceStatus.running:
-        return Colors.green;
-      case ServiceStatus.degraded:
-        return Colors.orange;
-      case ServiceStatus.failed:
-        return Colors.red;
-      case ServiceStatus.stopped:
-        return Colors.grey;
-    }
-  }
-  
-  String _getStatusText(ServiceStatus status) {
-    switch (status) {
-      case ServiceStatus.starting:
-        return 'Starting';
-      case ServiceStatus.running:
-        return 'Running';
-      case ServiceStatus.degraded:
-        return 'Degraded';
-      case ServiceStatus.failed:
-        return 'Failed';
-      case ServiceStatus.stopped:
-        return 'Stopped';
     }
   }
   

@@ -285,8 +285,8 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
 
     private fun showOverlay(packageName: String?, overlayType: String? = null, challengeType: String? = null, ruleId: String? = null) {
         if (overlayView != null) {
-            Log.d(TAG, "Overlay already shown for $packageName.")
-            return
+            Log.d(TAG, "Replacing existing overlay with new one for $packageName (type: ${overlayType ?: "coach"})")
+            hideOverlay()
         }
         if (!hasOverlayPermission()) {
             Log.w(TAG, "Cannot show overlay: Permission not granted.")

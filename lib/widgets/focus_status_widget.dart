@@ -4,8 +4,6 @@ import 'package:logging/logging.dart';
 import 'package:flutter/services.dart';
 import '../state_management/models/focus_state.dart';
 import '../state_management/providers/focus_provider.dart';
-import '../models/log_entry.dart';
-import '../services/enhanced_logger.dart';
 import '../constants/channel_names.dart';
 import '../utils/time_formatter.dart';
 
@@ -100,11 +98,6 @@ class FocusStatusWidget extends ConsumerWidget {
               customBorder: const CircleBorder(),
               onTap: () {
                 _log.info('User tapped refresh button for focus status');
-                EnhancedLogger.info(
-                  LogSource.ui,
-                  LogCategory.user,
-                  'Focus status refresh requested by user',
-                );
                 ref.read(focusStateProvider.notifier).forceFetch();
               },
               child: Padding(
@@ -195,12 +188,6 @@ class FocusStatusWidget extends ConsumerWidget {
 
   Future<void> _sendFocusCommand(BuildContext context, WidgetRef ref) async {
     _log.info('User tapped Focus button');
-    
-    EnhancedLogger.info(
-      LogSource.ui,
-      LogCategory.user,
-      'Focus command requested by user',
-    );
 
     try {
       // Send focus command via method channel to native service
@@ -209,25 +196,12 @@ class FocusStatusWidget extends ConsumerWidget {
       
       _log.info('Focus command sent successfully');
       
-      EnhancedLogger.info(
-        LogSource.ui,
-        LogCategory.user,
-        'Focus command sent successfully',
-      );
-      
       // Optionally trigger a refresh to get updated status
       if (context.mounted) {
         ref.read(focusStateProvider.notifier).forceFetch();
       }
     } catch (e) {
       _log.severe('Failed to send focus command: $e');
-      
-      EnhancedLogger.error(
-        LogSource.ui,
-        LogCategory.user,
-        'Failed to send focus command',
-        {'error': e.toString()},
-      );
       
       // Show error to user
       if (context.mounted) {

@@ -160,7 +160,9 @@ class _SettingsViewState extends State<SettingsView> {
       appBar: AppBar(title: const Text('Settings')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
+          : SafeArea(
+              top: false,
+              child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
                 _SectionHeader('Appearance'),
@@ -418,6 +420,7 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                 ),
               ],
+            ),
             ),
     );
   }
