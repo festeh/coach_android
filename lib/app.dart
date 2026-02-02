@@ -92,7 +92,6 @@ class _MainScreenState extends State<MainScreen> {
     AppsView(),
     StatsView(),
     LogsView(),
-    DebugView(),
   ];
   
   void _onItemTapped(int index) {
@@ -106,6 +105,16 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       appBar: AppBar(
         actions: [
+          IconButton(
+            icon: const Icon(Icons.bug_report),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DebugView()),
+              );
+            },
+            tooltip: 'Debug',
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
@@ -135,10 +144,6 @@ class _MainScreenState extends State<MainScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.list),
             label: 'Logs',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bug_report),
-            label: 'Debug',
           ),
         ],
         currentIndex: _selectedIndex,
