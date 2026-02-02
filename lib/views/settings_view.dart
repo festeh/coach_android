@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import '../models/app_settings.dart';
+import '../services/focus_service.dart';
 import '../services/settings_service.dart';
 
 class SettingsView extends StatefulWidget {
@@ -14,15 +16,28 @@ class SettingsView extends StatefulWidget {
 class _SettingsViewState extends State<SettingsView> {
   AppSettings _settings = const AppSettings();
   bool _loading = true;
+  late final TextEditingController _overlayMessageController;
+  late final TextEditingController _overlayButtonTextController;
 
   @override
   void initState() {
     super.initState();
+    _overlayMessageController = TextEditingController();
+    _overlayButtonTextController = TextEditingController();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _overlayMessageController.dispose();
+    _overlayButtonTextController.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
     final settings = await SettingsService.loadSettings();
+    _overlayMessageController.text = settings.overlayMessage;
+    _overlayButtonTextController.text = settings.overlayButtonText;
     setState(() {
       _settings = settings;
       _loading = false;
@@ -35,7 +50,77 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   Future<void> _resetDefaults() async {
+    _overlayMessageController.text = '';
+    _overlayButtonTextController.text = '';
     await _save(const AppSettings());
+  }
+
+  static Color _hexToColor(String hex) {
+    final value = int.tryParse(hex, radix: 16);
+    if (value == null) return const Color(0xFF000000);
+    return Color(value);
+  }
+
+  static String _colorToHex(Color color) {
+    return color.toARGB32().toRadixString(16).padLeft(8, '0').toUpperCase();
+  }
+
+  Future<void> _showColorPickerDialog(
+      String title, Color current, ValueChanged<Color> onPicked) async {
+    Color picked = current;
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: SingleChildScrollView(
+          child: BlockPicker(
+            pickerColor: current,
+            onColorChanged: (c) => picked = c,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              onPicked(picked);
+              Navigator.of(ctx).pop();
+            },
+            child: const Text('Select'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _colorTile(String label, String hexValue, ValueChanged<String> onChanged) {
+    final color = _hexToColor(hexValue);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(label, style: Theme.of(context).textTheme.bodyLarge),
+          ),
+          GestureDetector(
+            onTap: () => _showColorPickerDialog(label, color, (c) {
+              onChanged(_colorToHex(c));
+            }),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white38),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -93,6 +178,85 @@ class _SettingsViewState extends State<SettingsView> {
                   formatLabel: _formatMinutes,
                   onChanged: (v) => _save(
                       _settings.copyWith(activityTimeoutMinutes: v)),
+                ),
+                const Divider(),
+                _SectionHeader('Coach Overlay'),
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Message',
+                          style: Theme.of(context).textTheme.bodyLarge),
+                      const SizedBox(height: 4),
+                      TextField(
+                        controller: _overlayMessageController,
+                        decoration: const InputDecoration(
+                          hintText:
+                              'I detected {app}.\nIt\'s time to focus!',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                        ),
+                        maxLines: 2,
+                        onChanged: (v) => _save(
+                            _settings.copyWith(overlayMessage: v)),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Use {app} for the app name',
+                        style:
+                            Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.6),
+                                ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Button text',
+                          style: Theme.of(context).textTheme.bodyLarge),
+                      const SizedBox(height: 4),
+                      TextField(
+                        controller: _overlayButtonTextController,
+                        decoration: const InputDecoration(
+                          hintText: 'Got it!',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                        ),
+                        onChanged: (v) => _save(
+                            _settings.copyWith(overlayButtonText: v)),
+                      ),
+                    ],
+                  ),
+                ),
+                _colorTile(
+                  'Background color',
+                  _settings.overlayColor,
+                  (v) => _save(_settings.copyWith(overlayColor: v)),
+                ),
+                _colorTile(
+                  'Button color',
+                  _settings.overlayButtonColor,
+                  (v) => _save(_settings.copyWith(overlayButtonColor: v)),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: OutlinedButton(
+                    onPressed: () => FocusService.showOverlay('Preview'),
+                    child: const Text('Preview overlay'),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Padding(

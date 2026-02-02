@@ -9,6 +9,14 @@ class SettingsService {
     final gapSeconds = prefs.getInt(StorageKeys.settingsFocusGapThreshold);
     final cooldownSeconds = prefs.getInt(StorageKeys.settingsReminderCooldown);
     final timeoutSeconds = prefs.getInt(StorageKeys.settingsActivityTimeout);
+    final overlayMessage =
+        prefs.getString(StorageKeys.settingsOverlayMessage);
+    final overlayColor =
+        prefs.getString(StorageKeys.settingsOverlayColor);
+    final overlayButtonText =
+        prefs.getString(StorageKeys.settingsOverlayButtonText);
+    final overlayButtonColor =
+        prefs.getString(StorageKeys.settingsOverlayButtonColor);
 
     return AppSettings(
       focusGapThresholdMinutes: gapSeconds != null
@@ -20,6 +28,10 @@ class SettingsService {
       activityTimeoutMinutes: timeoutSeconds != null
           ? timeoutSeconds ~/ 60
           : AppSettings.defaultActivityTimeoutMinutes,
+      overlayMessage: overlayMessage ?? AppSettings.defaultOverlayMessage,
+      overlayColor: overlayColor ?? AppSettings.defaultOverlayColor,
+      overlayButtonText: overlayButtonText ?? AppSettings.defaultOverlayButtonText,
+      overlayButtonColor: overlayButtonColor ?? AppSettings.defaultOverlayButtonColor,
     );
   }
 
@@ -31,5 +43,13 @@ class SettingsService {
         StorageKeys.settingsReminderCooldown, settings.reminderCooldownSeconds);
     await prefs.setInt(
         StorageKeys.settingsActivityTimeout, settings.activityTimeoutSeconds);
+    await prefs.setString(
+        StorageKeys.settingsOverlayMessage, settings.overlayMessage);
+    await prefs.setString(
+        StorageKeys.settingsOverlayColor, settings.overlayColor);
+    await prefs.setString(
+        StorageKeys.settingsOverlayButtonText, settings.overlayButtonText);
+    await prefs.setString(
+        StorageKeys.settingsOverlayButtonColor, settings.overlayButtonColor);
   }
 }

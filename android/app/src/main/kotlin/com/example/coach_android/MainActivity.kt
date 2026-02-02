@@ -18,6 +18,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
+import android.graphics.drawable.GradientDrawable
 import android.widget.Button
 import android.widget.TextView
 import androidx.annotation.RequiresApi
@@ -281,15 +282,67 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
         Log.d(TAG, "Showing overlay for package: $packageName")
         overlayView = layoutInflater?.inflate(R.layout.overlay_layout, null)
 
-        // Update the TextView
+        // Read overlay preferences
+        val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+        val customMessage = prefs.getString("flutter.settingsOverlayMessage", "") ?: ""
+        val overlayColorHex = prefs.getString("flutter.settingsOverlayColor", "FF000000") ?: "FF000000"
+        val customButtonText = prefs.getString("flutter.settingsOverlayButtonText", "") ?: ""
+        val buttonColorHex = prefs.getString("flutter.settingsOverlayButtonColor", "FFFF5252") ?: "FFFF5252"
+
+        // Resolve friendly app name
+        val appName = if (packageName != null && packageName.isNotEmpty()) {
+            try {
+                val appInfo = packageManager.getApplicationInfo(packageName, 0)
+                appInfo.loadLabel(packageManager).toString()
+            } catch (e: PackageManager.NameNotFoundException) {
+                packageName
+            }
+        } else {
+            null
+        }
+
+        // Build display text
         overlayView?.findViewById<TextView>(R.id.overlay_text)?.let { textView ->
-            val displayText = if (packageName != null && packageName.isNotEmpty()) {
-                "I detected app $packageName.\nIt's time to focus!"
+            val displayText = if (customMessage.isNotEmpty()) {
+                if (appName != null) {
+                    customMessage.replace("{app}", appName)
+                } else {
+                    customMessage.replace("{app}", "")
+                }
+            } else if (appName != null) {
+                "I detected $appName.\nIt's time to focus!"
             } else {
                 "Focus Time!"
             }
             textView.text = displayText
             Log.d(TAG, "Set overlay text to: $displayText")
+        }
+
+        // Apply dynamic background color (with 80% alpha)
+        val bgColor = try {
+            java.lang.Long.parseLong(overlayColorHex, 16).toInt()
+        } catch (e: NumberFormatException) {
+            0xFF000000.toInt()
+        }
+        // Replace alpha channel with CC (80%)
+        val bgColorWithAlpha = (0xCC shl 24) or (bgColor and 0x00FFFFFF)
+        overlayView?.background = GradientDrawable().apply {
+            setColor(bgColorWithAlpha)
+            cornerRadius = 16f * resources.displayMetrics.density
+            setStroke((1f * resources.displayMetrics.density).toInt(), 0xFFFFFFFF.toInt())
+        }
+
+        // Apply custom button text and color
+        overlayView?.findViewById<Button>(R.id.close_overlay_button)?.let { button ->
+            if (customButtonText.isNotEmpty()) {
+                button.text = customButtonText
+            }
+            val buttonColor = try {
+                java.lang.Long.parseLong(buttonColorHex, 16).toInt()
+            } catch (e: NumberFormatException) {
+                0xFFFF5252.toInt()
+            }
+            button.backgroundTintList = android.content.res.ColorStateList.valueOf(buttonColor)
         }
 
         // Find the close button and set its click listener
