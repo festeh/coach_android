@@ -33,6 +33,12 @@ class AppSettings {
   /// Rules overlay button color as hex string.
   final String rulesOverlayButtonColor;
 
+  /// Package name of app to open when coach overlay button is pressed. Empty = home screen.
+  final String overlayTargetApp;
+
+  /// Package name of app to open when rules overlay button is pressed. Empty = home screen.
+  final String rulesOverlayTargetApp;
+
   /// Long press challenge duration in seconds.
   final int longPressDurationSeconds;
 
@@ -51,6 +57,8 @@ class AppSettings {
     this.rulesOverlayColor = defaultRulesOverlayColor,
     this.rulesOverlayButtonText = defaultRulesOverlayButtonText,
     this.rulesOverlayButtonColor = defaultRulesOverlayButtonColor,
+    this.overlayTargetApp = defaultOverlayTargetApp,
+    this.rulesOverlayTargetApp = defaultRulesOverlayTargetApp,
     this.longPressDurationSeconds = defaultLongPressDurationSeconds,
     this.typingPhrase = defaultTypingPhrase,
   });
@@ -66,6 +74,8 @@ class AppSettings {
   static const String defaultRulesOverlayColor = 'FF000000';
   static const String defaultRulesOverlayButtonText = '';
   static const String defaultRulesOverlayButtonColor = 'FFFF5252';
+  static const String defaultOverlayTargetApp = '';
+  static const String defaultRulesOverlayTargetApp = '';
   static const int defaultLongPressDurationSeconds = 5;
   static const String defaultTypingPhrase = 'I will focus';
 
@@ -85,6 +95,8 @@ class AppSettings {
     String? rulesOverlayColor,
     String? rulesOverlayButtonText,
     String? rulesOverlayButtonColor,
+    String? overlayTargetApp,
+    String? rulesOverlayTargetApp,
     int? longPressDurationSeconds,
     String? typingPhrase,
   }) {
@@ -103,6 +115,8 @@ class AppSettings {
       rulesOverlayColor: rulesOverlayColor ?? this.rulesOverlayColor,
       rulesOverlayButtonText: rulesOverlayButtonText ?? this.rulesOverlayButtonText,
       rulesOverlayButtonColor: rulesOverlayButtonColor ?? this.rulesOverlayButtonColor,
+      overlayTargetApp: overlayTargetApp ?? this.overlayTargetApp,
+      rulesOverlayTargetApp: rulesOverlayTargetApp ?? this.rulesOverlayTargetApp,
       longPressDurationSeconds: longPressDurationSeconds ?? this.longPressDurationSeconds,
       typingPhrase: typingPhrase ?? this.typingPhrase,
     );

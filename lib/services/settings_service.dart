@@ -25,6 +25,10 @@ class SettingsService {
         prefs.getString(StorageKeys.settingsRulesOverlayButtonText);
     final rulesOverlayButtonColor =
         prefs.getString(StorageKeys.settingsRulesOverlayButtonColor);
+    final overlayTargetApp =
+        prefs.getString(StorageKeys.settingsOverlayTargetApp);
+    final rulesOverlayTargetApp =
+        prefs.getString(StorageKeys.settingsRulesOverlayTargetApp);
     final longPressDuration =
         prefs.getInt(StorageKeys.settingsLongPressDuration);
     final typingPhrase =
@@ -48,6 +52,8 @@ class SettingsService {
       rulesOverlayColor: rulesOverlayColor ?? AppSettings.defaultRulesOverlayColor,
       rulesOverlayButtonText: rulesOverlayButtonText ?? AppSettings.defaultRulesOverlayButtonText,
       rulesOverlayButtonColor: rulesOverlayButtonColor ?? AppSettings.defaultRulesOverlayButtonColor,
+      overlayTargetApp: overlayTargetApp ?? AppSettings.defaultOverlayTargetApp,
+      rulesOverlayTargetApp: rulesOverlayTargetApp ?? AppSettings.defaultRulesOverlayTargetApp,
       longPressDurationSeconds: longPressDuration ?? AppSettings.defaultLongPressDurationSeconds,
       typingPhrase: typingPhrase ?? AppSettings.defaultTypingPhrase,
     );
@@ -77,6 +83,10 @@ class SettingsService {
         StorageKeys.settingsRulesOverlayButtonText, settings.rulesOverlayButtonText);
     await prefs.setString(
         StorageKeys.settingsRulesOverlayButtonColor, settings.rulesOverlayButtonColor);
+    await prefs.setString(
+        StorageKeys.settingsOverlayTargetApp, settings.overlayTargetApp);
+    await prefs.setString(
+        StorageKeys.settingsRulesOverlayTargetApp, settings.rulesOverlayTargetApp);
     await prefs.setInt(
         StorageKeys.settingsLongPressDuration, settings.longPressDurationSeconds);
     await prefs.setString(

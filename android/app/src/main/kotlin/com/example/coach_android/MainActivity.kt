@@ -46,6 +46,7 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
     private var overlayView: View? = null
     private var layoutInflater: LayoutInflater? = null
     private var currentRuleId: String? = null
+    private var currentTargetApp: String? = null
     private var longPressTimer: CountDownTimer? = null
     
     companion object {
@@ -301,6 +302,8 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
         // Read overlay preferences based on overlay type
         val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
         val isRule = overlayType == "rule"
+        val targetAppKey = if (isRule) "flutter.settingsRulesOverlayTargetApp" else "flutter.settingsOverlayTargetApp"
+        currentTargetApp = prefs.getString(targetAppKey, "") ?: ""
         val messageKey = if (isRule) "flutter.settingsRulesOverlayMessage" else "flutter.settingsOverlayMessage"
         val colorKey = if (isRule) "flutter.settingsRulesOverlayColor" else "flutter.settingsOverlayColor"
         val buttonTextKey = if (isRule) "flutter.settingsRulesOverlayButtonText" else "flutter.settingsOverlayButtonText"
@@ -593,7 +596,30 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
     }
 
     private fun goHomeAndHideOverlay() {
-        Log.d(TAG, "Sending Home intent and hiding overlay.")
+        val targetApp = currentTargetApp
+        if (!targetApp.isNullOrEmpty()) {
+            Log.d(TAG, "Launching target app: $targetApp")
+            val launchIntent = packageManager.getLaunchIntentForPackage(targetApp)
+            if (launchIntent != null) {
+                launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                try {
+                    startActivity(launchIntent)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error launching target app $targetApp, falling back to home", e)
+                    launchHome()
+                }
+            } else {
+                Log.w(TAG, "No launch intent for $targetApp, falling back to home")
+                launchHome()
+            }
+        } else {
+            launchHome()
+        }
+        hideOverlay()
+    }
+
+    private fun launchHome() {
+        Log.d(TAG, "Sending Home intent.")
         val homeIntent = Intent(Intent.ACTION_MAIN)
         homeIntent.addCategory(Intent.CATEGORY_HOME)
         homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -602,7 +628,6 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
         } catch (e: Exception) {
             Log.e(TAG, "Error sending Home intent", e)
         }
-        hideOverlay()
     }
 
     private fun notifyChallengeCompleted() {
@@ -625,6 +650,7 @@ class MainActivity : FlutterActivity(), MethodCallHandler {
         Log.d(TAG, "Hiding overlay...")
         longPressTimer?.cancel()
         longPressTimer = null
+        currentTargetApp = null
         try {
             windowManager?.removeView(overlayView)
             overlayView = null

@@ -27,6 +27,10 @@ class StorageKeys {
   static const String settingsRulesOverlayButtonText = 'settingsRulesOverlayButtonText';
   static const String settingsRulesOverlayButtonColor = 'settingsRulesOverlayButtonColor';
 
+  // Overlay target app (package name to open on button press, empty = home screen)
+  static const String settingsOverlayTargetApp = 'settingsOverlayTargetApp';
+  static const String settingsRulesOverlayTargetApp = 'settingsRulesOverlayTargetApp';
+
   // Challenge settings
   static const String settingsLongPressDuration = 'settingsLongPressDuration';
   static const String settingsTypingPhrase = 'settingsTypingPhrase';

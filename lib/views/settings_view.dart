@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import '../models/app_info.dart';
 import '../models/app_settings.dart';
 import '../services/focus_service.dart';
+import '../services/installed_apps_service.dart';
 import '../services/settings_service.dart';
 
 class SettingsView extends StatefulWidget {
@@ -69,6 +71,7 @@ class _SettingsViewState extends State<SettingsView> {
       overlayColor: AppSettings.defaultOverlayColor,
       overlayButtonText: AppSettings.defaultOverlayButtonText,
       overlayButtonColor: AppSettings.defaultOverlayButtonColor,
+      overlayTargetApp: AppSettings.defaultOverlayTargetApp,
     ));
   }
 
@@ -80,6 +83,7 @@ class _SettingsViewState extends State<SettingsView> {
       rulesOverlayColor: AppSettings.defaultRulesOverlayColor,
       rulesOverlayButtonText: AppSettings.defaultRulesOverlayButtonText,
       rulesOverlayButtonColor: AppSettings.defaultRulesOverlayButtonColor,
+      rulesOverlayTargetApp: AppSettings.defaultRulesOverlayTargetApp,
     ));
   }
 
@@ -117,6 +121,100 @@ class _SettingsViewState extends State<SettingsView> {
               Navigator.of(ctx).pop();
             },
             child: const Text('Select'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _targetAppDisplayName(String packageName) {
+    if (packageName.isEmpty) return 'Home screen';
+    if (InstalledAppsService.instance.isInitialized) {
+      return InstalledAppsService.instance.getAppName(packageName);
+    }
+    return packageName.split('.').last;
+  }
+
+  Future<void> _showTargetAppPicker(String currentPackage, ValueChanged<String> onSelected) async {
+    if (!InstalledAppsService.instance.isInitialized) {
+      await InstalledAppsService.instance.init();
+    }
+    final apps = List<AppInfo>.from(InstalledAppsService.instance.installedApps)
+      ..sort((a, b) => a.name.compareTo(b.name));
+
+    if (!mounted) return;
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.3,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (ctx, scrollController) => Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('Button opens', style: Theme.of(ctx).textTheme.titleMedium),
+            ),
+            Expanded(
+              child: ListView.builder(
+                controller: scrollController,
+                itemCount: apps.length + 1,
+                itemBuilder: (ctx, index) {
+                  if (index == 0) {
+                    return ListTile(
+                      leading: const Icon(Icons.home),
+                      title: const Text('Home screen'),
+                      trailing: currentPackage.isEmpty ? const Icon(Icons.check) : null,
+                      onTap: () {
+                        onSelected('');
+                        Navigator.of(ctx).pop();
+                      },
+                    );
+                  }
+                  final app = apps[index - 1];
+                  final isSelected = app.packageName == currentPackage;
+                  return ListTile(
+                    title: Text(app.name),
+                    subtitle: Text(app.packageName, style: Theme.of(ctx).textTheme.bodySmall),
+                    trailing: isSelected ? const Icon(Icons.check) : null,
+                    onTap: () {
+                      onSelected(app.packageName);
+                      Navigator.of(ctx).pop();
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _targetAppTile(String label, String packageName, ValueChanged<String> onChanged) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: Theme.of(context).textTheme.bodyLarge),
+                Text(
+                  _targetAppDisplayName(packageName),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_right),
+            onPressed: () => _showTargetAppPicker(packageName, onChanged),
           ),
         ],
       ),
@@ -280,6 +378,11 @@ class _SettingsViewState extends State<SettingsView> {
                   _settings.overlayButtonColor,
                   (v) => _save(_settings.copyWith(overlayButtonColor: v)),
                 ),
+                _targetAppTile(
+                  'Button opens',
+                  _settings.overlayTargetApp,
+                  (v) => _save(_settings.copyWith(overlayTargetApp: v)),
+                ),
                 const SizedBox(height: 8),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -366,6 +469,11 @@ class _SettingsViewState extends State<SettingsView> {
                   'Button color',
                   _settings.rulesOverlayButtonColor,
                   (v) => _save(_settings.copyWith(rulesOverlayButtonColor: v)),
+                ),
+                _targetAppTile(
+                  'Button opens',
+                  _settings.rulesOverlayTargetApp,
+                  (v) => _save(_settings.copyWith(rulesOverlayTargetApp: v)),
                 ),
                 const SizedBox(height: 8),
                 Padding(
