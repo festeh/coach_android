@@ -5,62 +5,23 @@ import '../../services/focus_service.dart';
 
 final _log = Logger('PermissionsProvider');
 
-class PermissionsState {
-  final bool hasUsageStatsPermission;
-  final bool isCheckingPermission;
-  final String? errorMessage;
-
-  const PermissionsState({
-    this.hasUsageStatsPermission = false,
-    this.isCheckingPermission = false,
-    this.errorMessage,
-  });
-
-  PermissionsState copyWith({
-    bool? hasUsageStatsPermission,
-    bool? isCheckingPermission,
-    String? errorMessage,
-  }) {
-    return PermissionsState(
-      hasUsageStatsPermission: hasUsageStatsPermission ?? this.hasUsageStatsPermission,
-      isCheckingPermission: isCheckingPermission ?? this.isCheckingPermission,
-      errorMessage: errorMessage ?? this.errorMessage,
-    );
-  }
-}
-
-class PermissionsNotifier extends Notifier<PermissionsState> {
+class PermissionsNotifier extends AsyncNotifier<bool> {
   @override
-  PermissionsState build() {
-    _checkInitialPermission();
-    return const PermissionsState();
-  }
-
-  Future<void> _checkInitialPermission() async {
-    state = state.copyWith(isCheckingPermission: true);
+  Future<bool> build() async {
     try {
-      final hasPermission = await FocusService.checkUsageStatsPermission();
-      state = state.copyWith(
-        hasUsageStatsPermission: hasPermission,
-        isCheckingPermission: false,
-        errorMessage: null,
-      );
+      return await FocusService.checkUsageStatsPermission();
     } catch (e) {
       _log.severe('Failed to check initial permission: $e');
-      state = state.copyWith(
-        isCheckingPermission: false,
-        errorMessage: e.toString(),
-      );
+      rethrow;
     }
   }
 
   Future<bool> checkAndRequestUsageStatsPermission(BuildContext context) async {
-    state = state.copyWith(isCheckingPermission: true);
+    state = const AsyncLoading();
 
     bool hasPermission = await FocusService.checkUsageStatsPermission();
 
     if (!hasPermission && context.mounted) {
-      // Show dialog to request permission
       final shouldRequest = await showDialog<bool>(
         context: context,
         barrierDismissible: false,
@@ -87,22 +48,18 @@ class PermissionsNotifier extends Notifier<PermissionsState> {
 
       if (shouldRequest == true) {
         await FocusService.requestUsageStatsPermission();
-        // Check again after user returns from settings
         hasPermission = await FocusService.checkUsageStatsPermission();
       }
     }
 
-    state = state.copyWith(
-      hasUsageStatsPermission: hasPermission,
-      isCheckingPermission: false,
-    );
-
+    state = AsyncData(hasPermission);
     return hasPermission;
   }
 
   Future<void> refreshPermissionStatus() async {
-    await _checkInitialPermission();
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() => FocusService.checkUsageStatsPermission());
   }
 }
 
-final permissionsProvider = NotifierProvider<PermissionsNotifier, PermissionsState>(PermissionsNotifier.new);
+final permissionsProvider = AsyncNotifierProvider<PermissionsNotifier, bool>(PermissionsNotifier.new);
