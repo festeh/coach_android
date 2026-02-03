@@ -69,7 +69,7 @@ class FocusMonitorService : Service() {
         Log.d(TAG, "Service onStartCommand with action: ${intent?.action}")
         
         when (intent?.action) {
-            ACTION_START_SERVICE -> {
+            ACTION_START_SERVICE, null -> {
                 startForegroundService()
             }
             ACTION_STOP_SERVICE -> {
