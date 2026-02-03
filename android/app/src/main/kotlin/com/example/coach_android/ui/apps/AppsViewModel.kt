@@ -1,8 +1,6 @@
 package com.example.coach_android.ui.apps
 
 import android.app.Application
-import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.coach_android.FocusMonitorService
@@ -44,7 +42,7 @@ class AppsViewModel(
 
     private fun loadData() {
         viewModelScope.launch {
-            val apps = withContext(Dispatchers.IO) { loadInstalledApps() }
+            val apps = withContext(Dispatchers.IO) { AppInfo.loadInstalled(getApplication<Application>().packageManager) }
             val selected = prefs.loadMonitoredPackages()
             val rules = prefs.loadRules()
             val focusData = prefs.loadFocusData()
@@ -66,10 +64,6 @@ class AppsViewModel(
 
     fun refreshFromService() {
         val logic = FocusMonitorService.getInstance()?.getMonitorLogic() ?: return
-        ruleCounterDao = ruleCounterDao ?: run {
-            val container = FocusMonitorService.getInstance()?.let { null } // We'll get it from prefs reload
-            null
-        }
 
         viewModelScope.launch {
             logic.focusData.collect { data ->
@@ -83,23 +77,6 @@ class AppsViewModel(
         }
     }
 
-    private fun loadInstalledApps(): List<AppInfo> {
-        val pm = getApplication<Application>().packageManager
-        return pm
-            .getInstalledApplications(PackageManager.GET_META_DATA)
-            .filter { (it.flags and ApplicationInfo.FLAG_SYSTEM) == 0 }
-            .mapNotNull { info ->
-                try {
-                    AppInfo(
-                        name = info.loadLabel(pm).toString(),
-                        packageName = info.packageName,
-                    )
-                } catch (_: Exception) {
-                    null
-                }
-            }.sortedBy { it.name.lowercase() }
-    }
-
     fun toggleCoach(
         packageName: String,
         enabled: Boolean,
@@ -108,22 +85,20 @@ class AppsViewModel(
         if (enabled) current.add(packageName) else current.remove(packageName)
         _state.value = _state.value.copy(selectedPackages = current)
         prefs.saveMonitoredPackages(current)
-        FocusMonitorService.getInstance()?.reloadMonitoredPackages()
+        FocusMonitorService.getInstance()?.getMonitorLogic()?.reloadMonitoredPackages()
     }
 
     fun saveRule(rule: AppRule) {
-        val rules = _state.value.rules.toMutableMap()
-        rules[rule.id] = rule
-        _state.value = _state.value.copy(rules = rules)
-        prefs.saveRules(rules)
+        val updated = _state.value.rules + (rule.id to rule)
+        _state.value = _state.value.copy(rules = updated)
+        prefs.saveRules(updated)
         FocusMonitorService.getInstance()?.getMonitorLogic()?.reloadRules()
     }
 
     fun deleteRule(rule: AppRule) {
-        val rules = _state.value.rules.toMutableMap()
-        rules.remove(rule.id)
-        _state.value = _state.value.copy(rules = rules)
-        prefs.saveRules(rules)
+        val updated = _state.value.rules - rule.id
+        _state.value = _state.value.copy(rules = updated)
+        prefs.saveRules(updated)
         FocusMonitorService.getInstance()?.getMonitorLogic()?.reloadRules()
     }
 
@@ -173,11 +148,11 @@ class AppsViewModel(
     }
 
     fun sendFocusCommand() {
-        FocusMonitorService.getInstance()?.sendFocusCommand()
+        FocusMonitorService.getInstance()?.getMonitorLogic()?.sendFocusCommand()
     }
 
     fun refreshFocusState() {
-        FocusMonitorService.getInstance()?.requestFocusStateRefresh()
+        FocusMonitorService.getInstance()?.getMonitorLogic()?.refreshFocusState()
     }
 
     fun rulesForPackage(packageName: String): List<AppRule> =

@@ -106,14 +106,14 @@ class PopNotificationManager(
             "Showing focus reminder - gap: ${sinceLastChange}s, activity: ${timeSinceActivity}s ago, last reminder: ${timeSinceLastReminder}s ago",
         )
         showFocusReminder()
-
-        sharedPrefs
-            .edit()
-            .putLong(PREF_LAST_REMINDER_TIME, currentTime)
-            .apply()
     }
 
     private fun showFocusReminder() {
+        sharedPrefs
+            .edit()
+            .putLong(PREF_LAST_REMINDER_TIME, System.currentTimeMillis() / 1000)
+            .apply()
+
         val focusIntent =
             Intent(context, FocusMonitorService::class.java).apply {
                 action = FocusMonitorService.ACTION_FOCUS_NOW
@@ -155,18 +155,12 @@ class PopNotificationManager(
         notificationManager.notify(NOTIFICATION_ID, notification)
         Log.i(TAG, "Focus reminder notification shown")
 
-        FocusMonitorService.getInstance()?.updateNotificationTimeInBackground()
+        FocusMonitorService.getInstance()?.getMonitorLogic()?.updateNotificationTime()
     }
 
     fun forceShowFocusReminder() {
         Log.i(TAG, "Force showing focus reminder (debug)")
         showFocusReminder()
-
-        val currentTime = System.currentTimeMillis() / 1000
-        sharedPrefs
-            .edit()
-            .putLong(PREF_LAST_REMINDER_TIME, currentTime)
-            .apply()
     }
 
     fun dismissReminder() {

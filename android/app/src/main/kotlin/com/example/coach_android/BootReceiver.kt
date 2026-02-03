@@ -3,7 +3,6 @@ package com.example.coach_android
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.util.Log
 
 class BootReceiver : BroadcastReceiver() {
@@ -24,12 +23,7 @@ class BootReceiver : BroadcastReceiver() {
                 Intent(context, FocusMonitorService::class.java).apply {
                     action = FocusMonitorService.ACTION_START_SERVICE
                 }
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(serviceIntent)
-            } else {
-                context.startService(serviceIntent)
-            }
+            context.startForegroundService(serviceIntent)
         }
     }
 }

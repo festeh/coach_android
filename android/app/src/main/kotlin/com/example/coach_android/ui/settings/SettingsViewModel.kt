@@ -1,10 +1,9 @@
 package com.example.coach_android.ui.settings
 
 import android.app.Application
-import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.coach_android.data.model.AppInfo
 import com.example.coach_android.data.model.AppSettings
 import com.example.coach_android.data.preferences.PreferencesManager
 import kotlinx.coroutines.Dispatchers
@@ -14,14 +13,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-data class SimpleAppInfo(
-    val name: String,
-    val packageName: String,
-)
-
 data class SettingsUiState(
     val settings: AppSettings = AppSettings(),
-    val installedApps: List<SimpleAppInfo> = emptyList(),
+    val installedApps: List<AppInfo> = emptyList(),
     val isLoading: Boolean = true,
 )
 
@@ -39,7 +33,7 @@ class SettingsViewModel(
     private fun load() {
         viewModelScope.launch {
             val settings = prefs.loadSettings()
-            val apps = withContext(Dispatchers.IO) { loadApps() }
+            val apps = withContext(Dispatchers.IO) { AppInfo.loadInstalled(getApplication<Application>().packageManager) }
             _state.value =
                 SettingsUiState(
                     settings = settings,
@@ -47,23 +41,6 @@ class SettingsViewModel(
                     isLoading = false,
                 )
         }
-    }
-
-    private fun loadApps(): List<SimpleAppInfo> {
-        val pm = getApplication<Application>().packageManager
-        return pm
-            .getInstalledApplications(PackageManager.GET_META_DATA)
-            .filter { (it.flags and ApplicationInfo.FLAG_SYSTEM) == 0 }
-            .mapNotNull { info ->
-                try {
-                    SimpleAppInfo(
-                        name = info.loadLabel(pm).toString(),
-                        packageName = info.packageName,
-                    )
-                } catch (_: Exception) {
-                    null
-                }
-            }.sortedBy { it.name.lowercase() }
     }
 
     fun updateSettings(transform: (AppSettings) -> AppSettings) {

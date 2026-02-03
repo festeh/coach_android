@@ -105,10 +105,10 @@ class DebugViewModel(
     }
 
     fun forceReminder() {
-        FocusMonitorService.getInstance()?.forceShowFocusReminder()
+        FocusMonitorService.getInstance()?.getMonitorLogic()?.forceShowFocusReminder()
     }
 
     fun refreshFocusState() {
-        FocusMonitorService.getInstance()?.requestFocusStateRefresh()
+        FocusMonitorService.getInstance()?.getMonitorLogic()?.refreshFocusState()
     }
 }

@@ -95,69 +95,45 @@ class PreferencesManager(
 
     // --- App Settings ---
 
-    fun loadSettings(): AppSettings {
-        val gapSeconds = prefs.getInt("settingsFocusGapThreshold", -1)
-        val cooldownSeconds = prefs.getInt("settingsReminderCooldown", -1)
-        val timeoutSeconds = prefs.getInt("settingsActivityTimeout", -1)
+    private fun str(
+        key: String,
+        default: String,
+    ): String = prefs.getString(key, null) ?: default
 
-        return AppSettings(
-            focusGapThresholdMinutes =
-                if (gapSeconds >= 0) {
-                    gapSeconds / 60
-                } else {
-                    AppSettings.DEFAULT_FOCUS_GAP_THRESHOLD_MINUTES
-                },
-            reminderCooldownMinutes =
-                if (cooldownSeconds >= 0) {
-                    cooldownSeconds / 60
-                } else {
-                    AppSettings.DEFAULT_REMINDER_COOLDOWN_MINUTES
-                },
-            activityTimeoutMinutes =
-                if (timeoutSeconds >= 0) {
-                    timeoutSeconds / 60
-                } else {
-                    AppSettings.DEFAULT_ACTIVITY_TIMEOUT_MINUTES
-                },
-            overlayMessage =
-                prefs.getString("settingsOverlayMessage", null)
-                    ?: AppSettings.DEFAULT_OVERLAY_MESSAGE,
-            overlayColor =
-                prefs.getString("settingsOverlayColor", null)
-                    ?: AppSettings.DEFAULT_OVERLAY_COLOR,
-            overlayButtonText =
-                prefs.getString("settingsOverlayButtonText", null)
-                    ?: AppSettings.DEFAULT_OVERLAY_BUTTON_TEXT,
-            overlayButtonColor =
-                prefs.getString("settingsOverlayButtonColor", null)
-                    ?: AppSettings.DEFAULT_OVERLAY_BUTTON_COLOR,
-            rulesOverlayMessage =
-                prefs.getString("settingsRulesOverlayMessage", null)
-                    ?: AppSettings.DEFAULT_RULES_OVERLAY_MESSAGE,
-            rulesOverlayColor =
-                prefs.getString("settingsRulesOverlayColor", null)
-                    ?: AppSettings.DEFAULT_RULES_OVERLAY_COLOR,
-            rulesOverlayButtonText =
-                prefs.getString("settingsRulesOverlayButtonText", null)
-                    ?: AppSettings.DEFAULT_RULES_OVERLAY_BUTTON_TEXT,
-            rulesOverlayButtonColor =
-                prefs.getString("settingsRulesOverlayButtonColor", null)
-                    ?: AppSettings.DEFAULT_RULES_OVERLAY_BUTTON_COLOR,
-            overlayTargetApp =
-                prefs.getString("settingsOverlayTargetApp", null)
-                    ?: AppSettings.DEFAULT_OVERLAY_TARGET_APP,
-            rulesOverlayTargetApp =
-                prefs.getString("settingsRulesOverlayTargetApp", null)
-                    ?: AppSettings.DEFAULT_RULES_OVERLAY_TARGET_APP,
-            longPressDurationSeconds =
-                prefs
-                    .getInt("settingsLongPressDuration", -1)
-                    .let { if (it >= 0) it else AppSettings.DEFAULT_LONG_PRESS_DURATION_SECONDS },
-            typingPhrase =
-                prefs.getString("settingsTypingPhrase", null)
-                    ?: AppSettings.DEFAULT_TYPING_PHRASE,
-        )
+    private fun secondsToMinutes(
+        key: String,
+        defaultMinutes: Int,
+    ): Int {
+        val seconds = prefs.getInt(key, -1)
+        return if (seconds >= 0) seconds / 60 else defaultMinutes
     }
+
+    private fun int(
+        key: String,
+        default: Int,
+    ): Int {
+        val v = prefs.getInt(key, -1)
+        return if (v >= 0) v else default
+    }
+
+    fun loadSettings(): AppSettings =
+        AppSettings(
+            focusGapThresholdMinutes = secondsToMinutes("settingsFocusGapThreshold", AppSettings.DEFAULT_FOCUS_GAP_THRESHOLD_MINUTES),
+            reminderCooldownMinutes = secondsToMinutes("settingsReminderCooldown", AppSettings.DEFAULT_REMINDER_COOLDOWN_MINUTES),
+            activityTimeoutMinutes = secondsToMinutes("settingsActivityTimeout", AppSettings.DEFAULT_ACTIVITY_TIMEOUT_MINUTES),
+            overlayMessage = str("settingsOverlayMessage", AppSettings.DEFAULT_OVERLAY_MESSAGE),
+            overlayColor = str("settingsOverlayColor", AppSettings.DEFAULT_OVERLAY_COLOR),
+            overlayButtonText = str("settingsOverlayButtonText", AppSettings.DEFAULT_OVERLAY_BUTTON_TEXT),
+            overlayButtonColor = str("settingsOverlayButtonColor", AppSettings.DEFAULT_OVERLAY_BUTTON_COLOR),
+            rulesOverlayMessage = str("settingsRulesOverlayMessage", AppSettings.DEFAULT_RULES_OVERLAY_MESSAGE),
+            rulesOverlayColor = str("settingsRulesOverlayColor", AppSettings.DEFAULT_RULES_OVERLAY_COLOR),
+            rulesOverlayButtonText = str("settingsRulesOverlayButtonText", AppSettings.DEFAULT_RULES_OVERLAY_BUTTON_TEXT),
+            rulesOverlayButtonColor = str("settingsRulesOverlayButtonColor", AppSettings.DEFAULT_RULES_OVERLAY_BUTTON_COLOR),
+            overlayTargetApp = str("settingsOverlayTargetApp", AppSettings.DEFAULT_OVERLAY_TARGET_APP),
+            rulesOverlayTargetApp = str("settingsRulesOverlayTargetApp", AppSettings.DEFAULT_RULES_OVERLAY_TARGET_APP),
+            longPressDurationSeconds = int("settingsLongPressDuration", AppSettings.DEFAULT_LONG_PRESS_DURATION_SECONDS),
+            typingPhrase = str("settingsTypingPhrase", AppSettings.DEFAULT_TYPING_PHRASE),
+        )
 
     fun saveSettings(settings: AppSettings) {
         prefs

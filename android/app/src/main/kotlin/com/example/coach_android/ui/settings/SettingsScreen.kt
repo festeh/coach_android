@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.coach_android.data.model.AppInfo
 
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
@@ -159,7 +160,7 @@ private fun OverlaySettings(
     colorHex: String,
     buttonColorHex: String,
     targetApp: String,
-    installedApps: List<SimpleAppInfo>,
+    installedApps: List<AppInfo>,
     onMessageChange: (String) -> Unit,
     onButtonTextChange: (String) -> Unit,
     onColorChange: (String) -> Unit,

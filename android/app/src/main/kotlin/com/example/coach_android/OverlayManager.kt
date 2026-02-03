@@ -33,6 +33,7 @@ class OverlayManager(
 
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val layoutInflater = LayoutInflater.from(context)
+    private val density = context.resources.displayMetrics.density
 
     private var overlayView: View? = null
     private var currentRuleId: String? = null
@@ -73,7 +74,7 @@ class OverlayManager(
         val buttonColorHex = if (isRule) settings.rulesOverlayButtonColor else settings.overlayButtonColor
 
         val appName =
-            if (!packageName.isNullOrEmpty()) {
+            if (packageName.isNotEmpty()) {
                 try {
                     val appInfo = context.packageManager.getApplicationInfo(packageName, 0)
                     appInfo.loadLabel(context.packageManager).toString()
@@ -86,46 +87,22 @@ class OverlayManager(
 
         val displayText =
             if (customMessage.isNotEmpty()) {
-                if (appName != null) {
-                    customMessage.replace("{app}", appName)
-                } else {
-                    customMessage.replace("{app}", "")
-                }
+                customMessage.replace("{app}", appName ?: "")
             } else if (appName != null) {
                 "I detected $appName.\nIt's time to focus!"
             } else {
                 "Focus Time!"
             }
 
-        val bgColor =
-            try {
-                java.lang.Long
-                    .parseLong(overlayColorHex, 16)
-                    .toInt()
-            } catch (_: NumberFormatException) {
-                0xFF000000.toInt()
-            }
+        val bgColor = parseColor(overlayColorHex, 0xFF000000.toInt())
         val bgColorWithAlpha = (0xCC shl 24) or (bgColor and 0x00FFFFFF)
-        val buttonColor =
-            try {
-                java.lang.Long
-                    .parseLong(buttonColorHex, 16)
-                    .toInt()
-            } catch (_: NumberFormatException) {
-                0xFFFF5252.toInt()
-            }
-
-        val density = context.resources.displayMetrics.density
+        val buttonColor = parseColor(buttonColorHex, 0xFFFF5252.toInt())
 
         overlayView =
             when (effectiveChallengeType) {
-                "longPress" -> {
-                    buildLongPressChallengeView(displayText, bgColorWithAlpha, buttonColor, density, settings.longPressDurationSeconds)
-                }
-                "typing" -> {
-                    buildTypingChallengeView(displayText, bgColorWithAlpha, buttonColor, density, settings.typingPhrase)
-                }
-                else -> buildStandardOverlayView(displayText, bgColorWithAlpha, buttonColor, customButtonText, density)
+                "longPress" -> buildLongPressChallengeView(displayText, bgColorWithAlpha, buttonColor, settings.longPressDurationSeconds)
+                "typing" -> buildTypingChallengeView(displayText, bgColorWithAlpha, buttonColor, settings.typingPhrase)
+                else -> buildStandardOverlayView(displayText, bgColorWithAlpha, buttonColor, customButtonText)
             }
 
         val params =
@@ -158,6 +135,68 @@ class OverlayManager(
         } catch (e: Exception) {
             Log.e(TAG, "Error removing overlay view", e)
         }
+    }
+
+    // --- Helpers ---
+
+    private fun parseColor(
+        hex: String,
+        default: Int,
+    ): Int =
+        try {
+            java.lang.Long
+                .parseLong(hex, 16)
+                .toInt()
+        } catch (_: NumberFormatException) {
+            default
+        }
+
+    private fun dp(value: Int): Int = (value * density).toInt()
+
+    private fun buildChallengeRoot(bgColor: Int): LinearLayout =
+        LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), dp(24), dp(24), dp(24))
+            background =
+                GradientDrawable().apply {
+                    setColor(bgColor)
+                    cornerRadius = 16f * density
+                    setStroke(dp(1), 0xFFFFFFFF.toInt())
+                }
+        }
+
+    private fun addCloseButton(root: LinearLayout) {
+        val closeButton =
+            TextView(context).apply {
+                text = "\u2715"
+                setTextColor(0xAAFFFFFF.toInt())
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+                gravity = Gravity.END
+                setPadding(0, 0, 0, dp(8))
+                setOnClickListener { goHomeAndHide() }
+            }
+        root.addView(
+            closeButton,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ),
+        )
+    }
+
+    private fun addDisplayText(
+        root: LinearLayout,
+        text: String,
+    ) {
+        val textView =
+            TextView(context).apply {
+                this.text = text
+                setTextColor(0xFFFFFFFF.toInt())
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+                setTypeface(typeface, Typeface.BOLD)
+                setPadding(dp(8), dp(8), dp(8), dp(8))
+            }
+        root.addView(textView)
     }
 
     private fun goHomeAndHide() {
@@ -210,7 +249,6 @@ class OverlayManager(
         bgColor: Int,
         buttonColor: Int,
         customButtonText: String,
-        density: Float,
     ): View {
         val view = layoutInflater.inflate(R.layout.overlay_layout, null)
 
@@ -219,7 +257,7 @@ class OverlayManager(
             GradientDrawable().apply {
                 setColor(bgColor)
                 cornerRadius = 16f * density
-                setStroke((1f * density).toInt(), 0xFFFFFFFF.toInt())
+                setStroke(dp(1), 0xFFFFFFFF.toInt())
             }
 
         view.findViewById<Button>(R.id.close_overlay_button)?.let { button ->
@@ -235,49 +273,11 @@ class OverlayManager(
         displayText: String,
         bgColor: Int,
         buttonColor: Int,
-        density: Float,
         durationSeconds: Int,
     ): View {
-        val dp = { value: Int -> (value * density).toInt() }
-
-        val root =
-            LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(dp(24), dp(24), dp(24), dp(24))
-                background =
-                    GradientDrawable().apply {
-                        setColor(bgColor)
-                        cornerRadius = 16f * density
-                        setStroke((1f * density).toInt(), 0xFFFFFFFF.toInt())
-                    }
-            }
-
-        val closeButton =
-            TextView(context).apply {
-                text = "\u2715"
-                setTextColor(0xAAFFFFFF.toInt())
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
-                gravity = Gravity.END
-                setPadding(0, 0, 0, dp(8))
-                setOnClickListener { goHomeAndHide() }
-            }
-        root.addView(
-            closeButton,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ),
-        )
-
-        val textView =
-            TextView(context).apply {
-                text = displayText
-                setTextColor(0xFFFFFFFF.toInt())
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
-                setTypeface(typeface, Typeface.BOLD)
-                setPadding(dp(8), dp(8), dp(8), dp(8))
-            }
-        root.addView(textView)
+        val root = buildChallengeRoot(bgColor)
+        addCloseButton(root)
+        addDisplayText(root, displayText)
 
         val progressBar =
             ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
@@ -345,49 +345,11 @@ class OverlayManager(
         displayText: String,
         bgColor: Int,
         buttonColor: Int,
-        density: Float,
         phrase: String,
     ): View {
-        val dp = { value: Int -> (value * density).toInt() }
-
-        val root =
-            LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(dp(24), dp(24), dp(24), dp(24))
-                background =
-                    GradientDrawable().apply {
-                        setColor(bgColor)
-                        cornerRadius = 16f * density
-                        setStroke((1f * density).toInt(), 0xFFFFFFFF.toInt())
-                    }
-            }
-
-        val closeButton =
-            TextView(context).apply {
-                text = "\u2715"
-                setTextColor(0xAAFFFFFF.toInt())
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
-                gravity = Gravity.END
-                setPadding(0, 0, 0, dp(8))
-                setOnClickListener { goHomeAndHide() }
-            }
-        root.addView(
-            closeButton,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ),
-        )
-
-        val textView =
-            TextView(context).apply {
-                text = displayText
-                setTextColor(0xFFFFFFFF.toInt())
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
-                setTypeface(typeface, Typeface.BOLD)
-                setPadding(dp(8), dp(8), dp(8), dp(8))
-            }
-        root.addView(textView)
+        val root = buildChallengeRoot(bgColor)
+        addCloseButton(root)
+        addDisplayText(root, displayText)
 
         val instructionText =
             TextView(context).apply {
@@ -443,8 +405,8 @@ class OverlayManager(
                 override fun onTextChanged(
                     s: CharSequence?,
                     start: Int,
-                    before: Int,
                     count: Int,
+                    after: Int,
                 ) {}
 
                 override fun afterTextChanged(s: Editable?) {

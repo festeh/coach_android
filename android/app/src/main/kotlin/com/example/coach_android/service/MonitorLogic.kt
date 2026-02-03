@@ -10,8 +10,11 @@ import com.example.coach_android.data.preferences.PreferencesManager
 import com.example.coach_android.data.websocket.WebSocketService
 import com.example.coach_android.util.TimeFormatter
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class MonitorLogic(
@@ -27,14 +30,17 @@ class MonitorLogic(
     private val _focusData = MutableStateFlow(FocusData())
     val focusData: StateFlow<FocusData> = _focusData.asStateFlow()
 
+    private val _reminderCheck = MutableSharedFlow<Pair<Int, Boolean>>(extraBufferCapacity = 4)
+    val reminderCheck: SharedFlow<Pair<Int, Boolean>> = _reminderCheck.asSharedFlow()
+
+    private val _notificationTimeUpdated = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val notificationTimeUpdated: SharedFlow<Unit> = _notificationTimeUpdated.asSharedFlow()
+
     private var monitoredPackages = emptySet<String>()
     private var rules = emptyMap<String, AppRule>()
     private var pendingChallenges = mutableMapOf<String, String>() // ruleId → packageName
 
-    var overlayController: OverlayController? = null
-    var onFocusDataChanged: ((FocusData) -> Unit)? = null
-    var onCheckFocusReminder: ((sinceLastChange: Int, isFocusing: Boolean) -> Unit)? = null
-    var onNotificationTimeUpdated: (() -> Unit)? = null
+    var overlayManager: com.example.coach_android.OverlayManager? = null
 
     private var webSocketJob: Job? = null
 
@@ -127,8 +133,7 @@ class MonitorLogic(
                 tag,
                 "Focus data updated from WebSocket: focusing=${new.isFocusing}, sinceLastChange=${new.sinceLastChange}, focusTimeLeft=${new.focusTimeLeft}, numFocuses=${new.numFocuses}",
             )
-            onFocusDataChanged?.invoke(new)
-            onCheckFocusReminder?.invoke(new.sinceLastChange, new.isFocusing)
+            _reminderCheck.tryEmit(new.sinceLastChange to new.isFocusing)
         }
     }
 
@@ -160,11 +165,11 @@ class MonitorLogic(
                 if (shouldShow) {
                     Log.i(tag, "SHOWING overlay for app: $packageName")
                     withContext(Dispatchers.Main) {
-                        overlayController?.showOverlay(packageName)
+                        overlayManager?.show(packageName)
                     }
                 } else {
                     withContext(Dispatchers.Main) {
-                        overlayController?.hideOverlay()
+                        overlayManager?.hide()
                     }
                 }
 
@@ -175,7 +180,7 @@ class MonitorLogic(
                 updateActivityTime()
 
                 // Check focus reminder
-                onCheckFocusReminder?.invoke(_focusData.value.sinceLastChange, _focusData.value.isFocusing)
+                _reminderCheck.tryEmit(_focusData.value.sinceLastChange to _focusData.value.isFocusing)
             } catch (e: Exception) {
                 Log.e(tag, "Error handling app change: ${e.message}")
             }
@@ -202,7 +207,7 @@ class MonitorLogic(
             } else {
                 Log.i(tag, "Re-showing pending challenge for rule ${rule.id} on $packageName")
                 withContext(Dispatchers.Main) {
-                    overlayController?.showOverlay(packageName, "rule", rule.challengeType, rule.id)
+                    overlayManager?.show(packageName, "rule", rule.challengeType, rule.id)
                 }
                 return
             }
@@ -233,7 +238,7 @@ class MonitorLogic(
                             Log.i(tag, "Rule ${rule.id} triggered with challenge ${rule.challengeType}, pending completion")
                         }
                         withContext(Dispatchers.Main) {
-                            overlayController?.showOverlay(packageName, "rule", rule.challengeType, rule.id)
+                            overlayManager?.show(packageName, "rule", rule.challengeType, rule.id)
                         }
                         break // Only one rule popup per app open
                     } else {
@@ -255,7 +260,7 @@ class MonitorLogic(
             ruleCounterDao.incrementTriggerCount(ruleId, today)
             Log.i(tag, "Challenge completed for rule $ruleId, trigger count incremented")
             withContext(Dispatchers.Main) {
-                overlayController?.hideOverlay()
+                overlayManager?.hide()
             }
         }
     }
@@ -270,14 +275,12 @@ class MonitorLogic(
         val currentTime = (System.currentTimeMillis() / 1000).toInt()
         _focusData.value = _focusData.value.copy(lastActivityTime = currentTime)
         prefs.saveFocusData(_focusData.value)
-        onFocusDataChanged?.invoke(_focusData.value)
     }
 
     fun updateNotificationTime() {
         val currentTime = (System.currentTimeMillis() / 1000).toInt()
         _focusData.value = _focusData.value.copy(lastNotificationTime = currentTime)
         prefs.saveFocusData(_focusData.value)
-        onFocusDataChanged?.invoke(_focusData.value)
     }
 
     // --- External Triggers ---
@@ -290,12 +293,9 @@ class MonitorLogic(
                 val new = _focusData.value.updateFromWebSocket(response)
                 _focusData.value = new
                 prefs.saveFocusData(new)
-                onFocusDataChanged?.invoke(new)
                 Log.i(tag, "Focus state refreshed: focusing=${new.isFocusing}")
             } catch (e: Exception) {
                 Log.e(tag, "Failed to refresh focus state: ${e.message}")
-                // Still notify UI with cached state
-                onFocusDataChanged?.invoke(_focusData.value)
             }
         }
     }
@@ -322,7 +322,7 @@ class MonitorLogic(
     }
 
     fun forceShowFocusReminder() {
-        onNotificationTimeUpdated?.invoke()
+        _notificationTimeUpdated.tryEmit(Unit)
     }
 
     fun getWebSocketConnectionStatus(): Map<String, Any?> = webSocketService.getConnectionStatus()

@@ -7,9 +7,9 @@ import android.os.Binder
 import android.os.IBinder
 import android.os.SystemClock
 import android.util.Log
-import com.example.coach_android.data.model.FocusData
 import com.example.coach_android.di.AppContainer
 import com.example.coach_android.service.MonitorLogic
+import kotlinx.coroutines.*
 import java.util.concurrent.atomic.AtomicBoolean
 
 class FocusMonitorService : Service() {
@@ -20,6 +20,7 @@ class FocusMonitorService : Service() {
 
     private var monitorLogic: MonitorLogic? = null
     private var overlayManager: OverlayManager? = null
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private val isRunning = AtomicBoolean(false)
 
@@ -82,6 +83,7 @@ class FocusMonitorService : Service() {
         Log.d(TAG, "Service onDestroy")
 
         stopForegroundService()
+        serviceScope.cancel()
         monitorLogic?.dispose()
         monitorLogic = null
         serviceInstance = null
@@ -169,37 +171,36 @@ class FocusMonitorService : Service() {
             val logic = container.monitorLogic
             monitorLogic = logic
 
-            // Wire callbacks
-            logic.onFocusDataChanged = { data -> onFocusDataChanged(data) }
-            logic.onCheckFocusReminder = { sinceLastChange, isFocusing ->
-                popNotificationManager.checkAndShowFocusReminder(sinceLastChange, isFocusing)
-            }
-            logic.onNotificationTimeUpdated = {
-                popNotificationManager.forceShowFocusReminder()
-            }
-
-            // Wire overlay controller via OverlayManager (no Activity dependency)
+            // Wire overlay manager directly (no Activity dependency)
             val overlay = OverlayManager(applicationContext)
             overlay.onChallengeCompleted = { ruleId -> logic.onChallengeCompleted(ruleId) }
             overlayManager = overlay
-
-            logic.overlayController =
-                object : com.example.coach_android.service.OverlayController {
-                    override fun showOverlay(
-                        packageName: String,
-                        overlayType: String?,
-                        challengeType: String?,
-                        ruleId: String?,
-                    ) {
-                        overlay.show(packageName, overlayType, challengeType, ruleId)
-                    }
-
-                    override fun hideOverlay() {
-                        overlay.hide()
-                    }
-                }
+            logic.overlayManager = overlay
 
             logic.initialize()
+
+            // Collect flows from MonitorLogic
+            serviceScope.launch {
+                logic.focusData.collect { data ->
+                    if (!isRunning.get()) return@collect
+                    notificationManager.updateNotification(
+                        data.isFocusing,
+                        data.numFocuses,
+                        data.focusTimeLeft,
+                        logic.getWebSocketConnectionStatus()["isConnected"] as? Boolean ?: false,
+                    )
+                }
+            }
+            serviceScope.launch {
+                logic.reminderCheck.collect { (sinceLastChange, isFocusing) ->
+                    popNotificationManager.checkAndShowFocusReminder(sinceLastChange, isFocusing)
+                }
+            }
+            serviceScope.launch {
+                logic.notificationTimeUpdated.collect {
+                    popNotificationManager.forceShowFocusReminder()
+                }
+            }
 
             Log.d(TAG, "MonitorLogic initialized successfully")
         } catch (e: Exception) {
@@ -224,47 +225,6 @@ class FocusMonitorService : Service() {
         monitorLogic?.onAppChanged(packageName)
     }
 
-    // --- Focus data changed callback ---
-
-    private fun onFocusDataChanged(data: FocusData) {
-        if (!isRunning.get()) return
-
-        notificationManager.updateNotification(
-            data.isFocusing,
-            data.numFocuses,
-            data.focusTimeLeft,
-            monitorLogic?.getWebSocketConnectionStatus()?.get("isConnected") as? Boolean ?: false,
-        )
-
-        // ViewModels observe MonitorLogic.focusData directly for UI updates.
-    }
-
-    // --- Public API for UI / debug ---
-
-    fun requestFocusStateRefresh() {
-        monitorLogic?.refreshFocusState()
-    }
-
-    fun sendFocusCommand() {
-        monitorLogic?.sendFocusCommand()
-    }
-
-    fun updateNotificationTimeInBackground() {
-        monitorLogic?.updateNotificationTime()
-    }
-
-    fun notifyChallengeCompleted(ruleId: String) {
-        monitorLogic?.onChallengeCompleted(ruleId)
-    }
-
-    fun forceShowFocusReminder() {
-        monitorLogic?.forceShowFocusReminder()
-    }
-
-    fun reloadMonitoredPackages() {
-        monitorLogic?.reloadMonitoredPackages()
-    }
-
     fun getMonitorLogic(): MonitorLogic? = monitorLogic
 
     // --- Focus Now action from notification ---
@@ -272,7 +232,7 @@ class FocusMonitorService : Service() {
     private fun handleFocusNowAction() {
         Log.d(TAG, "Handling Focus Now action from reminder notification")
         popNotificationManager.dismissReminder()
-        sendFocusCommand()
+        monitorLogic?.sendFocusCommand()
 
         val openAppIntent =
             packageManager.getLaunchIntentForPackage(packageName)?.apply {
