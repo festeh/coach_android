@@ -1,0 +1,336 @@
+package com.example.coach_android.service
+
+import android.util.Log
+import com.example.coach_android.data.db.EventDao
+import com.example.coach_android.data.db.EventEntity
+import com.example.coach_android.data.db.RuleCounterDao
+import com.example.coach_android.data.model.AppRule
+import com.example.coach_android.data.model.FocusData
+import com.example.coach_android.data.preferences.PreferencesManager
+import com.example.coach_android.data.websocket.WebSocketService
+import com.example.coach_android.util.TimeFormatter
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+class MonitorLogic(
+    private val prefs: PreferencesManager,
+    private val eventDao: EventDao,
+    private val ruleCounterDao: RuleCounterDao,
+    private val webSocketService: WebSocketService,
+) {
+    private val tag = "MonitorLogic"
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    private val _focusData = MutableStateFlow(FocusData())
+    val focusData: StateFlow<FocusData> = _focusData.asStateFlow()
+
+    private var monitoredPackages = emptySet<String>()
+    private var rules = emptyMap<String, AppRule>()
+    private var pendingChallenges = mutableMapOf<String, String>() // ruleId → packageName
+
+    var overlayController: OverlayController? = null
+    var onFocusDataChanged: ((FocusData) -> Unit)? = null
+    var onCheckFocusReminder: ((sinceLastChange: Int, isFocusing: Boolean) -> Unit)? = null
+    var onNotificationTimeUpdated: (() -> Unit)? = null
+
+    private var webSocketJob: Job? = null
+
+    fun initialize() {
+        Log.i(tag, "Initializing MonitorLogic...")
+        loadPersistedState()
+        webSocketService.initialize()
+        startWebSocketListener()
+        Log.i(
+            tag,
+            "MonitorLogic initialized - focusing: ${_focusData.value.isFocusing}, monitored: ${monitoredPackages.size} apps, rules: ${rules.size}",
+        )
+    }
+
+    private fun loadPersistedState() {
+        _focusData.value = prefs.loadFocusData()
+        monitoredPackages = prefs.loadMonitoredPackages()
+        rules = prefs.loadRules()
+
+        val pendingIds = prefs.loadPendingChallengeIds()
+        pendingChallenges.clear()
+        // Rebuild pending challenges map from IDs — we only know ruleId, packageName is resolved on next app open
+        for (id in pendingIds) {
+            val rule = rules[id]
+            if (rule != null) {
+                pendingChallenges[id] = rule.packageName
+            }
+        }
+
+        scope.launch {
+            try {
+                ruleCounterDao.cleanupOldCounters(TimeFormatter.todayString())
+            } catch (e: Exception) {
+                Log.e(tag, "Failed to cleanup old counters: ${e.message}")
+            }
+        }
+
+        Log.i(
+            tag,
+            "Loaded state - focusing: ${_focusData.value.isFocusing}, monitored: ${monitoredPackages.joinToString()}, rules: ${rules.size}",
+        )
+    }
+
+    private fun startWebSocketListener() {
+        webSocketJob?.cancel()
+        webSocketJob =
+            scope.launch {
+                webSocketService.focusUpdates.collect { data ->
+                    handleWebSocketUpdate(data)
+                }
+            }
+    }
+
+    private fun handleWebSocketUpdate(data: Map<String, Any?>) {
+        val old = _focusData.value
+        val new = old.updateFromWebSocket(data)
+
+        val focusStarted = !old.isFocusing && new.isFocusing
+        val focusEnded = old.isFocusing && !new.isFocusing
+
+        // Log focus events
+        scope.launch {
+            try {
+                if (focusStarted) {
+                    eventDao.insert(
+                        EventEntity(
+                            timestamp = System.currentTimeMillis() / 1000,
+                            eventType = "focus_started",
+                        ),
+                    )
+                }
+                if (focusEnded) {
+                    eventDao.insert(
+                        EventEntity(
+                            timestamp = System.currentTimeMillis() / 1000,
+                            eventType = "focus_ended",
+                            duration = old.sinceLastChange,
+                        ),
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(tag, "Failed to log focus event: ${e.message}")
+            }
+        }
+
+        if (old.hasSignificantDifference(new)) {
+            _focusData.value = new
+            prefs.saveFocusData(new)
+            Log.i(
+                tag,
+                "Focus data updated from WebSocket: focusing=${new.isFocusing}, sinceLastChange=${new.sinceLastChange}, focusTimeLeft=${new.focusTimeLeft}, numFocuses=${new.numFocuses}",
+            )
+            onFocusDataChanged?.invoke(new)
+            onCheckFocusReminder?.invoke(new.sinceLastChange, new.isFocusing)
+        }
+    }
+
+    // --- App Change Handling (called from FocusMonitorService) ---
+
+    fun onAppChanged(packageName: String) {
+        Log.d(tag, "App changed to: $packageName")
+
+        scope.launch {
+            try {
+                // Log app open
+                eventDao.insert(
+                    EventEntity(
+                        timestamp = System.currentTimeMillis() / 1000,
+                        eventType = "app_opened",
+                        packageName = packageName,
+                        duringFocus = if (_focusData.value.isFocusing) 1 else 0,
+                    ),
+                )
+
+                val shouldShow = shouldShowOverlay(packageName)
+                Log.i(
+                    tag,
+                    "Overlay decision for $packageName - focusing: ${_focusData.value.isFocusing}, monitored: ${monitoredPackages.contains(
+                        packageName,
+                    )}, show: $shouldShow",
+                )
+
+                if (shouldShow) {
+                    Log.i(tag, "SHOWING overlay for app: $packageName")
+                    withContext(Dispatchers.Main) {
+                        overlayController?.showOverlay(packageName)
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        overlayController?.hideOverlay()
+                    }
+                }
+
+                // Check rules independently of focus state
+                checkRules(packageName)
+
+                // Update activity time
+                updateActivityTime()
+
+                // Check focus reminder
+                onCheckFocusReminder?.invoke(_focusData.value.sinceLastChange, _focusData.value.isFocusing)
+            } catch (e: Exception) {
+                Log.e(tag, "Error handling app change: ${e.message}")
+            }
+        }
+    }
+
+    private fun shouldShowOverlay(packageName: String): Boolean = monitoredPackages.contains(packageName) && _focusData.value.isFocusing
+
+    // --- Rule Checking ---
+
+    private suspend fun checkRules(packageName: String) {
+        // Check for pending challenges first
+        val pendingRuleId =
+            pendingChallenges.entries
+                .firstOrNull { it.value == packageName }
+                ?.key
+
+        if (pendingRuleId != null) {
+            val rule = rules[pendingRuleId]
+            if (rule == null) {
+                pendingChallenges.remove(pendingRuleId)
+                persistPendingChallenges()
+                Log.i(tag, "Cleaned up pending challenge for deleted rule $pendingRuleId")
+            } else {
+                Log.i(tag, "Re-showing pending challenge for rule ${rule.id} on $packageName")
+                withContext(Dispatchers.Main) {
+                    overlayController?.showOverlay(packageName, "rule", rule.challengeType, rule.id)
+                }
+                return
+            }
+        }
+
+        val rulesForApp = rules.values.filter { it.packageName == packageName }
+        if (rulesForApp.isEmpty()) return
+
+        val today = TimeFormatter.todayString()
+
+        for (rule in rulesForApp) {
+            try {
+                ruleCounterDao.incrementOpenCount(rule.id, today)
+                val openCount = ruleCounterDao.getOpenCount(rule.id, today) ?: 0
+                Log.i(tag, "Rule ${rule.id}: open_count=$openCount for $packageName (everyN=${rule.everyN})")
+
+                if (openCount % rule.everyN == 0) {
+                    val counters = ruleCounterDao.getCounters(rule.id, today)
+                    val triggerCount = counters?.triggerCount ?: 0
+
+                    if (triggerCount < rule.maxTriggers) {
+                        if (rule.challengeType == "none") {
+                            ruleCounterDao.incrementTriggerCount(rule.id, today)
+                            Log.i(tag, "Rule ${rule.id} triggered! (${triggerCount + 1}/${rule.maxTriggers})")
+                        } else {
+                            pendingChallenges[rule.id] = packageName
+                            persistPendingChallenges()
+                            Log.i(tag, "Rule ${rule.id} triggered with challenge ${rule.challengeType}, pending completion")
+                        }
+                        withContext(Dispatchers.Main) {
+                            overlayController?.showOverlay(packageName, "rule", rule.challengeType, rule.id)
+                        }
+                        break // Only one rule popup per app open
+                    } else {
+                        Log.i(tag, "Rule ${rule.id}: max triggers reached ($triggerCount/${rule.maxTriggers})")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(tag, "Error checking rule ${rule.id}: ${e.message}")
+            }
+        }
+    }
+
+    fun onChallengeCompleted(ruleId: String) {
+        Log.i(tag, "Challenge completed for rule $ruleId")
+        scope.launch {
+            pendingChallenges.remove(ruleId)
+            persistPendingChallenges()
+            val today = TimeFormatter.todayString()
+            ruleCounterDao.incrementTriggerCount(ruleId, today)
+            Log.i(tag, "Challenge completed for rule $ruleId, trigger count incremented")
+            withContext(Dispatchers.Main) {
+                overlayController?.hideOverlay()
+            }
+        }
+    }
+
+    private fun persistPendingChallenges() {
+        prefs.savePendingChallengeIds(pendingChallenges.keys.toList())
+    }
+
+    // --- Activity & Notification Time ---
+
+    private fun updateActivityTime() {
+        val currentTime = (System.currentTimeMillis() / 1000).toInt()
+        _focusData.value = _focusData.value.copy(lastActivityTime = currentTime)
+        prefs.saveFocusData(_focusData.value)
+        onFocusDataChanged?.invoke(_focusData.value)
+    }
+
+    fun updateNotificationTime() {
+        val currentTime = (System.currentTimeMillis() / 1000).toInt()
+        _focusData.value = _focusData.value.copy(lastNotificationTime = currentTime)
+        prefs.saveFocusData(_focusData.value)
+        onFocusDataChanged?.invoke(_focusData.value)
+    }
+
+    // --- External Triggers ---
+
+    fun refreshFocusState() {
+        scope.launch {
+            try {
+                Log.i(tag, "Refreshing focus state from WebSocket")
+                val response = webSocketService.requestFocusStatus()
+                val new = _focusData.value.updateFromWebSocket(response)
+                _focusData.value = new
+                prefs.saveFocusData(new)
+                onFocusDataChanged?.invoke(new)
+                Log.i(tag, "Focus state refreshed: focusing=${new.isFocusing}")
+            } catch (e: Exception) {
+                Log.e(tag, "Failed to refresh focus state: ${e.message}")
+                // Still notify UI with cached state
+                onFocusDataChanged?.invoke(_focusData.value)
+            }
+        }
+    }
+
+    fun sendFocusCommand() {
+        scope.launch {
+            try {
+                webSocketService.sendFocusCommand()
+                Log.i(tag, "Focus command sent")
+            } catch (e: Exception) {
+                Log.e(tag, "Failed to send focus command: ${e.message}")
+            }
+        }
+    }
+
+    fun reloadMonitoredPackages() {
+        monitoredPackages = prefs.loadMonitoredPackages()
+        Log.i(tag, "Reloaded monitored packages: ${monitoredPackages.size} apps")
+    }
+
+    fun reloadRules() {
+        rules = prefs.loadRules()
+        Log.i(tag, "Reloaded rules: ${rules.size} rules")
+    }
+
+    fun forceShowFocusReminder() {
+        onNotificationTimeUpdated?.invoke()
+    }
+
+    fun getWebSocketConnectionStatus(): Map<String, Any?> = webSocketService.getConnectionStatus()
+
+    fun dispose() {
+        Log.i(tag, "Disposing MonitorLogic")
+        webSocketJob?.cancel()
+        scope.cancel()
+        webSocketService.dispose()
+    }
+}

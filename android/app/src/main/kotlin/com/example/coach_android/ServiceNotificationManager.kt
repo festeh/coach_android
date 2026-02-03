@@ -9,42 +9,42 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 
-class ServiceNotificationManager(private val context: Context) {
-
+class ServiceNotificationManager(
+    private val context: Context,
+) {
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-    
+
     fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = CHANNEL_DESCRIPTION
-                setShowBadge(false)
-                enableLights(false)
-                enableVibration(false)
-                setSound(null, null)
-            }
-            
+            val channel =
+                NotificationChannel(
+                    CHANNEL_ID,
+                    CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_LOW,
+                ).apply {
+                    description = CHANNEL_DESCRIPTION
+                    setShowBadge(false)
+                    enableLights(false)
+                    enableVibration(false)
+                    setSound(null, null)
+                }
+
             notificationManager.createNotificationChannel(channel)
         }
     }
-    
+
     fun createServiceNotification(
         isFocusing: Boolean? = null,
         numFocuses: Int? = null,
         focusTimeLeft: Int? = null,
-        isConnected: Boolean = false
-    ): Notification {
-        return buildNotification(isFocusing, numFocuses, focusTimeLeft, isConnected)
-    }
+        isConnected: Boolean = false,
+    ): Notification = buildNotification(isFocusing, numFocuses, focusTimeLeft, isConnected)
 
     fun updateNotification(
         isFocusing: Boolean? = null,
         numFocuses: Int? = null,
         focusTimeLeft: Int? = null,
-        isConnected: Boolean = false
+        isConnected: Boolean = false,
     ) {
         val notification = buildNotification(isFocusing, numFocuses, focusTimeLeft, isConnected)
         notificationManager.notify(NOTIFICATION_ID, notification)
@@ -54,26 +54,29 @@ class ServiceNotificationManager(private val context: Context) {
         isFocusing: Boolean?,
         numFocuses: Int?,
         focusTimeLeft: Int?,
-        isConnected: Boolean
+        isConnected: Boolean,
     ): Notification {
-        val focusPendingIntent = PendingIntent.getService(
-            context,
-            0,
-            Intent(context, FocusMonitorService::class.java).apply {
-                action = FocusMonitorService.ACTION_FOCUS_NOW
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        val focusPendingIntent =
+            PendingIntent.getService(
+                context,
+                0,
+                Intent(context, FocusMonitorService::class.java).apply {
+                    action = FocusMonitorService.ACTION_FOCUS_NOW
+                },
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
 
         val (title, content) = formatNotificationContent(isFocusing, numFocuses, focusTimeLeft, isConnected)
 
-        val iconRes = if (isFocusing == true) {
-            R.drawable.ic_notification_c
-        } else {
-            R.drawable.ic_notification_c_crossed
-        }
+        val iconRes =
+            if (isFocusing == true) {
+                R.drawable.ic_notification_c
+            } else {
+                R.drawable.ic_notification_c_crossed
+            }
 
-        return NotificationCompat.Builder(context, CHANNEL_ID)
+        return NotificationCompat
+            .Builder(context, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(content)
             .setSmallIcon(iconRes)
@@ -84,44 +87,46 @@ class ServiceNotificationManager(private val context: Context) {
             .addAction(
                 android.R.drawable.ic_media_play,
                 "Focus",
-                focusPendingIntent
-            )
-            .build()
+                focusPendingIntent,
+            ).build()
     }
 
     private fun formatNotificationContent(
         isFocusing: Boolean?,
         numFocuses: Int?,
         focusTimeLeft: Int?,
-        isConnected: Boolean
+        isConnected: Boolean,
     ): Pair<String, String> {
         val connectionStatus = if (isConnected) STATUS_ACTIVE else STATUS_INACTIVE
 
         val focusCount = numFocuses ?: 0
-        val focusText = when (focusCount) {
-            0 -> FOCUS_COUNT_ZERO
-            1 -> FOCUS_COUNT_ONE
-            else -> "$focusCount $FOCUS_COUNT_SUFFIX"
-        }
-
-        val title = if (isFocusing == null) {
-            TITLE_DEFAULT
-        } else {
-            val focusStatus = if (isFocusing) STATUS_FOCUSING else STATUS_NOT_FOCUSING
-            "$focusStatus • $focusText"
-        }
-
-        val content = if (isFocusing == true && focusTimeLeft != null && focusTimeLeft > 0) {
-            val minutes = focusTimeLeft / 60
-            val seconds = focusTimeLeft % 60
-            if (minutes > 0) {
-                "${minutes}m ${seconds}s $TIME_REMAINING"
-            } else {
-                "${seconds}s $TIME_REMAINING"
+        val focusText =
+            when (focusCount) {
+                0 -> FOCUS_COUNT_ZERO
+                1 -> FOCUS_COUNT_ONE
+                else -> "$focusCount $FOCUS_COUNT_SUFFIX"
             }
-        } else {
-            "$CONTENT_MONITORING • $connectionStatus"
-        }
+
+        val title =
+            if (isFocusing == null) {
+                TITLE_DEFAULT
+            } else {
+                val focusStatus = if (isFocusing) STATUS_FOCUSING else STATUS_NOT_FOCUSING
+                "$focusStatus • $focusText"
+            }
+
+        val content =
+            if (isFocusing == true && focusTimeLeft != null && focusTimeLeft > 0) {
+                val minutes = focusTimeLeft / 60
+                val seconds = focusTimeLeft % 60
+                if (minutes > 0) {
+                    "${minutes}m ${seconds}s $TIME_REMAINING"
+                } else {
+                    "${seconds}s $TIME_REMAINING"
+                }
+            } else {
+                "$CONTENT_MONITORING • $connectionStatus"
+            }
 
         return Pair(title, content)
     }

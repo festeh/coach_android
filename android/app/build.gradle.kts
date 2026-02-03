@@ -1,13 +1,14 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
-    id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.devtools.ksp")
+    id("org.jetbrains.kotlin.plugin.serialization")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
     namespace = "com.example.coach_android"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 35
     ndkVersion = "27.0.12077973"
 
     compileOptions {
@@ -21,32 +22,58 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.coach_android"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 28
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        minSdk = 29
+        targetSdk = 35
+        versionCode = 1
+        versionName = "1.0.0"
+    }
+
+    buildFeatures {
+        compose = true
+        buildConfig = true
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
 }
 
-flutter {
-    source = "../.."
-}
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 
-dependencies {  
-    // For AGP 7.4+  
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")  
-    // For AGP 7.3: "com.android.tools:desugar_jdk_libs:1.2.3"  
-    // For AGP 4.0–7.2: "com.android.tools:desugar_jdk_libs:1.1.9"  
+    // Room
+    val roomVersion = "2.7.0"
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    ksp("androidx.room:room-compiler:$roomVersion")
+
+    // Kotlin serialization
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
+
+    // Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1")
+
+    // OkHttp
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // Compose
+    val composeBom = platform("androidx.compose:compose-bom:2025.01.01")
+    implementation(composeBom)
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+
+    // Activity Compose
+    implementation("androidx.activity:activity-compose:1.10.0")
+
+    // Lifecycle + ViewModel Compose
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.0")
+
+    // Navigation Compose
+    implementation("androidx.navigation:navigation-compose:2.9.0")
 }

@@ -11,14 +11,19 @@ class BootReceiver : BroadcastReceiver() {
         const val TAG = "BootReceiver"
     }
 
-    override fun onReceive(context: Context, intent: Intent) {
+    override fun onReceive(
+        context: Context,
+        intent: Intent,
+    ) {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED ||
-            intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
+            intent.action == Intent.ACTION_MY_PACKAGE_REPLACED
+        ) {
             Log.d(TAG, "Boot completed or package replaced - starting FocusMonitorService")
 
-            val serviceIntent = Intent(context, FocusMonitorService::class.java).apply {
-                action = FocusMonitorService.ACTION_START_SERVICE
-            }
+            val serviceIntent =
+                Intent(context, FocusMonitorService::class.java).apply {
+                    action = FocusMonitorService.ACTION_START_SERVICE
+                }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(serviceIntent)

@@ -1,110 +1,60 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Project Overview
 
-This is a Flutter Android application called "Coach Android" that helps users focus by monitoring app usage and showing overlays when distracted. The app combines Flutter UI with native Android services and communicates with a WebSocket server for focus management.
+Android app ("Coach") that helps users focus by monitoring app usage and showing overlays when distracted. Pure Kotlin + Jetpack Compose. Communicates with a WebSocket server for focus state management.
 
 ## Architecture
 
-### Multi-Engine Architecture
-The app uses a dual Flutter engine approach:
-- **Main UI Engine**: Handles the primary Flutter UI (`main.dart`)
-- **Background Engine**: Runs independently via `backgroundMain()` in `main.dart` for monitoring and WebSocket communication
+### Single-process, no IPC
+Everything runs in one process. `MonitorLogic` is the central state holder exposing `StateFlow<FocusData>`. ViewModels observe it directly. No method channels, no cross-engine serialization.
 
-### Native Android Integration
-- **MainActivity.kt**: Handles permissions (Usage Stats, Overlay), manages overlays, and provides method channels
-- **FocusMonitorService.kt**: Background foreground service that initializes the background Flutter engine and monitors app changes
-- **AppMonitorHandler.kt**: Monitors foreground app changes using Usage Stats API
+### Key classes
+- **MonitorLogic** (`service/MonitorLogic.kt`) — Core focus logic. Owns `StateFlow<FocusData>`, handles app change events, rule checking, WebSocket updates.
+- **FocusMonitorService** (`FocusMonitorService.kt`) — Foreground service. Creates `AppContainer`, wires `MonitorLogic`, manages `OverlayManager`. START_STICKY with alarm-based restart.
+- **OverlayManager** (`OverlayManager.kt`) — Builds system overlays (standard, longPress, typing challenge) via `WindowManager.addView()`. Uses native Views, not Compose.
+- **AppMonitorHandler** (`AppMonitorHandler.kt`) — Polls `UsageStatsManager` for foreground app changes.
+- **AppContainer** (`di/AppContainer.kt`) — Manual DI. Creates PreferencesManager, Room database, WebSocketService, MonitorLogic.
 
-### State Management
-Uses Riverpod for state management with Freezed models:
-- **FocusState**: Main focus state with loading/ready/error status
-- **FocusData**: Core focus data (focusing status, time left, focus count)
-- All models use Freezed for immutability and JSON serialization
+### Data layer
+- **Room** — `UsageDatabase` with `EventDao` and `RuleCounterDao`. Destructive migration.
+- **SharedPreferences** — `PreferencesManager` reads/writes `coach_prefs` file. Stores focus data, monitored packages, rules, settings.
+- **WebSocketService** — OkHttp WebSocket with exponential backoff reconnect. Exposes `SharedFlow<Map<String, Any?>>` for focus updates.
 
-### Communication Flow
-1. Native service detects app changes → Background Flutter engine
-2. Background engine applies focus logic → Shows/hides overlay via native methods
-3. WebSocket server provides focus updates → Background engine → UI engine via method channels
+### UI layer (Jetpack Compose + Material 3)
+- **Navigation** — Bottom nav (Apps, Stats) + top bar actions (Debug, Settings). `AppNavigation.kt`.
+- **Screens** — AppsScreen, StatsScreen, SettingsScreen, DebugScreen, LogsScreen. Each has a ViewModel.
+- **Theme** — Dark theme with indigo primary (`0xFF818CF8`), dark surface (`0xFF0F0F23`).
 
-## Key Components
+## Build
 
-### WebSocket Service (`lib/services/websocket_service.dart`)
-- Singleton service managing WebSocket connection with exponential backoff reconnection
-- Handles focus commands (`focus`) and status requests (`get_focusing`)
-- Provides broadcast stream for focus updates
-- Configured via `WEBSOCKET_URL` environment variable
-
-### Background Monitor Handler (`lib/background_monitor_handler.dart`)
-- Core logic for determining when to show focus overlays
-- Manages state synchronization between engines using SharedPreferences
-- Handles method calls from native service (refresh focus state, start focus)
-
-### Focus Service (`lib/services/focus_service.dart`)
-- Main interface for UI to interact with native focus monitoring service
-- Handles service lifecycle and permission requests
-
-## Development Commands
-
-### Environment Setup
-Requires `.env` file with `WEBSOCKET_URL` variable.
-
-### Build and Run
 ```bash
-# Development run (uses fvm if available, otherwise system flutter)
+# Debug build and install
 just run
 
-# Build release APK only
+# Release build
 just build-release
 
-# Build and install release APK
+# Release build and install
 just install-release
 ```
 
-### Code Generation
-```bash
-# Generate freezed/json_serializable code
-flutter packages pub run build_runner build --delete-conflicting-outputs
-```
+Requires `JAVA_HOME=/opt/android-studio/jbr` (handled by justfile).
 
-### Permissions Required
-- **Usage Stats Permission**: For monitoring foreground apps
-- **Overlay Permission**: For showing focus interruption overlays
+WebSocket URL configured via `.env` file with `WEBSOCKET_URL` variable (read from manifest meta-data at runtime).
 
-## Configuration
+## Permissions
+- Usage Stats — monitoring foreground apps
+- Overlay — showing focus interruption overlays
+- Foreground Service (specialUse) — background monitoring
+- Internet — WebSocket
+- Boot Completed — restart service after reboot
 
-### WebSocket URL
-Set `WEBSOCKET_URL` in `.env` file. The app uses `--dart-define` to pass this to both Flutter engines.
+## Key Files
 
-### Monitored Apps
-Selected apps are stored in SharedPreferences under key `selected_app_packages` as JSON array of package names.
-
-### Focus State Persistence
-Focus state is persisted in SharedPreferences:
-- `focusing_state`: Boolean indicating if currently focusing
-- Other focus data keys: `sinceLastChange`, `focusTimeLeft`, `numFocuses`
-
-## Channel Names
-
-Method and event channels are defined in:
-- **Dart**: `lib/constants/channel_names.dart`  
-- **Kotlin**: `android/app/src/main/kotlin/com/example/coach_android/ChannelNames.kt`
-
-Key channels:
-- `com.example.coach_android/main_methods`: Main UI ↔ Native communication
-- `com.example.coach_android/background_methods`: Background engine ↔ Native
-- `com.example.coach_android/background_events`: Native → Background engine events
-
-## Testing
-
-No specific test framework configured. Check for test files in `test/` directory and use standard Flutter testing commands.
-
-## Key Files to Understand
-
-1. `lib/main.dart` - Entry points for both UI and background engines
-2. `lib/background_monitor_handler.dart` - Core focus logic and state management  
-3. `android/app/src/main/kotlin/com/example/coach_android/FocusMonitorService.kt` - Background service orchestration
-4. `lib/services/websocket_service.dart` - WebSocket communication layer
-5. `lib/state_management/models/focus_state.dart` - State management models
+1. `android/app/src/main/kotlin/.../service/MonitorLogic.kt` — Core focus logic
+2. `android/app/src/main/kotlin/.../FocusMonitorService.kt` — Background service
+3. `android/app/src/main/kotlin/.../OverlayManager.kt` — System overlay builder
+4. `android/app/src/main/kotlin/.../data/websocket/WebSocketService.kt` — WebSocket client
+5. `android/app/src/main/kotlin/.../data/preferences/PreferencesManager.kt` — All SharedPreferences access
+6. `android/app/src/main/kotlin/.../ui/navigation/AppNavigation.kt` — App navigation
