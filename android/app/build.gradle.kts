@@ -27,6 +27,8 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
+
+        buildConfigField("String", "WEBSOCKET_URL", "\"${System.getenv("WEBSOCKET_URL") ?: ""}\"")
     }
 
     buildFeatures {

@@ -21,7 +21,7 @@ abstract class UsageDatabase : RoomDatabase() {
                 .databaseBuilder(
                     context.applicationContext,
                     UsageDatabase::class.java,
-                    "usage_events.db",
+                    "coach_usage.db",
                 ).fallbackToDestructiveMigration(dropAllTables = true)
                 .build()
     }

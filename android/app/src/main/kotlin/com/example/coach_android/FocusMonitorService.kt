@@ -208,15 +208,7 @@ class FocusMonitorService : Service() {
         }
     }
 
-    private fun getWebSocketUrl(): String {
-        // Read from BuildConfig or meta-data; fall back to empty
-        return try {
-            val ai = packageManager.getApplicationInfo(packageName, android.content.pm.PackageManager.GET_META_DATA)
-            ai.metaData?.getString("WEBSOCKET_URL") ?: ""
-        } catch (e: Exception) {
-            ""
-        }
-    }
+    private fun getWebSocketUrl(): String = BuildConfig.WEBSOCKET_URL
 
     // --- Called by AppMonitorHandler ---
 
