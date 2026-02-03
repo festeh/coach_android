@@ -118,6 +118,21 @@ class _AppDetailBottomSheetState extends ConsumerState<AppDetailBottomSheet> {
         );
   }
 
+  Future<void> _resetRule(String ruleId) async {
+    await ref.read(appRulesProvider.notifier).resetRule(ruleId);
+    await _loadRuleCounters();
+    // Reload pending challenges
+    final prefs = await SharedPreferences.getInstance();
+    final pendingJson = prefs.getString(StorageKeys.pendingChallenges);
+    if (mounted) {
+      setState(() {
+        _pendingChallengeIds = pendingJson != null
+            ? (jsonDecode(pendingJson) as List).cast<String>().toSet()
+            : <String>{};
+      });
+    }
+  }
+
   Future<void> _deleteRule(String ruleId) async {
     await ref.read(appRulesProvider.notifier).deleteRule(ruleId);
     setState(() {
@@ -270,6 +285,18 @@ class _AppDetailBottomSheetState extends ConsumerState<AppDetailBottomSheet> {
                       ),
                     ),
                   ),
+                  InkWell(
+                    onTap: () => _resetRule(rule.id),
+                    child: Tooltip(
+                      message: 'Reset counters',
+                      child: Icon(
+                        Icons.restart_alt,
+                        size: 18,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   InkWell(
                     onTap: () => _deleteRule(rule.id),
                     child: Icon(

@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../constants/storage_keys.dart';
 import '../../models/app_rule.dart';
 import '../../background_monitor_handler.dart';
+import '../../services/usage_database.dart';
 
 final _log = Logger('AppRulesProvider');
 const _uuid = Uuid();
@@ -70,6 +71,23 @@ class AppRulesNotifier extends Notifier<Map<String, AppRule>> {
 
     await _persist();
     _log.info('Deleted rule $ruleId');
+  }
+
+  Future<void> resetRule(String ruleId) async {
+    await UsageDatabase.instance.resetCounters(ruleId);
+
+    // Clear pending challenge for this rule
+    final prefs = await SharedPreferences.getInstance();
+    final pendingJson = prefs.getString(StorageKeys.pendingChallenges);
+    if (pendingJson != null) {
+      final pending = (jsonDecode(pendingJson) as List).cast<String>();
+      if (pending.remove(ruleId)) {
+        await prefs.setString(
+            StorageKeys.pendingChallenges, jsonEncode(pending));
+      }
+    }
+
+    _log.info('Reset rule $ruleId (counters + pending challenge)');
   }
 
   List<AppRule> getRulesForApp(String packageName) {

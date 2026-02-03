@@ -237,6 +237,18 @@ class UsageDatabase {
     );
   }
 
+  Future<void> resetCounters(String ruleId) async {
+    final db = await database;
+    final date = _todayString();
+
+    await db.rawDelete(
+      'DELETE FROM rule_counters WHERE rule_id = ? AND date = ?',
+      [ruleId, date],
+    );
+
+    _log.info('Reset counters for rule $ruleId on $date');
+  }
+
   Future<void> cleanupOldCounters() async {
     final db = await database;
     final yesterday = DateTime.now().subtract(const Duration(days: 1));
