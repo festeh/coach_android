@@ -53,7 +53,7 @@ fun AppNavigation() {
         topBar = {
             if (showBottomBar) {
                 TopAppBar(
-                    title = { Text("Coach") },
+                    title = { },
                     actions = {
                         IconButton(onClick = {
                             navController.navigate("debug") {
@@ -80,7 +80,7 @@ fun AppNavigation() {
                                 "debug" -> "Debug"
                                 "hooks" -> "Hooks"
                                 "logs" -> "Logs"
-                                else -> "Coach"
+                                else -> ""
                             },
                         )
                     },
