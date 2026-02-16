@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
@@ -19,6 +20,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.coach_android.ui.apps.AppsScreen
 import com.example.coach_android.ui.debug.DebugScreen
+import com.example.coach_android.ui.hooks.HooksScreen
 import com.example.coach_android.ui.logs.LogsScreen
 import com.example.coach_android.ui.settings.SettingsScreen
 import com.example.coach_android.ui.stats.StatsScreen
@@ -31,9 +33,11 @@ sealed class Screen(
     data object Apps : Screen("apps", "Apps", Icons.Default.Home)
 
     data object Stats : Screen("stats", "Stats", Icons.Default.Star)
+
+    data object Hooks : Screen("hooks", "Hooks", Icons.Default.Notifications)
 }
 
-private val bottomTabs = listOf(Screen.Apps, Screen.Stats)
+private val bottomTabs = listOf(Screen.Apps, Screen.Stats, Screen.Hooks)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,6 +78,7 @@ fun AppNavigation() {
                             when (currentRoute) {
                                 "settings" -> "Settings"
                                 "debug" -> "Debug"
+                                "hooks" -> "Hooks"
                                 "logs" -> "Logs"
                                 else -> "Coach"
                             },
@@ -117,6 +122,7 @@ fun AppNavigation() {
         ) {
             composable(Screen.Apps.route) { AppsScreen() }
             composable(Screen.Stats.route) { StatsScreen() }
+            composable(Screen.Hooks.route) { HooksScreen() }
             composable("settings") { SettingsScreen() }
             composable("debug") {
                 DebugScreen(

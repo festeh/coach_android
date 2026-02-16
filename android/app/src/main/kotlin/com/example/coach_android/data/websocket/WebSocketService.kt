@@ -41,6 +41,9 @@ class WebSocketService(
     private val _focusUpdates = MutableSharedFlow<Map<String, Any?>>(extraBufferCapacity = 16)
     val focusUpdates: SharedFlow<Map<String, Any?>> = _focusUpdates.asSharedFlow()
 
+    private val _hookResults = MutableSharedFlow<Map<String, Any?>>(extraBufferCapacity = 16)
+    val hookResults: SharedFlow<Map<String, Any?>> = _hookResults.asSharedFlow()
+
     val connected: Boolean get() = isConnected
 
     fun getConnectionStatus(): Map<String, Any?> =
@@ -138,6 +141,13 @@ class WebSocketService(
             if (pending != null) {
                 pendingRequest = null
                 pending.complete(dataMap)
+                return
+            }
+
+            // Emit hook results
+            if (messageType == "hook_result") {
+                scope.launch { _hookResults.emit(dataMap) }
+                Log.d(tag, "Hook result emitted: hook_id=${data["hook_id"]}")
                 return
             }
 

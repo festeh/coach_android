@@ -6,14 +6,16 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [EventEntity::class, RuleCounterEntity::class],
-    version = 1,
+    entities = [EventEntity::class, RuleCounterEntity::class, HookResultEntity::class],
+    version = 2,
     exportSchema = false,
 )
 abstract class UsageDatabase : RoomDatabase() {
     abstract fun eventDao(): EventDao
 
     abstract fun ruleCounterDao(): RuleCounterDao
+
+    abstract fun hookResultDao(): HookResultDao
 
     companion object {
         fun create(context: Context): UsageDatabase =

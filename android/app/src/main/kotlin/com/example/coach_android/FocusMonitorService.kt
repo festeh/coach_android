@@ -16,6 +16,7 @@ class FocusMonitorService : Service() {
     private val binder = FocusMonitorBinder()
     private lateinit var notificationManager: ServiceNotificationManager
     private lateinit var popNotificationManager: PopNotificationManager
+    private lateinit var hookNotificationManager: HookNotificationManager
     private lateinit var appMonitor: AppMonitorHandler
 
     private var monitorLogic: MonitorLogic? = null
@@ -47,6 +48,7 @@ class FocusMonitorService : Service() {
 
         notificationManager = ServiceNotificationManager(this)
         popNotificationManager = PopNotificationManager(this)
+        hookNotificationManager = HookNotificationManager(this)
         appMonitor = AppMonitorHandler(this)
 
         notificationManager.createNotificationChannel()
@@ -199,6 +201,26 @@ class FocusMonitorService : Service() {
             serviceScope.launch {
                 logic.notificationTimeUpdated.collect {
                     popNotificationManager.forceShowFocusReminder()
+                }
+            }
+
+            // Collect hook results from WebSocket → save to DB + notify
+            serviceScope.launch {
+                container.webSocketService.hookResults.collect { data ->
+                    try {
+                        val entity =
+                            com.example.coach_android.data.db.HookResultEntity(
+                                id = data["id"] as? String ?: java.util.UUID.randomUUID().toString(),
+                                hookId = data["hook_id"] as? String ?: "unknown",
+                                content = data["content"] as? String ?: "",
+                                createdAt = System.currentTimeMillis() / 1000,
+                            )
+                        container.hookResultDao.insert(entity)
+                        container.hookResultDao.cleanup(1000)
+                        hookNotificationManager.showIfActive(entity)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to handle hook result: ${e.message}")
+                    }
                 }
             }
 

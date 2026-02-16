@@ -14,6 +14,7 @@ class AppContainer(
     val database = UsageDatabase.create(context)
     val eventDao = database.eventDao()
     val ruleCounterDao = database.ruleCounterDao()
+    val hookResultDao = database.hookResultDao()
     val webSocketService = WebSocketService(webSocketUrl)
 
     val monitorLogic =
