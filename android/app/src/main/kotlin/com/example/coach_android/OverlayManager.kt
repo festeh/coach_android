@@ -14,7 +14,6 @@ import android.text.TextWatcher
 import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
-import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
@@ -32,7 +31,6 @@ class OverlayManager(
     }
 
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-    private val layoutInflater = LayoutInflater.from(context)
     private val density = context.resources.displayMetrics.density
 
     private var overlayView: View? = null
@@ -173,7 +171,7 @@ class OverlayManager(
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
                 gravity = Gravity.END
                 setPadding(0, 0, 0, dp(8))
-                setOnClickListener { goHomeAndHide() }
+                setOnClickListener { dismissAndNavigate() }
             }
         root.addView(
             closeButton,
@@ -199,7 +197,7 @@ class OverlayManager(
         root.addView(textView)
     }
 
-    private fun goHomeAndHide() {
+    private fun dismissAndNavigate() {
         val targetApp = currentTargetApp
         if (!targetApp.isNullOrEmpty()) {
             val launchIntent = context.packageManager.getLaunchIntentForPackage(targetApp)
@@ -235,7 +233,7 @@ class OverlayManager(
 
     private fun notifyChallengeCompleted() {
         val ruleId = currentRuleId
-        goHomeAndHide()
+        dismissAndNavigate()
         if (ruleId != null) {
             Log.d(TAG, "Challenge completed for rule: $ruleId")
             onChallengeCompleted?.invoke(ruleId)
@@ -250,23 +248,28 @@ class OverlayManager(
         buttonColor: Int,
         customButtonText: String,
     ): View {
-        val view = layoutInflater.inflate(R.layout.overlay_layout, null)
+        val root = buildChallengeRoot(bgColor)
+        addCloseButton(root)
+        addDisplayText(root, displayText)
 
-        view.findViewById<TextView>(R.id.overlay_text)?.text = displayText
-        view.background =
-            GradientDrawable().apply {
-                setColor(bgColor)
-                cornerRadius = 16f * density
-                setStroke(dp(1), 0xFFFFFFFF.toInt())
+        val button =
+            Button(context).apply {
+                text = if (customButtonText.isNotEmpty()) customButtonText else "Got it!"
+                setTextColor(0xFFFFFFFF.toInt())
+                backgroundTintList = ColorStateList.valueOf(buttonColor)
+                isAllCaps = false
+                setTypeface(typeface, Typeface.BOLD)
+                layoutParams =
+                    LinearLayout
+                        .LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                        ).apply { topMargin = dp(16) }
+                setOnClickListener { dismissAndNavigate() }
             }
+        root.addView(button)
 
-        view.findViewById<Button>(R.id.close_overlay_button)?.let { button ->
-            if (customButtonText.isNotEmpty()) button.text = customButtonText
-            button.backgroundTintList = ColorStateList.valueOf(buttonColor)
-            button.setOnClickListener { goHomeAndHide() }
-        }
-
-        return view
+        return root
     }
 
     private fun buildLongPressChallengeView(
