@@ -77,10 +77,9 @@ class HookNotificationManager(
         val notification =
             NotificationCompat
                 .Builder(context, CHANNEL_ID)
-                .setContentTitle(result.hookId)
                 .setContentText(truncatedContent)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(result.content))
-                .setSmallIcon(R.drawable.ic_notification_c)
+                .setSmallIcon(R.drawable.ic_notification_lightbulb)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setCategory(NotificationCompat.CATEGORY_MESSAGE)
                 .setAutoCancel(true)
@@ -95,8 +94,8 @@ class HookNotificationManager(
         val summary =
             NotificationCompat
                 .Builder(context, CHANNEL_ID)
-                .setContentTitle("Hook Results")
-                .setSmallIcon(R.drawable.ic_notification_c)
+                .setContentTitle("Coach")
+                .setSmallIcon(R.drawable.ic_notification_lightbulb)
                 .setGroup(GROUP_KEY)
                 .setGroupSummary(true)
                 .setAutoCancel(true)
