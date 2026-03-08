@@ -121,6 +121,11 @@ class OverlayManager(
         }
     }
 
+    fun isShowing(): Boolean {
+        val view = overlayView ?: return false
+        return view.isAttachedToWindow
+    }
+
     fun hide() {
         val view = overlayView ?: return
         Log.d(TAG, "Hiding overlay")

@@ -189,6 +189,17 @@ class MonitorLogic(
 
     private fun shouldShowOverlay(packageName: String): Boolean = monitoredPackages.contains(packageName) && _focusData.value.isFocusing
 
+    fun ensureOverlay(packageName: String) {
+        if (shouldShowOverlay(packageName) && overlayManager?.isShowing() != true) {
+            Log.i(tag, "Re-showing overlay for $packageName (was dismissed externally)")
+            scope.launch {
+                withContext(Dispatchers.Main) {
+                    overlayManager?.show(packageName)
+                }
+            }
+        }
+    }
+
     // --- Rule Checking ---
 
     private suspend fun checkRules(packageName: String) {

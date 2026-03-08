@@ -78,18 +78,11 @@ class AppMonitorHandler(
 
         if (foregroundApp != null && foregroundApp != lastForegroundApp) {
             Log.d(TAG, "Detected foreground app change: $lastForegroundApp -> $foregroundApp")
-
-            handleAppChange(foregroundApp)
+            FocusMonitorService.getInstance()?.notifyAppDetected(foregroundApp)
             lastForegroundApp = foregroundApp
+        } else if (foregroundApp != null) {
+            FocusMonitorService.getInstance()?.getMonitorLogic()?.ensureOverlay(foregroundApp)
         }
-    }
-
-    private fun handleAppChange(packageName: String) {
-        Log.d(TAG, "App change detected: $packageName")
-
-        // Notify MonitorLogic about the app change
-        val service = FocusMonitorService.getInstance()
-        service?.notifyAppDetected(packageName)
     }
 
     private fun getForegroundAppPackageName(): String? {
