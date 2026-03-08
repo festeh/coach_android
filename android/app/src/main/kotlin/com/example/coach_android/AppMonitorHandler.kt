@@ -22,6 +22,8 @@ class AppMonitorHandler(
     private var monitoringRunnable: Runnable? = null
     private var isMonitoring = false
     private var lastForegroundApp: String? = null
+    private var previousForegroundApp: String? = null
+    private var lastEventTimestamp: Long = 0
 
     private val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager?
 
@@ -74,42 +76,51 @@ class AppMonitorHandler(
     }
 
     private fun checkForegroundApp() {
-        val foregroundApp = getForegroundAppPackageName()
-
-        if (foregroundApp != null && foregroundApp != lastForegroundApp) {
-            Log.d(TAG, "Detected foreground app change: $lastForegroundApp -> $foregroundApp")
-            FocusMonitorService.getInstance()?.notifyAppDetected(foregroundApp)
-            lastForegroundApp = foregroundApp
-        } else if (foregroundApp != null) {
-            FocusMonitorService.getInstance()?.getMonitorLogic()?.ensureOverlay(foregroundApp)
-        }
-    }
-
-    private fun getForegroundAppPackageName(): String? {
-        if (usageStatsManager == null) {
-            Log.e(TAG, "UsageStatsManager is not available")
-            return null
-        }
+        if (usageStatsManager == null) return
 
         val time = System.currentTimeMillis()
         val usageEvents = usageStatsManager.queryEvents(time - USAGE_STATS_INTERVAL, time)
 
-        var foregroundApp: String? = null
-        var lastEventTime: Long = 0
+        var newForegroundDetected = false
+        var currentAppBackgrounded = false
 
         while (usageEvents.hasNextEvent()) {
             val event = UsageEvents.Event()
             usageEvents.getNextEvent(event)
+            if (event.timeStamp <= lastEventTimestamp) continue
 
-            if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
-                if (event.timeStamp > lastEventTime) {
-                    foregroundApp = event.packageName
-                    lastEventTime = event.timeStamp
+            when (event.eventType) {
+                UsageEvents.Event.ACTIVITY_RESUMED -> {
+                    lastEventTimestamp = event.timeStamp
+                    newForegroundDetected = true
+                    val packageName = event.packageName
+                    if (packageName != lastForegroundApp) {
+                        Log.d(TAG, "Detected foreground app change: $lastForegroundApp -> $packageName")
+                        previousForegroundApp = lastForegroundApp
+                        lastForegroundApp = packageName
+                        FocusMonitorService.getInstance()?.notifyAppDetected(packageName)
+                    }
+                }
+                UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+                    lastEventTimestamp = event.timeStamp
+                    if (event.packageName == lastForegroundApp) {
+                        currentAppBackgrounded = true
+                    }
                 }
             }
         }
 
-        return foregroundApp
+        // Launcher/recents went to background but no new foreground detected —
+        // the previous app likely resumed without generating an event
+        if (currentAppBackgrounded && !newForegroundDetected && previousForegroundApp != null) {
+            Log.d(TAG, "Inferred return to previous app: $previousForegroundApp")
+            lastForegroundApp = previousForegroundApp
+            FocusMonitorService.getInstance()?.notifyAppDetected(previousForegroundApp!!)
+        }
+
+        lastForegroundApp?.let {
+            FocusMonitorService.getInstance()?.getMonitorLogic()?.ensureOverlay(it)
+        }
     }
 
     private fun hasUsageStatsPermission(): Boolean {
