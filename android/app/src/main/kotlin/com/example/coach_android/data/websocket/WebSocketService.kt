@@ -238,11 +238,22 @@ class WebSocketService(
         Log.d(tag, "Sent WebSocket message: $jsonStr")
     }
 
-    suspend fun sendFocusCommand() {
-        Log.i(tag, "Sending focus command")
+    suspend fun sendFocusCommand(durationMinutes: Int = 0) {
+        Log.i(tag, "Sending focus command (duration=${durationMinutes}m)")
         if (!isConnected) throw Exception("WebSocket not connected")
-        sendMessage(mapOf("type" to "focus"))
-        Log.i(tag, "Focus command sent successfully")
+        val ws = webSocket ?: throw Exception("WebSocket not available")
+        val jsonStr =
+            json.encodeToString(
+                kotlinx.serialization.json.JsonObject.serializer(),
+                kotlinx.serialization.json.buildJsonObject {
+                    put("type", kotlinx.serialization.json.JsonPrimitive("focus"))
+                    if (durationMinutes > 0) {
+                        put("duration", kotlinx.serialization.json.JsonPrimitive(durationMinutes))
+                    }
+                },
+            )
+        ws.send(jsonStr)
+        Log.i(tag, "Focus command sent: $jsonStr")
     }
 
     suspend fun requestFocusStatus(): Map<String, Any?> {

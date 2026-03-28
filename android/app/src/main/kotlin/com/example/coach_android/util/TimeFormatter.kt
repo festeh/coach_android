@@ -2,9 +2,17 @@ package com.example.coach_android.util
 
 object TimeFormatter {
     fun formatFocusTime(totalSeconds: Int): String {
-        val hours = totalSeconds / 3600
+        val days = totalSeconds / 86400
+        val hours = (totalSeconds % 86400) / 3600
         val minutes = (totalSeconds % 3600) / 60
-        return if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
+        val seconds = totalSeconds % 60
+
+        return when {
+            days > 0 -> "${days}d ${hours}h"
+            hours > 0 -> "${hours}h ${minutes}m"
+            minutes > 0 -> "${minutes}m"
+            else -> "${seconds}s"
+        }
     }
 
     fun todayString(): String {

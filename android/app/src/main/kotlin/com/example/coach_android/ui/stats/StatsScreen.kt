@@ -212,9 +212,4 @@ private fun BlockedAppItem(entry: BlockedAppEntry) {
     }
 }
 
-private fun formatDuration(ms: Long): String {
-    val totalSeconds = ms / 1000
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    return if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
-}
+private fun formatDuration(ms: Long): String = TimeFormatter.formatFocusTime((ms / 1000).toInt())

@@ -2,7 +2,7 @@ package com.example.coach_android.ui.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -10,20 +10,23 @@ import androidx.compose.ui.unit.dp
 import com.example.coach_android.data.model.FocusData
 import com.example.coach_android.util.TimeFormatter
 
+private val hourValues = (0..23).map { it.toString() }
+private val minuteValues = (0..11).map { (it * 5).toString().padStart(2, '0') }
+
 @Composable
 fun FocusStatusCard(
     focusData: FocusData,
     isConnected: Boolean,
-    onFocusClick: () -> Unit,
+    focusDurationMinutes: Int,
+    onFocusClick: (durationMinutes: Int) -> Unit,
     onRefreshClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val cardColor = MaterialTheme.colorScheme.surfaceContainerHighest
+
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors =
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            ),
+        colors = CardDefaults.cardColors(containerColor = cardColor),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -67,9 +70,53 @@ fun FocusStatusCard(
                     )
                 }
             } else {
-                // Not focusing state
+                // Not focusing — show duration picker + focus button
+                var hourIndex by remember(focusDurationMinutes) {
+                    mutableIntStateOf((focusDurationMinutes / 60).coerceIn(0, 23))
+                }
+                var minuteIndex by remember(focusDurationMinutes) {
+                    mutableIntStateOf((focusDurationMinutes % 60 / 5).coerceIn(0, 11))
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    WheelPicker(
+                        values = hourValues,
+                        selectedIndex = hourIndex,
+                        onSelectedChange = { hourIndex = it },
+                        modifier = Modifier.width(56.dp),
+                        fadeColor = cardColor,
+                    )
+                    Text(
+                        text = "h",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 2.dp),
+                    )
+
+                    Spacer(Modifier.width(16.dp))
+
+                    WheelPicker(
+                        values = minuteValues,
+                        selectedIndex = minuteIndex,
+                        onSelectedChange = { minuteIndex = it },
+                        modifier = Modifier.width(56.dp),
+                        fadeColor = cardColor,
+                    )
+                    Text(
+                        text = "m",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 2.dp),
+                    )
+                }
+
+                Spacer(Modifier.height(8.dp))
+
                 Button(
-                    onClick = onFocusClick,
+                    onClick = { onFocusClick(hourIndex * 60 + minuteIndex * 5) },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text("Focus")

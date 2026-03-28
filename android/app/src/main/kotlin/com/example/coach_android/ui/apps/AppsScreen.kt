@@ -52,6 +52,7 @@ fun AppsScreen(viewModel: AppsViewModel = viewModel()) {
             FocusStatusCard(
                 focusData = state.focusData,
                 isConnected = state.isConnected,
+                focusDurationMinutes = state.focusDurationMinutes,
                 onFocusClick = viewModel::sendFocusCommand,
                 onRefreshClick = viewModel::refreshFocusState,
             )

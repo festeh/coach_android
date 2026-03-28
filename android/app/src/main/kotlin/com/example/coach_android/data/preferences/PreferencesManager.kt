@@ -45,6 +45,14 @@ class PreferencesManager(
             .apply()
     }
 
+    // --- Focus Duration ---
+
+    fun loadFocusDurationMinutes(): Int = prefs.getInt("focusDurationMinutes", 25)
+
+    fun saveFocusDurationMinutes(minutes: Int) {
+        prefs.edit().putInt("focusDurationMinutes", minutes).apply()
+    }
+
     // --- Monitored Packages ---
 
     fun loadMonitoredPackages(): Set<String> {

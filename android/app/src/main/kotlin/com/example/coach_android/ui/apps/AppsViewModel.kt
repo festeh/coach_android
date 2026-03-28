@@ -25,6 +25,7 @@ data class AppsUiState(
     val isConnected: Boolean = false,
     val isLoading: Boolean = true,
     val ruleCounters: Map<String, Pair<Int, Int>> = emptyMap(),
+    val focusDurationMinutes: Int = 25,
 )
 
 class AppsViewModel(
@@ -46,6 +47,7 @@ class AppsViewModel(
             val selected = prefs.loadMonitoredPackages()
             val rules = prefs.loadRules()
             val focusData = prefs.loadFocusData()
+            val focusDuration = prefs.loadFocusDurationMinutes()
 
             _state.value =
                 _state.value.copy(
@@ -53,6 +55,7 @@ class AppsViewModel(
                     selectedPackages = selected,
                     rules = rules,
                     focusData = focusData,
+                    focusDurationMinutes = focusDuration,
                     isLoading = false,
                 )
 
@@ -147,8 +150,10 @@ class AppsViewModel(
         }
     }
 
-    fun sendFocusCommand() {
-        FocusMonitorService.getInstance()?.getMonitorLogic()?.sendFocusCommand()
+    fun sendFocusCommand(durationMinutes: Int) {
+        prefs.saveFocusDurationMinutes(durationMinutes)
+        _state.value = _state.value.copy(focusDurationMinutes = durationMinutes)
+        FocusMonitorService.getInstance()?.getMonitorLogic()?.sendFocusCommand(durationMinutes)
     }
 
     fun refreshFocusState() {

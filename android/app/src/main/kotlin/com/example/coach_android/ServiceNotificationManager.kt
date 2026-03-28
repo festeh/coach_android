@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import com.example.coach_android.util.TimeFormatter
 
 class ServiceNotificationManager(
     private val context: Context,
@@ -117,13 +118,7 @@ class ServiceNotificationManager(
 
         val content =
             if (isFocusing == true && focusTimeLeft != null && focusTimeLeft > 0) {
-                val minutes = focusTimeLeft / 60
-                val seconds = focusTimeLeft % 60
-                if (minutes > 0) {
-                    "${minutes}m ${seconds}s $TIME_REMAINING"
-                } else {
-                    "${seconds}s $TIME_REMAINING"
-                }
+                "${TimeFormatter.formatFocusTime(focusTimeLeft)} $TIME_REMAINING"
             } else {
                 "$CONTENT_MONITORING • $connectionStatus"
             }

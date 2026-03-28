@@ -311,11 +311,11 @@ class MonitorLogic(
         }
     }
 
-    fun sendFocusCommand() {
+    fun sendFocusCommand(durationMinutes: Int = 0) {
         scope.launch {
             try {
-                webSocketService.sendFocusCommand()
-                Log.i(tag, "Focus command sent")
+                webSocketService.sendFocusCommand(durationMinutes)
+                Log.i(tag, "Focus command sent (duration=${durationMinutes}m)")
             } catch (e: Exception) {
                 Log.e(tag, "Failed to send focus command: ${e.message}")
             }
