@@ -104,6 +104,7 @@ class AgentChatService(
     fun send(content: String) {
         val ws = webSocket
         if (!isConnected || ws == null) {
+            Log.w(tag, "send() called while not connected (isConnected=$isConnected, ws=${ws != null})")
             scope.launch { _events.emit(ChatEvent.Error("Not connected")) }
             return
         }
@@ -115,7 +116,11 @@ class AgentChatService(
                     put("content", JsonPrimitive(content))
                 },
             )
-        ws.send(frame)
+        val queued = ws.send(frame)
+        if (!queued) {
+            Log.w(tag, "WebSocket.send() returned false; frame not queued")
+            scope.launch { _events.emit(ChatEvent.Error("Failed to send (queue closed)")) }
+        }
     }
 
     private fun openSocket() {
@@ -146,6 +151,11 @@ class AgentChatService(
                 isConnecting = false
                 scope.launch { _events.emit(ChatEvent.Error(t.message ?: "Connection failed")) }
                 scheduleReconnect()
+            }
+
+            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                Log.i(tag, "Agent chat closing: $code $reason")
+                isConnected = false
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
@@ -186,6 +196,7 @@ class AgentChatService(
                 }
                 "error" -> {
                     val message = obj["message"]?.jsonPrimitive?.content ?: "Unknown error"
+                    Log.e(tag, "Server error frame: $message (raw=$text)")
                     scope.launch { _events.emit(ChatEvent.Error(message)) }
                 }
                 "pong" -> {}
