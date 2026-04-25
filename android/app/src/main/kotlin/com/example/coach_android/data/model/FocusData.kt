@@ -11,9 +11,13 @@ data class FocusData(
     val lastNotificationTime: Int = 0,
     val lastActivityTime: Int = 0,
     val lastFocusEndTime: Int = 0,
+    val agentReleaseTimeLeft: Int? = null,
 ) {
+    val isAgentLocked: Boolean get() = agentReleaseTimeLeft == null
+
     fun hasSignificantDifference(other: FocusData): Boolean =
         isFocusing != other.isFocusing ||
+            isAgentLocked != other.isAgentLocked ||
             kotlin.math.abs(sinceLastChange - other.sinceLastChange) > 10 ||
             kotlin.math.abs(focusTimeLeft - other.focusTimeLeft) > 30 ||
             numFocuses != other.numFocuses
@@ -29,6 +33,7 @@ data class FocusData(
             focusTimeLeft = (data["focus_time_left"] as? Number)?.toInt() ?: focusTimeLeft,
             numFocuses = (data["num_focuses"] as? Number)?.toInt() ?: numFocuses,
             lastFocusEndTime = newLastFocusEndTime,
+            agentReleaseTimeLeft = parseAgentReleaseTimeLeft(data),
         )
     }
 
@@ -47,6 +52,12 @@ data class FocusData(
                 lastNotificationTime = lastNotificationTime,
                 lastActivityTime = lastActivityTime,
                 lastFocusEndTime = lastFocusEndTime,
+                agentReleaseTimeLeft = parseAgentReleaseTimeLeft(data),
             )
+
+        // Server sends `agent_release_time_left` as a JSON number (seconds remaining)
+        // or `null` when the agent lock is engaged. The key is always present.
+        private fun parseAgentReleaseTimeLeft(data: Map<String, Any?>): Int? =
+            (data["agent_release_time_left"] as? Number)?.toInt()
     }
 }

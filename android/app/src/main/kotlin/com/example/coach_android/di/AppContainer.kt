@@ -1,6 +1,7 @@
 package com.example.coach_android.di
 
 import android.content.Context
+import com.example.coach_android.data.agentchat.AgentChatService
 import com.example.coach_android.data.db.UsageDatabase
 import com.example.coach_android.data.preferences.PreferencesManager
 import com.example.coach_android.data.websocket.WebSocketService
@@ -9,6 +10,7 @@ import com.example.coach_android.service.MonitorLogic
 class AppContainer(
     context: Context,
     webSocketUrl: String,
+    agentsUrl: String,
 ) {
     val preferencesManager = PreferencesManager(context)
     val database = UsageDatabase.create(context)
@@ -16,6 +18,12 @@ class AppContainer(
     val ruleCounterDao = database.ruleCounterDao()
     val hookResultDao = database.hookResultDao()
     val webSocketService = WebSocketService(webSocketUrl)
+
+    val agentChatService =
+        AgentChatService(
+            baseUrl = agentsUrl,
+            threadId = preferencesManager.getOrCreateAgentChatThreadId(),
+        )
 
     val monitorLogic =
         MonitorLogic(

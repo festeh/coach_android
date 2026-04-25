@@ -85,6 +85,16 @@ class PreferencesManager(
         prefs.edit().putString("appRules", jsonStr).apply()
     }
 
+    // --- Agent chat thread ---
+
+    fun getOrCreateAgentChatThreadId(): String {
+        val existing = prefs.getString("agentChatThreadId", null)
+        if (existing != null) return existing
+        val fresh = java.util.UUID.randomUUID().toString()
+        prefs.edit().putString("agentChatThreadId", fresh).apply()
+        return fresh
+    }
+
     // --- Pending Challenges ---
 
     fun loadPendingChallengeIds(): List<String> {

@@ -14,6 +14,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.coach_android.data.model.AppInfo
 import com.example.coach_android.data.model.AppRule
+import com.example.coach_android.ui.components.AgentLockCard
 import com.example.coach_android.ui.components.AppDetailSheet
 import com.example.coach_android.ui.components.FocusStatusCard
 import com.example.coach_android.ui.components.RuleEditorDialog
@@ -56,6 +57,12 @@ fun AppsScreen(viewModel: AppsViewModel = viewModel()) {
                 onFocusClick = viewModel::sendFocusCommand,
                 onRefreshClick = viewModel::refreshFocusState,
             )
+            Spacer(Modifier.height(8.dp))
+        }
+
+        // Agent lock indicator
+        item {
+            AgentLockCard(focusData = state.focusData)
             Spacer(Modifier.height(8.dp))
         }
 

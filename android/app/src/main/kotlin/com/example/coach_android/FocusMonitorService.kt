@@ -7,6 +7,7 @@ import android.os.Binder
 import android.os.IBinder
 import android.os.SystemClock
 import android.util.Log
+import com.example.coach_android.data.agentchat.AgentChatService
 import com.example.coach_android.di.AppContainer
 import com.example.coach_android.service.MonitorLogic
 import kotlinx.coroutines.*
@@ -20,6 +21,7 @@ class FocusMonitorService : Service() {
     private lateinit var appMonitor: AppMonitorHandler
 
     private var monitorLogic: MonitorLogic? = null
+    private var agentChatService: AgentChatService? = null
     private var overlayManager: OverlayManager? = null
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -88,6 +90,8 @@ class FocusMonitorService : Service() {
         serviceScope.cancel()
         monitorLogic?.dispose()
         monitorLogic = null
+        agentChatService?.dispose()
+        agentChatService = null
         serviceInstance = null
     }
 
@@ -168,10 +172,13 @@ class FocusMonitorService : Service() {
             // Get or create AppContainer
             val app = application
             val webSocketUrl = getWebSocketUrl()
-            val container = AppContainer(app, webSocketUrl)
+            val agentsUrl = getAgentsUrl()
+            val container = AppContainer(app, webSocketUrl, agentsUrl)
 
             val logic = container.monitorLogic
             monitorLogic = logic
+            agentChatService = container.agentChatService
+            logic.applicationContext = applicationContext
 
             // Wire overlay manager directly (no Activity dependency)
             val overlay = OverlayManager(applicationContext)
@@ -232,6 +239,8 @@ class FocusMonitorService : Service() {
 
     private fun getWebSocketUrl(): String = BuildConfig.WEBSOCKET_URL
 
+    private fun getAgentsUrl(): String = BuildConfig.AGENTS_URL
+
     // --- Called by AppMonitorHandler ---
 
     fun notifyAppDetected(packageName: String) {
@@ -240,6 +249,8 @@ class FocusMonitorService : Service() {
     }
 
     fun getMonitorLogic(): MonitorLogic? = monitorLogic
+
+    fun getAgentChatService(): AgentChatService? = agentChatService
 
     // --- Focus Now action from notification ---
 

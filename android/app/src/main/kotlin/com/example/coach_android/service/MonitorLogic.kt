@@ -1,5 +1,7 @@
 package com.example.coach_android.service
 
+import android.content.Context
+import android.content.Intent
 import android.util.Log
 import com.example.coach_android.data.db.EventDao
 import com.example.coach_android.data.db.EventEntity
@@ -41,6 +43,10 @@ class MonitorLogic(
     private var pendingChallenges = mutableMapOf<String, String>() // ruleId → packageName
 
     var overlayManager: com.example.coach_android.OverlayManager? = null
+
+    // Set by FocusMonitorService after construction. Used to launch ChatActivity
+    // when the agent lock blocks a monitored app.
+    var applicationContext: Context? = null
 
     private var webSocketJob: Job? = null
 
@@ -139,6 +145,16 @@ class MonitorLogic(
 
     // --- App Change Handling (called from FocusMonitorService) ---
 
+    private enum class BlockMode { CHAT, STANDARD_OVERLAY, NONE }
+
+    private fun blockMode(packageName: String): BlockMode {
+        if (!monitoredPackages.contains(packageName)) return BlockMode.NONE
+        // Agent lock wins over manual focus when both are active.
+        if (_focusData.value.isAgentLocked) return BlockMode.CHAT
+        if (_focusData.value.isFocusing) return BlockMode.STANDARD_OVERLAY
+        return BlockMode.NONE
+    }
+
     fun onAppChanged(packageName: String) {
         Log.d(tag, "App changed to: $packageName")
 
@@ -154,22 +170,22 @@ class MonitorLogic(
                     ),
                 )
 
-                val shouldShow = shouldShowOverlay(packageName)
+                val mode = blockMode(packageName)
                 Log.i(
                     tag,
-                    "Overlay decision for $packageName - focusing: ${_focusData.value.isFocusing}, monitored: ${monitoredPackages.contains(
-                        packageName,
-                    )}, show: $shouldShow",
+                    "Block decision for $packageName - focusing: ${_focusData.value.isFocusing}, agentLocked: ${_focusData.value.isAgentLocked}, monitored: ${monitoredPackages.contains(packageName)}, mode: $mode",
                 )
 
-                if (shouldShow) {
-                    Log.i(tag, "SHOWING overlay for app: $packageName")
-                    withContext(Dispatchers.Main) {
-                        overlayManager?.show(packageName)
+                when (mode) {
+                    BlockMode.CHAT -> {
+                        withContext(Dispatchers.Main) { overlayManager?.hide() }
+                        launchChatActivity(forced = true)
                     }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        overlayManager?.hide()
+                    BlockMode.STANDARD_OVERLAY -> {
+                        withContext(Dispatchers.Main) { overlayManager?.show(packageName) }
+                    }
+                    BlockMode.NONE -> {
+                        withContext(Dispatchers.Main) { overlayManager?.hide() }
                     }
                 }
 
@@ -187,16 +203,39 @@ class MonitorLogic(
         }
     }
 
-    private fun shouldShowOverlay(packageName: String): Boolean = monitoredPackages.contains(packageName) && _focusData.value.isFocusing
-
     fun ensureOverlay(packageName: String) {
-        if (shouldShowOverlay(packageName) && overlayManager?.isShowing() != true) {
-            Log.i(tag, "Re-showing overlay for $packageName (was dismissed externally)")
-            scope.launch {
-                withContext(Dispatchers.Main) {
-                    overlayManager?.show(packageName)
+        val mode = blockMode(packageName)
+        when (mode) {
+            BlockMode.STANDARD_OVERLAY -> {
+                if (overlayManager?.isShowing() != true) {
+                    Log.i(tag, "Re-showing overlay for $packageName (was dismissed externally)")
+                    scope.launch {
+                        withContext(Dispatchers.Main) {
+                            overlayManager?.show(packageName)
+                        }
+                    }
                 }
             }
+            BlockMode.CHAT -> {
+                Log.i(tag, "Re-launching chat for $packageName (was bypassed)")
+                launchChatActivity(forced = true)
+            }
+            BlockMode.NONE -> {}
+        }
+    }
+
+    private fun launchChatActivity(forced: Boolean) {
+        val ctx = applicationContext ?: return
+        val intent =
+            Intent().apply {
+                setClassName(ctx, "com.example.coach_android.ui.chat.ChatActivity")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                putExtra("EXTRA_FORCED", forced)
+            }
+        try {
+            ctx.startActivity(intent)
+        } catch (e: Exception) {
+            Log.e(tag, "Failed to launch ChatActivity: ${e.message}")
         }
     }
 

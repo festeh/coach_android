@@ -29,6 +29,7 @@ android {
         versionName = "1.0.0"
 
         buildConfigField("String", "WEBSOCKET_URL", "\"${System.getenv("WEBSOCKET_URL") ?: ""}\"")
+        buildConfigField("String", "AGENTS_URL", "\"${System.getenv("AGENTS_URL") ?: ""}\"")
     }
 
     buildFeatures {

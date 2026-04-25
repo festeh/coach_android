@@ -2,7 +2,7 @@ set dotenv-load
 
 default: run
 
-gradle := "JAVA_HOME=/opt/android-studio/jbr WEBSOCKET_URL=$WEBSOCKET_URL ./android/gradlew -p android"
+gradle := "JAVA_HOME=/opt/android-studio/jbr WEBSOCKET_URL=${WEBSOCKET_URL:-} AGENTS_URL=${AGENTS_URL:-} ./android/gradlew -p android"
 
 run:
     {{gradle}} :app:assembleDebug
