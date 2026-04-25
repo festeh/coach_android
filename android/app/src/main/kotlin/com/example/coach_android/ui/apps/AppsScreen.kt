@@ -4,6 +4,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +30,7 @@ fun AppsScreen(viewModel: AppsViewModel = viewModel()) {
     var editingRule by remember { mutableStateOf<AppRule?>(null) }
     var showRuleEditor by remember { mutableStateOf(false) }
     var ruleEditorPackage by remember { mutableStateOf("") }
+    var searchQuery by remember { mutableStateOf("") }
 
     if (state.isLoading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -41,6 +46,15 @@ fun AppsScreen(viewModel: AppsViewModel = viewModel()) {
                 compareByDescending<AppInfo> { state.selectedPackages.contains(it.packageName) }
                     .thenBy { it.name.lowercase() },
             )
+        }
+
+    val filteredApps =
+        remember(sortedApps, searchQuery) {
+            if (searchQuery.isBlank()) {
+                sortedApps
+            } else {
+                sortedApps.filter { it.name.contains(searchQuery, ignoreCase = true) }
+            }
         }
 
     LazyColumn(
@@ -66,8 +80,28 @@ fun AppsScreen(viewModel: AppsViewModel = viewModel()) {
             Spacer(Modifier.height(8.dp))
         }
 
+        // Search bar
+        item {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Search apps") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(Icons.Default.Clear, contentDescription = "Clear search")
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(28.dp),
+            )
+        }
+
         // App list
-        items(sortedApps, key = { it.packageName }) { app ->
+        items(filteredApps, key = { it.packageName }) { app ->
             val isCoached = state.selectedPackages.contains(app.packageName)
             val hasRules = state.rules.values.any { it.packageName == app.packageName }
 

@@ -1,6 +1,5 @@
 package com.example.coach_android.data.model
 
-import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 
 data class AppInfo(
@@ -11,7 +10,7 @@ data class AppInfo(
         fun loadInstalled(pm: PackageManager): List<AppInfo> =
             pm
                 .getInstalledApplications(PackageManager.GET_META_DATA)
-                .filter { (it.flags and ApplicationInfo.FLAG_SYSTEM) == 0 }
+                .filter { pm.getLaunchIntentForPackage(it.packageName) != null }
                 .mapNotNull { info ->
                     try {
                         AppInfo(
