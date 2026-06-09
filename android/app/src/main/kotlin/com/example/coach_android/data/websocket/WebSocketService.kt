@@ -41,9 +41,6 @@ class WebSocketService(
     private val _focusUpdates = MutableSharedFlow<Map<String, Any?>>(extraBufferCapacity = 16)
     val focusUpdates: SharedFlow<Map<String, Any?>> = _focusUpdates.asSharedFlow()
 
-    private val _hookResults = MutableSharedFlow<Map<String, Any?>>(extraBufferCapacity = 16)
-    val hookResults: SharedFlow<Map<String, Any?>> = _hookResults.asSharedFlow()
-
     val connected: Boolean get() = isConnected
 
     fun getConnectionStatus(): Map<String, Any?> =
@@ -144,13 +141,6 @@ class WebSocketService(
                 return
             }
 
-            // Emit hook results
-            if (messageType == "hook_result") {
-                scope.launch { _hookResults.emit(dataMap) }
-                Log.d(tag, "Hook result emitted: hook_id=${data["hook_id"]}")
-                return
-            }
-
             // Emit focus updates
             if (messageType == "focusing" ||
                 messageType == "focusing_status" ||
@@ -236,6 +226,22 @@ class WebSocketService(
             )
         ws.send(jsonStr)
         Log.d(tag, "Sent WebSocket message: $jsonStr")
+    }
+
+    // Report a blocked app open as a temptation. Best-effort: if the socket is
+    // down the block still happened, we just don't record it.
+    fun sendTemptation(packageName: String) {
+        try {
+            sendMessage(
+                mapOf(
+                    "type" to "temptation",
+                    "source" to "android",
+                    "target" to packageName,
+                ),
+            )
+        } catch (e: Exception) {
+            Log.w(tag, "Failed to send temptation: ${e.message}")
+        }
     }
 
     suspend fun sendFocusCommand(durationMinutes: Int = 0) {

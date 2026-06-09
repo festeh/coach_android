@@ -12,11 +12,8 @@ import com.example.coach_android.data.preferences.PreferencesManager
 import com.example.coach_android.data.websocket.WebSocketService
 import com.example.coach_android.util.TimeFormatter
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class MonitorLogic(
@@ -31,12 +28,6 @@ class MonitorLogic(
 
     private val _focusData = MutableStateFlow(FocusData())
     val focusData: StateFlow<FocusData> = _focusData.asStateFlow()
-
-    private val _reminderCheck = MutableSharedFlow<Pair<Int, Boolean>>(extraBufferCapacity = 4)
-    val reminderCheck: SharedFlow<Pair<Int, Boolean>> = _reminderCheck.asSharedFlow()
-
-    private val _notificationTimeUpdated = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val notificationTimeUpdated: SharedFlow<Unit> = _notificationTimeUpdated.asSharedFlow()
 
     private var monitoredPackages = emptySet<String>()
     private var rules = emptyMap<String, AppRule>()
@@ -139,7 +130,6 @@ class MonitorLogic(
                 tag,
                 "Focus data updated from WebSocket: focusing=${new.isFocusing}, sinceLastChange=${new.sinceLastChange}, focusTimeLeft=${new.focusTimeLeft}, numFocuses=${new.numFocuses}",
             )
-            _reminderCheck.tryEmit(new.sinceLastChange to new.isFocusing)
         }
     }
 
@@ -189,14 +179,13 @@ class MonitorLogic(
                     }
                 }
 
+                // A blocked watched-app open is a temptation; reuse the decision above.
+                if (mode != BlockMode.NONE) {
+                    webSocketService.sendTemptation(packageName)
+                }
+
                 // Check rules independently of focus state
                 checkRules(packageName)
-
-                // Update activity time
-                updateActivityTime()
-
-                // Check focus reminder
-                _reminderCheck.tryEmit(_focusData.value.sinceLastChange to _focusData.value.isFocusing)
             } catch (e: Exception) {
                 Log.e(tag, "Error handling app change: ${e.message}")
             }
@@ -319,20 +308,6 @@ class MonitorLogic(
         prefs.savePendingChallengeIds(pendingChallenges.keys.toList())
     }
 
-    // --- Activity & Notification Time ---
-
-    private fun updateActivityTime() {
-        val currentTime = (System.currentTimeMillis() / 1000).toInt()
-        _focusData.value = _focusData.value.copy(lastActivityTime = currentTime)
-        prefs.saveFocusData(_focusData.value)
-    }
-
-    fun updateNotificationTime() {
-        val currentTime = (System.currentTimeMillis() / 1000).toInt()
-        _focusData.value = _focusData.value.copy(lastNotificationTime = currentTime)
-        prefs.saveFocusData(_focusData.value)
-    }
-
     // --- External Triggers ---
 
     fun refreshFocusState() {
@@ -369,10 +344,6 @@ class MonitorLogic(
     fun reloadRules() {
         rules = prefs.loadRules()
         Log.i(tag, "Reloaded rules: ${rules.size} rules")
-    }
-
-    fun forceShowFocusReminder() {
-        _notificationTimeUpdated.tryEmit(Unit)
     }
 
     fun getWebSocketConnectionStatus(): Map<String, Any?> = webSocketService.getConnectionStatus()
