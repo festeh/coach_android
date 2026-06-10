@@ -3,11 +3,10 @@ package com.example.coach_android
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import com.example.coach_android.data.model.FocusData
 import com.example.coach_android.util.TimeFormatter
 
 class ServiceNotificationManager(
@@ -35,42 +34,26 @@ class ServiceNotificationManager(
     }
 
     fun createServiceNotification(
-        isFocusing: Boolean? = null,
-        numFocuses: Int? = null,
-        focusTimeLeft: Int? = null,
+        focusData: FocusData? = null,
         isConnected: Boolean = false,
-    ): Notification = buildNotification(isFocusing, numFocuses, focusTimeLeft, isConnected)
+    ): Notification = buildNotification(focusData, isConnected)
 
     fun updateNotification(
-        isFocusing: Boolean? = null,
-        numFocuses: Int? = null,
-        focusTimeLeft: Int? = null,
-        isConnected: Boolean = false,
+        focusData: FocusData,
+        isConnected: Boolean,
     ) {
-        val notification = buildNotification(isFocusing, numFocuses, focusTimeLeft, isConnected)
+        val notification = buildNotification(focusData, isConnected)
         notificationManager.notify(NOTIFICATION_ID, notification)
     }
 
     private fun buildNotification(
-        isFocusing: Boolean?,
-        numFocuses: Int?,
-        focusTimeLeft: Int?,
+        focusData: FocusData?,
         isConnected: Boolean,
     ): Notification {
-        val focusPendingIntent =
-            PendingIntent.getService(
-                context,
-                0,
-                Intent(context, FocusMonitorService::class.java).apply {
-                    action = FocusMonitorService.ACTION_FOCUS_NOW
-                },
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-            )
-
-        val (title, content) = formatNotificationContent(isFocusing, numFocuses, focusTimeLeft, isConnected)
+        val (title, content) = formatNotificationContent(focusData, isConnected)
 
         val iconRes =
-            if (isFocusing == true) {
+            if (focusData?.isFocused == true) {
                 R.drawable.ic_notification_c
             } else {
                 R.drawable.ic_notification_c_crossed
@@ -85,45 +68,33 @@ class ServiceNotificationManager(
             .setShowWhen(false)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
-            .addAction(
-                android.R.drawable.ic_media_play,
-                "Focus",
-                focusPendingIntent,
-            ).build()
+            .build()
     }
 
     private fun formatNotificationContent(
-        isFocusing: Boolean?,
-        numFocuses: Int?,
-        focusTimeLeft: Int?,
+        focusData: FocusData?,
         isConnected: Boolean,
     ): Pair<String, String> {
-        val connectionStatus = if (isConnected) STATUS_ACTIVE else STATUS_INACTIVE
+        if (focusData == null) {
+            val connectionStatus = if (isConnected) STATUS_ACTIVE else STATUS_INACTIVE
+            return TITLE_DEFAULT to "$CONTENT_MONITORING • $connectionStatus"
+        }
 
-        val focusCount = numFocuses ?: 0
-        val focusText =
-            when (focusCount) {
-                0 -> FOCUS_COUNT_ZERO
-                1 -> FOCUS_COUNT_ONE
-                else -> "$focusCount $FOCUS_COUNT_SUFFIX"
-            }
-
-        val title =
-            if (isFocusing == null) {
-                TITLE_DEFAULT
-            } else {
-                val focusStatus = if (isFocusing) STATUS_FOCUSING else STATUS_NOT_FOCUSING
-                "$focusStatus • $focusText"
-            }
+        val title = if (focusData.isFocused) STATUS_FOCUSING else STATUS_NOT_FOCUSING
 
         val content =
-            if (isFocusing == true && focusTimeLeft != null && focusTimeLeft > 0) {
-                "${TimeFormatter.formatFocusTime(focusTimeLeft)} $TIME_REMAINING"
-            } else {
-                "$CONTENT_MONITORING • $connectionStatus"
+            when {
+                focusData.isFocusing && focusData.focusTimeLeft > 0 ->
+                    "Manual session: ${TimeFormatter.formatFocusTime(focusData.focusTimeLeft)} left"
+                !focusData.isAgentLocked && (focusData.agentReleaseTimeLeft ?: 0) > 0 ->
+                    "Agent lock returns in ${TimeFormatter.formatFocusTime(focusData.agentReleaseTimeLeft!!)}"
+                focusData.isAgentLocked ->
+                    "Agent locked"
+                else ->
+                    "$CONTENT_MONITORING • ${if (isConnected) STATUS_ACTIVE else STATUS_INACTIVE}"
             }
 
-        return Pair(title, content)
+        return title to content
     }
 
     companion object {
@@ -138,9 +109,5 @@ class ServiceNotificationManager(
         private const val STATUS_NOT_FOCUSING = "Not focusing"
         private const val TITLE_DEFAULT = "Focus Monitor"
         private const val CONTENT_MONITORING = "Monitoring"
-        private const val TIME_REMAINING = "remaining"
-        private const val FOCUS_COUNT_ZERO = "No focuses today"
-        private const val FOCUS_COUNT_ONE = "1 focus today"
-        private const val FOCUS_COUNT_SUFFIX = "focuses today"
     }
 }

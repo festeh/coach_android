@@ -49,19 +49,6 @@ fun DebugScreen(
             PermissionRow("Battery Optimization", state.hasBatteryExclusion, viewModel::requestBatteryExclusion)
         }
 
-        // Notifications
-        item {
-            Text("Notifications", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-        }
-        item {
-            OutlinedButton(
-                onClick = viewModel::forceReminder,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Force Show Focus Reminder")
-            }
-        }
-
         // Actions
         item {
             Text("Service", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)

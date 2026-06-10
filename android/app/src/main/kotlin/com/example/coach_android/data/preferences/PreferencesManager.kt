@@ -27,8 +27,6 @@ class PreferencesManager(
             sinceLastChange = prefs.getInt("sinceLastChange", 0),
             focusTimeLeft = prefs.getInt("focusTimeLeft", 0),
             numFocuses = prefs.getInt("numFocuses", 0),
-            lastNotificationTime = prefs.getInt("lastNotificationTime", 0),
-            lastActivityTime = prefs.getInt("lastActivityTime", 0),
             lastFocusEndTime = prefs.getInt("lastFocusEndTime", 0),
         )
 
@@ -39,8 +37,6 @@ class PreferencesManager(
             .putInt("sinceLastChange", data.sinceLastChange)
             .putInt("focusTimeLeft", data.focusTimeLeft)
             .putInt("numFocuses", data.numFocuses)
-            .putInt("lastNotificationTime", data.lastNotificationTime)
-            .putInt("lastActivityTime", data.lastActivityTime)
             .putInt("lastFocusEndTime", data.lastFocusEndTime)
             .apply()
     }
@@ -118,14 +114,6 @@ class PreferencesManager(
         default: String,
     ): String = prefs.getString(key, null) ?: default
 
-    private fun secondsToMinutes(
-        key: String,
-        defaultMinutes: Int,
-    ): Int {
-        val seconds = prefs.getInt(key, -1)
-        return if (seconds >= 0) seconds / 60 else defaultMinutes
-    }
-
     private fun int(
         key: String,
         default: Int,
@@ -136,9 +124,6 @@ class PreferencesManager(
 
     fun loadSettings(): AppSettings =
         AppSettings(
-            focusGapThresholdMinutes = secondsToMinutes("settingsFocusGapThreshold", AppSettings.DEFAULT_FOCUS_GAP_THRESHOLD_MINUTES),
-            reminderCooldownMinutes = secondsToMinutes("settingsReminderCooldown", AppSettings.DEFAULT_REMINDER_COOLDOWN_MINUTES),
-            activityTimeoutMinutes = secondsToMinutes("settingsActivityTimeout", AppSettings.DEFAULT_ACTIVITY_TIMEOUT_MINUTES),
             overlayMessage = str("settingsOverlayMessage", AppSettings.DEFAULT_OVERLAY_MESSAGE),
             overlayColor = str("settingsOverlayColor", AppSettings.DEFAULT_OVERLAY_COLOR),
             overlayButtonText = str("settingsOverlayButtonText", AppSettings.DEFAULT_OVERLAY_BUTTON_TEXT),
@@ -156,9 +141,6 @@ class PreferencesManager(
     fun saveSettings(settings: AppSettings) {
         prefs
             .edit()
-            .putInt("settingsFocusGapThreshold", settings.focusGapThresholdSeconds)
-            .putInt("settingsReminderCooldown", settings.reminderCooldownSeconds)
-            .putInt("settingsActivityTimeout", settings.activityTimeoutSeconds)
             .putString("settingsOverlayMessage", settings.overlayMessage)
             .putString("settingsOverlayColor", settings.overlayColor)
             .putString("settingsOverlayButtonText", settings.overlayButtonText)

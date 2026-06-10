@@ -104,10 +104,6 @@ class DebugViewModel(
         app.startService(intent)
     }
 
-    fun forceReminder() {
-        FocusMonitorService.getInstance()?.getMonitorLogic()?.forceShowFocusReminder()
-    }
-
     fun refreshFocusState() {
         FocusMonitorService.getInstance()?.getMonitorLogic()?.refreshFocusState()
     }

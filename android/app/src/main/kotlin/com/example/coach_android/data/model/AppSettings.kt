@@ -1,9 +1,6 @@
 package com.example.coach_android.data.model
 
 data class AppSettings(
-    val focusGapThresholdMinutes: Int = DEFAULT_FOCUS_GAP_THRESHOLD_MINUTES,
-    val reminderCooldownMinutes: Int = DEFAULT_REMINDER_COOLDOWN_MINUTES,
-    val activityTimeoutMinutes: Int = DEFAULT_ACTIVITY_TIMEOUT_MINUTES,
     val overlayMessage: String = DEFAULT_OVERLAY_MESSAGE,
     val overlayColor: String = DEFAULT_OVERLAY_COLOR,
     val overlayButtonText: String = DEFAULT_OVERLAY_BUTTON_TEXT,
@@ -17,14 +14,7 @@ data class AppSettings(
     val longPressDurationSeconds: Int = DEFAULT_LONG_PRESS_DURATION_SECONDS,
     val typingPhrase: String = DEFAULT_TYPING_PHRASE,
 ) {
-    val focusGapThresholdSeconds: Int get() = focusGapThresholdMinutes * 60
-    val reminderCooldownSeconds: Int get() = reminderCooldownMinutes * 60
-    val activityTimeoutSeconds: Int get() = activityTimeoutMinutes * 60
-
     companion object {
-        const val DEFAULT_FOCUS_GAP_THRESHOLD_MINUTES = 120
-        const val DEFAULT_REMINDER_COOLDOWN_MINUTES = 60
-        const val DEFAULT_ACTIVITY_TIMEOUT_MINUTES = 5
         const val DEFAULT_OVERLAY_MESSAGE = ""
         const val DEFAULT_OVERLAY_COLOR = "FF000000"
         const val DEFAULT_OVERLAY_BUTTON_TEXT = ""

@@ -16,8 +16,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 class FocusMonitorService : Service() {
     private val binder = FocusMonitorBinder()
     private lateinit var notificationManager: ServiceNotificationManager
-    private lateinit var popNotificationManager: PopNotificationManager
-    private lateinit var hookNotificationManager: HookNotificationManager
     private lateinit var appMonitor: AppMonitorHandler
 
     private var monitorLogic: MonitorLogic? = null
@@ -31,7 +29,6 @@ class FocusMonitorService : Service() {
         const val TAG = "FocusMonitorService"
         const val ACTION_START_SERVICE = "START_FOCUS_MONITOR"
         const val ACTION_STOP_SERVICE = "STOP_FOCUS_MONITOR"
-        const val ACTION_FOCUS_NOW = "FOCUS_NOW"
 
         private var serviceInstance: FocusMonitorService? = null
 
@@ -49,8 +46,6 @@ class FocusMonitorService : Service() {
         Log.d(TAG, "Service onCreate")
 
         notificationManager = ServiceNotificationManager(this)
-        popNotificationManager = PopNotificationManager(this)
-        hookNotificationManager = HookNotificationManager(this)
         appMonitor = AppMonitorHandler(this)
 
         notificationManager.createNotificationChannel()
@@ -71,9 +66,6 @@ class FocusMonitorService : Service() {
             }
             ACTION_STOP_SERVICE -> {
                 stopForegroundService()
-            }
-            ACTION_FOCUS_NOW -> {
-                handleFocusNowAction()
             }
         }
 
@@ -129,16 +121,8 @@ class FocusMonitorService : Service() {
         Log.d(TAG, "Starting foreground service")
 
         val focusData = monitorLogic?.focusData?.value
-        val notification =
-            if (focusData != null) {
-                notificationManager.createServiceNotification(
-                    focusData.isFocusing,
-                    focusData.numFocuses,
-                    focusData.focusTimeLeft,
-                )
-            } else {
-                notificationManager.createServiceNotification()
-            }
+        val isConnected = monitorLogic?.getWebSocketConnectionStatus()?.get("isConnected") as? Boolean ?: false
+        val notification = notificationManager.createServiceNotification(focusData, isConnected)
         startForeground(ServiceNotificationManager.NOTIFICATION_ID, notification)
 
         isRunning.set(true)
@@ -193,41 +177,9 @@ class FocusMonitorService : Service() {
                 logic.focusData.collect { data ->
                     if (!isRunning.get()) return@collect
                     notificationManager.updateNotification(
-                        data.isFocusing,
-                        data.numFocuses,
-                        data.focusTimeLeft,
+                        data,
                         logic.getWebSocketConnectionStatus()["isConnected"] as? Boolean ?: false,
                     )
-                }
-            }
-            serviceScope.launch {
-                logic.reminderCheck.collect { (sinceLastChange, isFocusing) ->
-                    popNotificationManager.checkAndShowFocusReminder(sinceLastChange, isFocusing)
-                }
-            }
-            serviceScope.launch {
-                logic.notificationTimeUpdated.collect {
-                    popNotificationManager.forceShowFocusReminder()
-                }
-            }
-
-            // Collect hook results from WebSocket → save to DB + notify
-            serviceScope.launch {
-                container.webSocketService.hookResults.collect { data ->
-                    try {
-                        val entity =
-                            com.example.coach_android.data.db.HookResultEntity(
-                                id = data["id"] as? String ?: java.util.UUID.randomUUID().toString(),
-                                hookId = data["hook_id"] as? String ?: "unknown",
-                                content = data["content"] as? String ?: "",
-                                createdAt = System.currentTimeMillis() / 1000,
-                            )
-                        container.hookResultDao.insert(entity)
-                        container.hookResultDao.cleanup(1000)
-                        hookNotificationManager.showIfActive(entity)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to handle hook result: ${e.message}")
-                    }
                 }
             }
 
@@ -244,27 +196,10 @@ class FocusMonitorService : Service() {
     // --- Called by AppMonitorHandler ---
 
     fun notifyAppDetected(packageName: String) {
-        popNotificationManager.updateActivity()
         monitorLogic?.onAppChanged(packageName)
     }
 
     fun getMonitorLogic(): MonitorLogic? = monitorLogic
 
     fun getAgentChatService(): AgentChatService? = agentChatService
-
-    // --- Focus Now action from notification ---
-
-    private fun handleFocusNowAction() {
-        Log.d(TAG, "Handling Focus Now action from reminder notification")
-        popNotificationManager.dismissReminder()
-        monitorLogic?.sendFocusCommand()
-
-        val openAppIntent =
-            packageManager.getLaunchIntentForPackage(packageName)?.apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            }
-        if (openAppIntent != null) {
-            startActivity(openAppIntent)
-        }
-    }
 }

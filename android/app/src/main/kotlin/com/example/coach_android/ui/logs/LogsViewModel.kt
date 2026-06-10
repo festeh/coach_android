@@ -38,7 +38,6 @@ class LogsViewModel(
             "WebSocketService",
             "AppMonitorHandler",
             "MainActivity",
-            "PopNotificationManager",
             "ServiceNotificationManager",
         )
 

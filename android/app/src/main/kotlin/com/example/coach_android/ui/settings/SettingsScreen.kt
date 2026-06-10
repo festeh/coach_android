@@ -29,36 +29,6 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // Notifications section
-        item { SectionHeader("Notifications") }
-        item {
-            SliderSetting(
-                label = "Focus gap threshold",
-                value = settings.focusGapThresholdMinutes.toFloat(),
-                valueRange = 1f..60f,
-                valueLabel = "${settings.focusGapThresholdMinutes} min",
-                onValueChange = { v -> viewModel.updateSettings { it.copy(focusGapThresholdMinutes = v.toInt()) } },
-            )
-        }
-        item {
-            SliderSetting(
-                label = "Reminder cooldown",
-                value = settings.reminderCooldownMinutes.toFloat(),
-                valueRange = 1f..60f,
-                valueLabel = "${settings.reminderCooldownMinutes} min",
-                onValueChange = { v -> viewModel.updateSettings { it.copy(reminderCooldownMinutes = v.toInt()) } },
-            )
-        }
-        item {
-            SliderSetting(
-                label = "Activity timeout",
-                value = settings.activityTimeoutMinutes.toFloat(),
-                valueRange = 1f..60f,
-                valueLabel = "${settings.activityTimeoutMinutes} min",
-                onValueChange = { v -> viewModel.updateSettings { it.copy(activityTimeoutMinutes = v.toInt()) } },
-            )
-        }
-
         // Coach overlay section
         item { SectionHeader("Coach Overlay") }
         item {
