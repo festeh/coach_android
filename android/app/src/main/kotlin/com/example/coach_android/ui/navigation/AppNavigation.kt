@@ -52,9 +52,9 @@ fun AppNavigation() {
     val currentRoute = currentDestination?.route
     val showBottomBar = currentRoute in bottomTabs.map { it.route }
 
-    // Chat brings its own header; stacking the app toolbar above it wastes a
-    // row and looks broken.
-    val showTopBar = currentRoute == Screen.Apps.route || currentRoute == Screen.Stats.route
+    // The debug/settings toolbar lives on Apps only — chat brings its own
+    // header, and stats wants the full height for its charts.
+    val showTopBar = currentRoute == Screen.Apps.route
 
     Scaffold(
         topBar = {
