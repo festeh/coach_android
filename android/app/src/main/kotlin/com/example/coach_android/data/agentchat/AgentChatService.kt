@@ -22,6 +22,25 @@ import java.util.concurrent.TimeUnit
 import kotlin.math.min
 import kotlin.math.pow
 
+// Frame kinds on the chat socket — mirror my-agents' WsIn/WsOut enums.
+private object ClientFrame {
+    const val MESSAGE = "message"
+    const val CLEAR = "clear"
+}
+
+private object ServerFrame {
+    const val HISTORY = "history"
+    const val CHUNK = "chunk"
+    const val DONE = "done"
+    const val ERROR = "error"
+    const val PONG = "pong"
+}
+
+private object HistoryRole {
+    const val HUMAN = "human"
+    const val AI = "ai"
+}
+
 /**
  * WebSocket client to the my-agents server's coach agent at
  * `<baseUrl>/api/coach/ws/<threadId>`.
@@ -115,7 +134,7 @@ class AgentChatService(
             json.encodeToString(
                 JsonObject.serializer(),
                 buildJsonObject {
-                    put("type", JsonPrimitive("message"))
+                    put("type", JsonPrimitive(ClientFrame.MESSAGE))
                     put("content", JsonPrimitive(content))
                 },
             )
@@ -124,6 +143,22 @@ class AgentChatService(
             Log.w(tag, "WebSocket.send() returned false; frame not queued")
             scope.launch { _events.emit(ChatEvent.Error("Failed to send (queue closed)")) }
         }
+    }
+
+    // Ask the server to wipe this thread. It answers with an empty history
+    // frame, which resets the UI the same way a fresh connect would.
+    fun clear() {
+        val ws = webSocket
+        if (!isConnected || ws == null) {
+            scope.launch { _events.emit(ChatEvent.Error("Not connected")) }
+            return
+        }
+        val frame =
+            json.encodeToString(
+                JsonObject.serializer(),
+                buildJsonObject { put("type", JsonPrimitive(ClientFrame.CLEAR)) },
+            )
+        ws.send(frame)
     }
 
     private fun openSocket() {
@@ -173,7 +208,7 @@ class AgentChatService(
         try {
             val obj = json.decodeFromString<JsonObject>(text)
             when (obj["type"]?.jsonPrimitive?.content) {
-                "history" -> {
+                ServerFrame.HISTORY -> {
                     val arr = obj["messages"] as? JsonArray ?: JsonArray(emptyList())
                     val messages =
                         arr.mapNotNull { el ->
@@ -182,27 +217,27 @@ class AgentChatService(
                             val content = m["content"]?.jsonPrimitive?.content ?: return@mapNotNull null
                             val mapped =
                                 when (role) {
-                                    "human" -> ChatMessage.Role.USER
-                                    "ai" -> ChatMessage.Role.ASSISTANT
+                                    HistoryRole.HUMAN -> ChatMessage.Role.USER
+                                    HistoryRole.AI -> ChatMessage.Role.ASSISTANT
                                     else -> return@mapNotNull null
                                 }
                             ChatMessage(role = mapped, content = content)
                         }
                     scope.launch { _events.emit(ChatEvent.History(messages)) }
                 }
-                "chunk" -> {
+                ServerFrame.CHUNK -> {
                     val piece = obj["content"]?.jsonPrimitive?.content ?: return
                     scope.launch { _events.emit(ChatEvent.Chunk(piece)) }
                 }
-                "done" -> {
+                ServerFrame.DONE -> {
                     scope.launch { _events.emit(ChatEvent.Done) }
                 }
-                "error" -> {
+                ServerFrame.ERROR -> {
                     val message = obj["message"]?.jsonPrimitive?.content ?: "Unknown error"
                     Log.e(tag, "Server error frame: $message (raw=$text)")
                     scope.launch { _events.emit(ChatEvent.Error(message)) }
                 }
-                "pong" -> {}
+                ServerFrame.PONG -> {}
                 else -> Log.d(tag, "Ignoring frame: $text")
             }
         } catch (e: Exception) {

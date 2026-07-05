@@ -34,11 +34,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -71,6 +74,7 @@ fun ChatScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var input by remember { mutableStateOf("") }
+    var confirmClear by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
@@ -93,6 +97,25 @@ fun ChatScreen(
         }
     }
 
+    if (confirmClear) {
+        AlertDialog(
+            onDismissRequest = { confirmClear = false },
+            title = { Text("Clear conversation?") },
+            text = { Text("The coach forgets this thread. The decision ledger keeps its rows.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmClear = false
+                        viewModel.clear()
+                    },
+                ) { Text("Clear") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmClear = false }) { Text("Cancel") }
+            },
+        )
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
@@ -108,6 +131,7 @@ fun ChatScreen(
             ChatHeader(
                 connecting = state.connecting,
                 streaming = state.streaming,
+                onClear = { confirmClear = true },
             )
 
             state.error?.let { err ->
@@ -192,6 +216,7 @@ fun ChatScreen(
 private fun ChatHeader(
     connecting: Boolean,
     streaming: Boolean,
+    onClear: () -> Unit,
 ) {
     val statusText = when {
         connecting -> "Connecting…"
@@ -260,6 +285,14 @@ private fun ChatHeader(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+
+            IconButton(onClick = onClear) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Clear conversation",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

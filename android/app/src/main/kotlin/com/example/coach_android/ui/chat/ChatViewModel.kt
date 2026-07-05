@@ -96,6 +96,12 @@ class ChatViewModel(
         }
     }
 
+    // The server wipes the thread and replies with an empty history frame,
+    // which reduce() folds into a cleared message list.
+    fun clear() {
+        chatService()?.clear()
+    }
+
     private fun reduce(event: ChatEvent) {
         when (event) {
             is ChatEvent.History -> {
