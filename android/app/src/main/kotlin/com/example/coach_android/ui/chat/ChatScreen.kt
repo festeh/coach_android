@@ -71,6 +71,9 @@ import kotlinx.coroutines.launch
 fun ChatScreen(
     viewModel: ChatViewModel,
     onDismissRequest: () -> Unit,
+    // True when hosted inside the app's Scaffold (the Chat tab), which already
+    // consumes system-bar insets — padding again would draw dead bands.
+    embedded: Boolean = false,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var input by remember { mutableStateOf("") }
@@ -124,8 +127,7 @@ fun ChatScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .statusBarsPadding()
-                    .navigationBarsPadding()
+                    .let { if (embedded) it else it.statusBarsPadding().navigationBarsPadding() }
                     .imePadding(),
         ) {
             ChatHeader(

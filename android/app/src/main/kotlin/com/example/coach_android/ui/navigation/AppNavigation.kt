@@ -52,9 +52,13 @@ fun AppNavigation() {
     val currentRoute = currentDestination?.route
     val showBottomBar = currentRoute in bottomTabs.map { it.route }
 
+    // Chat brings its own header; stacking the app toolbar above it wastes a
+    // row and looks broken.
+    val showTopBar = currentRoute == Screen.Apps.route || currentRoute == Screen.Stats.route
+
     Scaffold(
         topBar = {
-            if (showBottomBar) {
+            if (showTopBar) {
                 TopAppBar(
                     title = { },
                     actions = {
@@ -74,7 +78,7 @@ fun AppNavigation() {
                         }
                     },
                 )
-            } else {
+            } else if (!showBottomBar) {
                 TopAppBar(
                     title = {
                         Text(
@@ -154,6 +158,7 @@ fun AppNavigation() {
                             restoreState = true
                         }
                     },
+                    embedded = true,
                 )
             }
             composable(Screen.Stats.route) { StatsScreen() }
