@@ -2,15 +2,18 @@ package com.example.coach_android.ui.navigation
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -18,6 +21,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.coach_android.ui.apps.AppsScreen
+import com.example.coach_android.ui.chat.ChatScreen
+import com.example.coach_android.ui.chat.ChatViewModel
 import com.example.coach_android.ui.debug.DebugScreen
 import com.example.coach_android.ui.logs.LogsScreen
 import com.example.coach_android.ui.settings.SettingsScreen
@@ -30,10 +35,12 @@ sealed class Screen(
 ) {
     data object Apps : Screen("apps", "Apps", Icons.Default.Home)
 
+    data object Chat : Screen("chat", "Chat", Icons.AutoMirrored.Filled.Chat)
+
     data object Stats : Screen("stats", "Stats", Icons.Default.Star)
 }
 
-private val bottomTabs = listOf(Screen.Apps, Screen.Stats)
+private val bottomTabs = listOf(Screen.Apps, Screen.Chat, Screen.Stats)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -115,7 +122,40 @@ fun AppNavigation() {
             startDestination = Screen.Apps.route,
             modifier = Modifier.padding(innerPadding),
         ) {
-            composable(Screen.Apps.route) { AppsScreen() }
+            composable(Screen.Apps.route) {
+                AppsScreen(
+                    onOpenChat = {
+                        navController.navigate(Screen.Chat.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                )
+            }
+            composable(Screen.Chat.route) {
+                val chatViewModel: ChatViewModel = viewModel()
+                // Tab visibility drives the socket the way ChatActivity's
+                // onStart/onStop lifecycle does for the forced wall.
+                DisposableEffect(Unit) {
+                    chatViewModel.onStart()
+                    onDispose { chatViewModel.onStop() }
+                }
+                ChatScreen(
+                    viewModel = chatViewModel,
+                    onDismissRequest = {
+                        navController.navigate(Screen.Apps.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                )
+            }
             composable(Screen.Stats.route) { StatsScreen() }
             composable("settings") { SettingsScreen() }
             composable("debug") {

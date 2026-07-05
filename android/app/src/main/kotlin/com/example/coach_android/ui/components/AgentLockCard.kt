@@ -1,35 +1,23 @@
 package com.example.coach_android.ui.components
 
-import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.coach_android.data.model.FocusData
-import com.example.coach_android.ui.chat.ChatActivity
 import com.example.coach_android.util.TimeFormatter
 
 @Composable
 fun AgentLockCard(
     focusData: FocusData,
+    onOpenChat: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
-    val onClick = {
-        val intent =
-            Intent(context, ChatActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                putExtra(ChatActivity.EXTRA_FORCED, false)
-            }
-        context.startActivity(intent)
-    }
-
     Card(
-        modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = modifier.fillMaxWidth().clickable(onClick = onOpenChat),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
     ) {
         Column(

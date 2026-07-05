@@ -24,7 +24,10 @@ import com.example.coach_android.ui.components.FocusStatusCard
 import com.example.coach_android.ui.components.RuleEditorDialog
 
 @Composable
-fun AppsScreen(viewModel: AppsViewModel = viewModel()) {
+fun AppsScreen(
+    viewModel: AppsViewModel = viewModel(),
+    onOpenChat: () -> Unit = {},
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var selectedApp by remember { mutableStateOf<AppInfo?>(null) }
     var editingRule by remember { mutableStateOf<AppRule?>(null) }
@@ -76,7 +79,7 @@ fun AppsScreen(viewModel: AppsViewModel = viewModel()) {
 
         // Agent lock indicator
         item {
-            AgentLockCard(focusData = state.focusData)
+            AgentLockCard(focusData = state.focusData, onOpenChat = onOpenChat)
             Spacer(Modifier.height(8.dp))
         }
 
