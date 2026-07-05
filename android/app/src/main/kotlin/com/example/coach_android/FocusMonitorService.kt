@@ -157,7 +157,7 @@ class FocusMonitorService : Service() {
             val app = application
             val webSocketUrl = getWebSocketUrl()
             val agentsUrl = getAgentsUrl()
-            val container = AppContainer(app, webSocketUrl, agentsUrl)
+            val container = AppContainer(app, webSocketUrl, agentsUrl, BuildConfig.COACH_API_TOKEN)
 
             val logic = container.monitorLogic
             monitorLogic = logic

@@ -30,6 +30,7 @@ android {
 
         buildConfigField("String", "WEBSOCKET_URL", "\"${System.getenv("WEBSOCKET_URL") ?: ""}\"")
         buildConfigField("String", "AGENTS_URL", "\"${System.getenv("AGENTS_URL") ?: ""}\"")
+        buildConfigField("String", "COACH_API_TOKEN", "\"${System.getenv("COACH_API_TOKEN") ?: ""}\"")
     }
 
     buildFeatures {

@@ -34,6 +34,7 @@ import kotlin.math.pow
 class AgentChatService(
     baseUrl: String,
     private val threadId: String,
+    apiToken: String = "",
 ) {
     private val tag = "AgentChatService"
 
@@ -55,7 +56,9 @@ class AgentChatService(
                     .removePrefix("http://")
                     .removePrefix("wss://")
                     .removePrefix("ws://")
-            "$scheme$withoutScheme/api/coach/ws/$threadId"
+            // Token in the query, matching the browser clients — Caddy checks it.
+            val auth = if (apiToken.isEmpty()) "" else "?token=$apiToken"
+            "$scheme$withoutScheme/api/coach/ws/$threadId$auth"
         }
 
     private val json = Json { ignoreUnknownKeys = true }

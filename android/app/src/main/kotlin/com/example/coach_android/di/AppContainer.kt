@@ -11,17 +11,22 @@ class AppContainer(
     context: Context,
     webSocketUrl: String,
     agentsUrl: String,
+    apiToken: String = "",
 ) {
     val preferencesManager = PreferencesManager(context)
     val database = UsageDatabase.create(context)
     val eventDao = database.eventDao()
     val ruleCounterDao = database.ruleCounterDao()
-    val webSocketService = WebSocketService(webSocketUrl)
+
+    // The token rides the query string on both sockets — OkHttp could set a
+    // header, but the browser clients can't, so the server speaks query-param.
+    val webSocketService = WebSocketService(withToken(webSocketUrl, apiToken))
 
     val agentChatService =
         AgentChatService(
             baseUrl = agentsUrl,
             threadId = preferencesManager.getOrCreateAgentChatThreadId(),
+            apiToken = apiToken,
         )
 
     val monitorLogic =
@@ -31,4 +36,11 @@ class AppContainer(
             ruleCounterDao = ruleCounterDao,
             webSocketService = webSocketService,
         )
+
+    private companion object {
+        fun withToken(
+            url: String,
+            token: String,
+        ): String = if (url.isEmpty() || token.isEmpty()) url else "$url?token=$token"
+    }
 }
