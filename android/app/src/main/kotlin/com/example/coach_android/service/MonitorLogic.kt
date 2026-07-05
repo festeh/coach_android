@@ -168,8 +168,15 @@ class MonitorLogic(
 
                 when (mode) {
                     BlockMode.CHAT -> {
-                        withContext(Dispatchers.Main) { overlayManager?.hide() }
-                        launchChatActivity(forced = true)
+                        // Android 15 refuses activity starts from a background
+                        // service unless the app has a visible window at that
+                        // moment. Flash the overlay to earn the exemption, start
+                        // the chat, then drop it so it can't cover the chat.
+                        withContext(Dispatchers.Main) {
+                            overlayManager?.show(packageName)
+                            launchChatActivity(forced = true)
+                            overlayManager?.hide()
+                        }
                     }
                     BlockMode.STANDARD_OVERLAY -> {
                         withContext(Dispatchers.Main) { overlayManager?.show(packageName) }
@@ -207,7 +214,13 @@ class MonitorLogic(
             }
             BlockMode.CHAT -> {
                 Log.i(tag, "Re-launching chat for $packageName (was bypassed)")
-                launchChatActivity(forced = true)
+                scope.launch {
+                    withContext(Dispatchers.Main) {
+                        overlayManager?.show(packageName)
+                        launchChatActivity(forced = true)
+                        overlayManager?.hide()
+                    }
+                }
             }
             BlockMode.NONE -> {}
         }
