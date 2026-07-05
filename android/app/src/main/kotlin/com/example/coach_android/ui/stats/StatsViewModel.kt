@@ -118,11 +118,15 @@ class StatsViewModel(
         return usm
             .queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTimeMs, endTimeMs)
             .filter { it.totalTimeInForeground > 0 }
-            .map { stat ->
+            // The system keeps several rollup buckets per package (splits at
+            // bucket boundaries and reboots), so one day can return the same
+            // app more than once. Merge them or apps show up twice.
+            .groupBy { it.packageName }
+            .map { (pkg, stats) ->
                 AppUsageEntry(
-                    packageName = stat.packageName,
-                    appName = resolveAppName(stat.packageName),
-                    totalTimeMs = stat.totalTimeInForeground,
+                    packageName = pkg,
+                    appName = resolveAppName(pkg),
+                    totalTimeMs = stats.sumOf { it.totalTimeInForeground },
                 )
             }.sortedByDescending { it.totalTimeMs }
     }
