@@ -64,13 +64,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.coach_android.data.agentchat.ChatMessage
-import kotlinx.coroutines.flow.collectLatest
+import com.example.coach_android.util.TimeFormatter
 import kotlinx.coroutines.launch
 
 @Composable
 fun ChatScreen(
     viewModel: ChatViewModel,
-    onDismissRequest: () -> Unit,
     // True when hosted inside the app's Scaffold (the Chat tab), which already
     // consumes system-bar insets — padding again would draw dead bands.
     embedded: Boolean = false,
@@ -90,9 +89,6 @@ fun ChatScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        viewModel.dismissRequests.collectLatest { onDismissRequest() }
-    }
 
     LaunchedEffect(state.messages.size, state.messages.lastOrNull()?.content?.length) {
         if (state.messages.isNotEmpty()) {
@@ -133,6 +129,8 @@ fun ChatScreen(
             ChatHeader(
                 connecting = state.connecting,
                 streaming = state.streaming,
+                agentLocked = state.agentLocked,
+                releaseLeftSeconds = state.releaseLeftSeconds,
                 onClear = { confirmClear = true },
             )
 
@@ -218,6 +216,8 @@ fun ChatScreen(
 private fun ChatHeader(
     connecting: Boolean,
     streaming: Boolean,
+    agentLocked: Boolean,
+    releaseLeftSeconds: Int,
     onClear: () -> Unit,
 ) {
     val statusText = when {
@@ -287,6 +287,27 @@ private fun ChatHeader(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+
+            // Live lock state: a grant flips this chip in place of the old
+            // auto-close, so the coach's reply stays on screen.
+            val chipColor =
+                if (agentLocked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+            Surface(
+                shape = MaterialTheme.shapes.small,
+                color = chipColor.copy(alpha = 0.15f),
+            ) {
+                Text(
+                    text =
+                        if (agentLocked) {
+                            "Locked"
+                        } else {
+                            "Released · ${TimeFormatter.formatFocusTime(releaseLeftSeconds)}"
+                        },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = chipColor,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                )
             }
 
             IconButton(onClick = onClear) {

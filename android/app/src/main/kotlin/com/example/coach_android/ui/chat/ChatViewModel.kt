@@ -8,11 +8,8 @@ import com.example.coach_android.data.agentchat.AgentChatService
 import com.example.coach_android.data.agentchat.ChatEvent
 import com.example.coach_android.data.agentchat.ChatMessage
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
@@ -21,6 +18,8 @@ data class ChatUiState(
     val connecting: Boolean = false,
     val streaming: Boolean = false,
     val error: String? = null,
+    val agentLocked: Boolean = true,
+    val releaseLeftSeconds: Int = 0,
 )
 
 class ChatViewModel(
@@ -28,9 +27,6 @@ class ChatViewModel(
 ) : AndroidViewModel(application) {
     private val _state = MutableStateFlow(ChatUiState())
     val state: StateFlow<ChatUiState> = _state.asStateFlow()
-
-    private val _dismissRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val dismissRequests: SharedFlow<Unit> = _dismissRequests.asSharedFlow()
 
     private var forced: Boolean = false
     private var eventsJob: Job? = null
@@ -55,10 +51,15 @@ class ChatViewModel(
         focusJob?.cancel()
         focusJob =
             viewModelScope.launch {
+                // A grant used to auto-dismiss the chat, racing out the coach's
+                // reply. Now it just updates the header's lock chip; leaving is
+                // the user's move.
                 FocusMonitorService.getInstance()?.getMonitorLogic()?.focusData?.collect { data ->
-                    if (forced && !data.isAgentLocked) {
-                        _dismissRequests.tryEmit(Unit)
-                    }
+                    _state.value =
+                        _state.value.copy(
+                            agentLocked = data.isAgentLocked,
+                            releaseLeftSeconds = data.agentReleaseTimeLeft ?: 0,
+                        )
                 }
             }
         chat.connect()

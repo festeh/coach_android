@@ -39,10 +39,7 @@ class ChatActivity : ComponentActivity() {
 
         setContent {
             CoachTheme {
-                ChatScreen(
-                    viewModel = viewModel,
-                    onDismissRequest = { dismiss() },
-                )
+                ChatScreen(viewModel = viewModel)
             }
         }
     }

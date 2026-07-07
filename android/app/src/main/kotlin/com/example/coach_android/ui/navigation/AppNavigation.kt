@@ -149,15 +149,6 @@ fun AppNavigation() {
                 }
                 ChatScreen(
                     viewModel = chatViewModel,
-                    onDismissRequest = {
-                        navController.navigate(Screen.Apps.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
                     embedded = true,
                 )
             }
