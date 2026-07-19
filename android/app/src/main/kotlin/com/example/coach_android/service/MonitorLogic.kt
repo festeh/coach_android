@@ -349,6 +349,10 @@ class MonitorLogic(
         }
     }
 
+    fun takeOverride(reason: String) {
+        webSocketService.sendOverride(reason)
+    }
+
     fun reloadMonitoredPackages() {
         monitoredPackages = prefs.loadMonitoredPackages()
         Log.i(tag, "Reloaded monitored packages: ${monitoredPackages.size} apps")

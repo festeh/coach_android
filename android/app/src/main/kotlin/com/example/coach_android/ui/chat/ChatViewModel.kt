@@ -97,6 +97,17 @@ class ChatViewModel(
         }
     }
 
+    fun takeOverride(reason: String): Result<Unit> {
+        val trimmedReason = reason.trim()
+        if (trimmedReason.isEmpty()) {
+            return Result.failure(IllegalArgumentException("A reason is required"))
+        }
+        val monitorLogic =
+            FocusMonitorService.getInstance()?.getMonitorLogic()
+                ?: return Result.failure(IllegalStateException("Coach service is not available"))
+        return runCatching { monitorLogic.takeOverride(trimmedReason) }
+    }
+
     // The server wipes the thread and replies with an empty history frame,
     // which reduce() folds into a cleared message list.
     fun clear() {

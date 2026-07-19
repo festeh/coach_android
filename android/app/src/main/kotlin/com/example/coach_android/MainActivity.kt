@@ -30,6 +30,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Special-access permissions are changed in Android Settings, outside
+        // our Activity. Reconcile whenever the user returns so monitoring starts
+        // immediately after Usage Access is granted (and stops if it is revoked).
+        FocusMonitorService.getInstance()?.reconcileMonitoringPermission()
+    }
+
     private fun startFocusMonitorService() {
         Log.d(TAG, "Starting FocusMonitorService")
         val intent =

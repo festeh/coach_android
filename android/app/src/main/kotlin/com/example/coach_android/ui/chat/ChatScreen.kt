@@ -36,14 +36,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -77,6 +81,9 @@ fun ChatScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var input by remember { mutableStateOf("") }
     var confirmClear by remember { mutableStateOf(false) }
+    var showOverrideDialog by remember { mutableStateOf(false) }
+    var overrideReason by remember { mutableStateOf("") }
+    var overrideError by remember { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
@@ -115,6 +122,69 @@ fun ChatScreen(
         )
     }
 
+    if (showOverrideDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showOverrideDialog = false
+                overrideReason = ""
+                overrideError = null
+            },
+            title = { Text("Take a 15-minute override?") },
+            text = {
+                Column {
+                    Text("This bypasses the coach. Your reason is recorded in the decision ledger.")
+                    Spacer(Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = overrideReason,
+                        onValueChange = {
+                            overrideReason = it
+                            overrideError = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Reason") },
+                        minLines = 2,
+                        maxLines = 4,
+                        isError = overrideError != null,
+                    )
+                    overrideError?.let { message ->
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = overrideReason.isNotBlank(),
+                    onClick = {
+                        viewModel.takeOverride(overrideReason).fold(
+                            onSuccess = {
+                                showOverrideDialog = false
+                                overrideReason = ""
+                                overrideError = null
+                            },
+                            onFailure = { error ->
+                                overrideError = error.message ?: "Could not take the override"
+                            },
+                        )
+                    },
+                ) { Text("Take override") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showOverrideDialog = false
+                        overrideReason = ""
+                        overrideError = null
+                    },
+                ) { Text("Cancel") }
+            },
+        )
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
@@ -132,6 +202,7 @@ fun ChatScreen(
                 agentLocked = state.agentLocked,
                 releaseLeftSeconds = state.releaseLeftSeconds,
                 onClear = { confirmClear = true },
+                onTakeOverride = { showOverrideDialog = true },
             )
 
             state.error?.let { err ->
@@ -219,7 +290,9 @@ private fun ChatHeader(
     agentLocked: Boolean,
     releaseLeftSeconds: Int,
     onClear: () -> Unit,
+    onTakeOverride: () -> Unit,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
     val statusText = when {
         connecting -> "Connecting…"
         streaming -> "Coach is typing…"
@@ -310,12 +383,39 @@ private fun ChatHeader(
                 )
             }
 
-            IconButton(onClick = onClear) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Clear conversation",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "More options",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Take 15-minute override") },
+                        onClick = {
+                            menuExpanded = false
+                            onTakeOverride()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Clear conversation") },
+                        onClick = {
+                            menuExpanded = false
+                            onClear()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = null,
+                            )
+                        },
+                    )
+                }
             }
         }
     }

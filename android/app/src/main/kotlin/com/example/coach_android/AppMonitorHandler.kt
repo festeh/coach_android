@@ -27,6 +27,14 @@ class AppMonitorHandler(
 
     private val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager?
 
+    fun reconcilePermission() {
+        if (hasUsageStatsPermission()) {
+            startMonitoring()
+        } else {
+            stopMonitoring()
+        }
+    }
+
     fun startMonitoring() {
         if (isMonitoring) {
             Log.d(TAG, "Already monitoring")

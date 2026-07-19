@@ -224,8 +224,10 @@ class WebSocketService(
                     message.forEach { (k, v) -> put(k, kotlinx.serialization.json.JsonPrimitive(v)) }
                 },
             )
-        ws.send(jsonStr)
-        Log.d(tag, "Sent WebSocket message: $jsonStr")
+        if (!ws.send(jsonStr)) {
+            throw IllegalStateException("WebSocket rejected the message")
+        }
+        Log.d(tag, "Sent WebSocket message: type=${message["type"]}")
     }
 
     // Report a blocked app open as a temptation. Best-effort: if the socket is
@@ -242,6 +244,17 @@ class WebSocketService(
         } catch (e: Exception) {
             Log.w(tag, "Failed to send temptation: ${e.message}")
         }
+    }
+
+    fun sendOverride(reason: String) {
+        val trimmedReason = reason.trim()
+        require(trimmedReason.isNotEmpty()) { "An override reason is required" }
+        sendMessage(
+            mapOf(
+                "type" to "override",
+                "message" to trimmedReason,
+            ),
+        )
     }
 
     suspend fun sendFocusCommand(durationMinutes: Int = 0) {

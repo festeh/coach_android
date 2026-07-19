@@ -126,7 +126,7 @@ class FocusMonitorService : Service() {
         startForeground(ServiceNotificationManager.NOTIFICATION_ID, notification)
 
         isRunning.set(true)
-        appMonitor.startMonitoring()
+        appMonitor.reconcilePermission()
 
         Log.d(TAG, "Service started")
     }
@@ -202,4 +202,10 @@ class FocusMonitorService : Service() {
     fun getMonitorLogic(): MonitorLogic? = monitorLogic
 
     fun getAgentChatService(): AgentChatService? = agentChatService
+
+    fun reconcileMonitoringPermission() {
+        if (isRunning.get()) {
+            appMonitor.reconcilePermission()
+        }
+    }
 }
